@@ -6,7 +6,7 @@
 <title>MGT - Online Store</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="manifest" href="manifest.json">
-<script src="install-prompt.js"></script>
+<script src="install-prompt.js" defer></script>
 <meta name="theme-color" content="#164B3B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,27 +16,45 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260919u21">
 </head>
 <body class="has-bottom-nav">
 
 <!-- ============ APP SPLASH LOADER (installed app only) ============ -->
 <div id="pageLoader" hidden>
   <div class="loader-inner">
-    <img src="img/logo.png" alt="MAZI" class="loader-logo">
+    <img src="img/logo-green.png" alt="MAZI" class="loader-logo">
     <div class="loader-dots">
       <span></span><span></span><span></span>
     </div>
   </div>
 </div>
-<script src="loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+<script src="supabase-config.js" defer></script>
+<script src="api.js?v=20260919c" defer></script>
+<script src="loader.js" defer></script>
 
 <!-- ============ NAVBAR ============ -->
 <header class="navbar">
   <div class="navbar-inner">
     <div class="navbar-top">
+      <div class="navbar-currency-wrap" id="navbarCurrencyWrap">
+        <button type="button" class="icon-btn navbar-hamburger-btn" id="navHamburgerBtn" aria-label="Currency" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7.5h11.5m0 0L15 4m3.5 3.5L15 11"/><path d="M17 16.5H5.5m0 0L9 13m-3.5 3.5L9 20"/></svg>
+        </button>
+        <div class="navbar-currency-dropdown" id="navbarCurrencyDropdown">
+          <div class="currency-toggle" role="group" aria-label="Currency">
+            <span class="currency-toggle-thumb" aria-hidden="true"></span>
+            <button type="button" class="currency-toggle-btn active" data-currency="MVR">
+              <img class="cur-icon currency-toggle-icon" src="img/mvr-icon-black.png" alt="MVR">
+              <span>MVR</span>
+            </button>
+            <button type="button" class="currency-toggle-btn" data-currency="USD"><span class="currency-toggle-icon currency-toggle-usd-icon" aria-hidden="true">$</span><span>USD</span></button>
+          </div>
+        </div>
+      </div>
       <a href="#" class="brand">
-        <img src="img/logo.png" alt="MAZI General Trade" class="brand-logo">
+        <img src="img/logo-green.png" alt="MAZI General Trade" class="brand-logo">
       </a>
 
       <div class="navbar-search-row">
@@ -50,24 +68,10 @@
         <button class="icon-btn" id="mobileSearchBtn" aria-label="Search">
           <svg viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
         </button>
-        <button class="icon-btn nav-offers-btn js-offers-btn" id="navOffersBtn" aria-label="Offers">
-          <svg viewBox="0 0 24 24"><path d="M20 12v9H4v-9M2 7h20v5H2V7zm10 0V3H8a2 2 0 000 4h4zm0 0V3h4a2 2 0 010 4h-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-        </button>
-        <a href="viber://chat?number=" class="icon-btn nav-viber-btn" id="navViberBtn" aria-label="Chat with us on Viber" target="_blank" rel="noopener">
-          <img src="img/viber.png" alt="Viber" class="nav-viber-icon">
-        </a>
         <button class="icon-btn js-cart-btn" id="cartBtn" aria-label="Cart">
-          <svg viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
+          <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 1.7h2l5.6 16.1h13.4"/><path d="M4.3 4.4h18.2l-1.4 10.2H7.9"/><path class="cart-grid" d="M6.1 9.5h15.4M10 4.4l1.2 10.2M14.8 4.4v10.2M19.3 4.4l-.9 10.2"/><circle cx="10.7" cy="21.4" r="1.5"/><circle cx="19.6" cy="21.4" r="1.5"/></svg>
           <span class="cart-count js-cart-count" id="cartCount">0</span>
         </button>
-        <div class="currency-toggle" id="navCurrencyToggle" role="group" aria-label="Currency">
-          <span class="currency-toggle-thumb" aria-hidden="true"></span>
-          <button type="button" class="currency-toggle-btn active" data-currency="MVR">
-            <img class="cur-icon currency-toggle-icon" src="img/mvr-icon-black.png" alt="MVR">
-            <span>MVR</span>
-          </button>
-          <button type="button" class="currency-toggle-btn" data-currency="USD">USD</button>
-        </div>
         <button class="login-btn js-login-btn" id="loginBtn" aria-label="Login">
           <svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM4.5 20.25a7.5 7.5 0 0115 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -78,6 +82,16 @@
           </button>
           <div class="profile-dropdown" id="profileDropdown">
             <button type="button" class="js-profile-profile-btn" id="profileProfileBtn">Profile</button>
+            <div class="profile-dropdown-currency">
+              <div class="currency-toggle" role="group" aria-label="Currency">
+                <span class="currency-toggle-thumb" aria-hidden="true"></span>
+                <button type="button" class="currency-toggle-btn active" data-currency="MVR">
+                  <img class="cur-icon currency-toggle-icon" src="img/mvr-icon-black.png" alt="MVR">
+                  <span>MVR</span>
+                </button>
+                <button type="button" class="currency-toggle-btn" data-currency="USD"><span class="currency-toggle-icon currency-toggle-usd-icon" aria-hidden="true">$</span><span>USD</span></button>
+              </div>
+            </div>
             <button type="button" class="js-profile-orders-btn" id="profileOrdersBtn">My Orders</button>
             <button type="button" class="js-profile-logout-btn" id="profileLogoutBtn">Logout</button>
           </div>
@@ -132,6 +146,80 @@
     <section class="hero" id="hero">
       <div class="hero-track" id="heroTrack"></div>
       <div class="hero-dots" id="heroDots"></div>
+    </section>
+
+    <!-- Hero search pill (redesign) — sticks to the top on mobile while scrolling -->
+    <div class="hero-search-sticky" id="heroSearchSticky">
+      <div class="hero-search-bar" id="heroSearchBar" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" class="search-icon"><path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        <span>Search for products, brands, or categories&hellip;</span>
+      </div>
+    </div>
+
+    <!-- Quick category cards (redesign) -->
+    <section class="quick-cats" id="quickCats">
+      <button class="quick-cat-card" data-cat="all">
+        <span class="qc-icon">🛒</span>
+        <span class="qc-label">All Categories</span>
+        <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="quick-cat-card" data-cat="dairy">
+        <span class="qc-icon">🥛</span>
+        <span class="qc-label">Dairy</span>
+        <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="quick-cat-card" data-cat="beverages">
+        <span class="qc-icon">🥤</span>
+        <span class="qc-label">Beverages</span>
+        <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="quick-cat-card" data-cat="household">
+        <span class="qc-icon">🧴</span>
+        <span class="qc-label">Household &amp; Cleaning</span>
+        <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </section>
+
+    <!-- Viber CTA banner (long style — used on web + mobile) -->
+    <div class="viber-cta-banner" id="homeViberCta">
+      <span class="viber-cta-deco viber-cta-deco-1" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="viber-cta-deco viber-cta-deco-2" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div class="viber-cta-icon">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 5C13.5 5 6 11.6 6 21c0 5 2.4 8.8 6 11.2V42l6.8-5.2c1.6.4 3.4.6 5.2.6 10.5 0 18-6.6 18-16S34.5 5 24 5z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><g transform="translate(14.4 11.4) scale(.8)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+      </div>
+      <div class="viber-cta-text">
+        <strong>Chat with us on Viber</strong>
+        <span>Get product info, stock updates and quick support.</span>
+      </div>
+      <a href="viber://chat?number=" target="_blank" rel="noopener" class="viber-cta-btn" id="homeViberCtaBtn">
+        Chat Now
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+
+    <!-- Popular products preview (redesign) -->
+    <section class="popular-products" id="popularProductsSection">
+      <div class="section-head popular-head">
+        <h2>Popular Products</h2>
+        <button class="view-all-link" id="popularViewAllBtn">
+          View All
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="popular-grid" id="popularProductsGrid"></div>
+    </section>
+
+    <!-- Special offers promo banner (redesign) -->
+    <section class="promo-banner" id="promoBanner">
+      <div class="promo-banner-text">
+        <div class="promo-eyebrow">Special Offers</div>
+        <h2>Better products.<br><span>Better business.</span></h2>
+        <p>Great value for your everyday needs.</p>
+        <button class="promo-cta" id="promoShopBtn">
+          Shop Offers
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </section>
 
     <!-- Brands ticker (infinite auto-scroll) -->
@@ -198,12 +286,19 @@
   <div class="footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
-        <img src="img/logo.png" alt="MAZI General Trade" class="footer-logo">
+        <img src="img/logo-white.png" alt="MAZI General Trade" class="footer-logo">
         <p class="footer-tagline">Grocery &amp; convenience wholesale, delivered across Male' and beyond.</p>
-        <a href="viber://chat?number=" class="footer-viber-btn" target="_blank" rel="noopener">
-          <img src="img/viber.png" alt="Viber" class="footer-viber-icon">
-          Chat with us on Viber
-        </a>
+        <div class="footer-socials" aria-label="Social links">
+          <a href="#" class="footer-social-link" aria-label="Facebook" title="Facebook">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.9-5 5v3H6v4h3v4h4v-4h3.2l.8-4H13V9c0-.7.3-1 1-1z" fill="currentColor"/></svg>
+          </a>
+          <a href="#" class="footer-social-link" aria-label="Instagram" title="Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.7" cy="6.5" r="1.1" fill="currentColor"/></svg>
+          </a>
+          <a href="mailto:info@mazitrading.mv" class="footer-social-link" aria-label="Email" title="Email">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
 
       <div class="footer-col">
@@ -292,7 +387,7 @@
       <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Back to store</span>
     </button>
-    <img src="img/logo.png" alt="MAZI General Trade" class="profile-menu-logo">
+    <img src="img/logo-green.png" alt="MAZI General Trade" class="profile-menu-logo">
   </div>
   <div class="profile-menu-body">
     <button type="button" id="pmProfileBtn">
@@ -313,10 +408,14 @@
 </aside>
 
 <!-- ============ MOBILE BOTTOM NAV ============ -->
-<nav class="bottom-nav">
+<nav class="bottom-nav" aria-label="Main">
   <button class="bn-item active" data-action="home">
-    <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 3.2L3 11v10h6.2v-6.4h5.6V21H21V11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     <span>Home</span>
+  </button>
+  <button class="bn-item" data-action="categories">
+    <svg viewBox="0 0 24 24"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <span>Categories</span>
   </button>
   <button class="bn-item" data-action="orders">
     <span class="bn-icon-wrap">
@@ -324,13 +423,6 @@
       <span class="bn-badge js-orders-notif-count" id="bnOrdersCount" hidden>0</span>
     </span>
     <span>Orders</span>
-  </button>
-  <button class="bn-item" data-action="cart">
-    <span class="bn-icon-wrap">
-      <svg viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
-      <span class="bn-badge js-cart-count" id="bnCartCount" hidden>0</span>
-    </span>
-    <span>Cart</span>
   </button>
   <button class="bn-item" data-action="profile">
     <svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM4.5 20.25a7.5 7.5 0 0115 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -344,33 +436,7 @@
 <!-- Order status notifications (glass popups) -->
 <div class="order-notif-stack" id="orderNotifStack" aria-live="polite"></div>
 
-<!-- ============ VIBER CHAT BUBBLE (mobile) ============ -->
-<button class="viber-fab" id="viberFab" aria-label="Chat with us on Viber" aria-haspopup="dialog" aria-expanded="false">
-  <img src="img/viber.png" alt="Viber">
-</button>
-
-<div class="viber-popup-backdrop" id="viberPopupBackdrop"></div>
-<div class="viber-popup" id="viberPopup" role="dialog" aria-modal="true" aria-label="Chat with us on Viber">
-  <div class="viber-popup-card">
-    <button class="viber-popup-close" id="viberPopupClose" aria-label="Close">
-      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
-    <div class="viber-popup-head">
-      <div class="viber-popup-avatar"><img src="img/viber.png" alt="Viber"></div>
-      <div class="viber-popup-headtext">
-        <div class="viber-popup-name">MAZI General Trade</div>
-        <div class="viber-popup-status"><span class="viber-status-dot"></span>Online on Viber</div>
-      </div>
-    </div>
-    <a href="viber://chat?number=" class="viber-popup-cta" target="_blank" rel="noopener">
-      Continue to Viber
-      <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <p class="viber-popup-msg">Got a question about your order, stock, or delivery? Chat with our team directly on Viber — usually replies within minutes.</p>
-  </div>
-</div>
-
-<!-- ============ AUTH MODAL (Sign In — mobile number + OTP, no password) ============ -->
+<!-- ============ AUTH MODAL (free email + password login) ============ -->
 <div class="auth-backdrop" id="authBackdrop"></div>
 <div class="auth-modal" id="authModal">
   <div class="auth-card-wrap">
@@ -383,96 +449,138 @@
     <div class="auth-head">
       <div class="auth-head-row">
         <span class="auth-head-icon">
-          <svg viewBox="0 0 24 24" width="17" height="17" id="authIconMobile"><rect x="7" y="2" width="10" height="20" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 18.2h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          <svg viewBox="0 0 24 24" width="17" height="17" id="authIconKey" hidden><circle cx="8" cy="8" r="4.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11.1 10.9L20 19.8V22h-2.2l-.9-.9v-2h-2v-2h-2l-1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         <h2 id="authTitle">Sign In</h2>
       </div>
-      <p id="authSubtitle">Maldives mobile number</p>
+      <p id="authSubtitle">Sign in with your email</p>
     </div>
 
-    <form id="mobileForm" class="auth-form">
-      <label class="auth-field" id="mobileField">
-        <span>Mobile (+960)</span>
+    <form id="emailAuthForm" class="auth-form">
+      <label class="auth-field" id="emailField">
+        <span>Email address</span>
+        <input type="email" id="authEmailInput" autocomplete="email" placeholder="you@example.com" required>
+        <small class="field-error" id="emailError" hidden>Please enter a valid email address.</small>
+      </label>
+      <label class="auth-field" id="passwordField">
+        <span>Password</span>
+        <div class="auth-password-wrap">
+          <input type="password" id="authPasswordInput" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required>
+          <button type="button" class="auth-eye-btn" id="authPasswordToggle" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18.5 18.5 0 0 1-3.1 3.8"></path><path d="M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6a10.8 10.8 0 0 0 3.4-.5"></path></svg>
+          </button>
+        </div>
+        <small class="field-error" id="passwordError" hidden>Password must be at least 6 characters.</small>
+      </label>
+      <div class="auth-forgot-row" id="authForgotRow">
+        <button type="button" class="auth-forgot-btn" id="authForgotBtn">Forgot password?</button>
+      </div>
+      <label class="auth-field" id="authMobileField" hidden>
+        <span>Mobile number (+960) <strong aria-hidden="true">*</strong></span>
         <div class="auth-mobile-wrap">
           <span class="auth-mobile-prefix">+960</span>
-          <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="7xxxxxx" id="mobileInput" autocomplete="tel-national" required>
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="7xxxxxx" id="authMobileInput" autocomplete="tel-national" required>
         </div>
-        <small class="field-error" id="mobileError" hidden>Please enter a valid 7-digit mobile number.</small>
+        <small class="field-error" id="authMobileError" hidden>Enter a valid 7-digit Maldives number.</small>
       </label>
-      <button type="submit" class="auth-submit-btn">Continue</button>
+      <button type="submit" class="auth-submit-btn" id="emailAuthSubmit">Sign In</button>
       <p class="auth-terms" id="authTerms">
         By continuing, you agree to our <span class="auth-terms-links"><a href="terms.html" target="_blank" rel="noopener">Terms</a> &amp; <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></span>
       </p>
+      <p class="auth-switch"><span id="authSwitchPrompt">New here?</span> <button type="button" id="authModeToggle">Create an account</button></p>
     </form>
 
-    <form id="otpForm" class="auth-form" hidden>
-      <label class="auth-field" id="otpField">
-        <span>6-Digit Code</span>
-        <div class="otp-boxes" id="otpBoxes">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box" autocomplete="one-time-code">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box">
-          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="otp-box">
-        </div>
-        <input type="hidden" id="otpInput">
-        <small class="field-error" id="otpError" hidden>Incorrect code. Please try again.</small>
-      </label>
-      <p class="auth-otp-demo" id="otpDemoHint"></p>
-      <button type="submit" class="auth-submit-btn">Sign In</button>
-      <p class="auth-otp-links">
-        <button type="button" id="otpResendBtn">Resend code</button>
-        <span class="auth-otp-dot">&middot;</span>
-        <button type="button" id="otpBackBtn">Change number</button>
-      </p>
-    </form>
+    <!-- Email confirmation states (check inbox / confirmed / expired) — shown by showAuthVerify() in script.js -->
+    <div class="auth-verify" id="authVerify" data-state="sent" hidden aria-live="polite">
+      <div class="auth-verify-icon" id="authVerifyIcon" aria-hidden="true"></div>
+      <h2 class="auth-verify-title" id="authVerifyTitle">Check your inbox</h2>
+      <p class="auth-verify-text" id="authVerifyText"></p>
+      <button type="button" class="auth-submit-btn auth-verify-primary" id="authVerifyPrimary">Go to Sign In</button>
+      <button type="button" class="auth-verify-resend" id="authVerifyResend">Resend email</button>
+      <p class="auth-verify-status" id="authVerifyStatus" hidden></p>
+      <p class="auth-verify-hint" id="authVerifyHint">Can't find it? Check your Spam or Promotions folder.</p>
+    </div>
+
+    <!-- Forgot password: ask for the email, then showAuthVerify('resetSent') takes over -->
+    <div class="auth-verify auth-panel" id="authForgot" hidden>
+      <div class="auth-verify-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3"/><path d="m16 7 3 3"/><path d="m14 9 2 2"/></svg>
+      </div>
+      <h2 class="auth-verify-title">Forgot password?</h2>
+      <p class="auth-verify-text">Enter your email and we'll send you a link to set a new password.</p>
+      <form class="auth-panel-form" id="authForgotForm" novalidate>
+        <label class="auth-field" id="authForgotField">
+          <span>Email address</span>
+          <input type="email" id="authForgotEmail" autocomplete="email" placeholder="you@example.com" required>
+          <small class="field-error" id="authForgotError" hidden></small>
+        </label>
+        <button type="submit" class="auth-submit-btn" id="authForgotSubmit">Send reset link</button>
+      </form>
+      <button type="button" class="auth-verify-resend" id="authForgotBack">Back to Sign In</button>
+    </div>
+
+    <!-- Set a new password: shown when the shopper opens the link from the reset email -->
+    <div class="auth-verify auth-panel" id="authNewPass" hidden>
+      <div class="auth-verify-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+      </div>
+      <h2 class="auth-verify-title">Set a new password</h2>
+      <p class="auth-verify-text">Choose a new password for your MAZI account.</p>
+      <form class="auth-panel-form" id="authNewPassForm" novalidate>
+        <label class="auth-field" id="authNewPassField">
+          <span>New password</span>
+          <div class="auth-password-wrap">
+            <input type="password" id="authNewPassInput" autocomplete="new-password" minlength="6" placeholder="At least 6 characters" required>
+            <button type="button" class="auth-eye-btn" data-eye-toggle aria-label="Show password">
+              <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18.5 18.5 0 0 1-3.1 3.8"></path><path d="M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6a10.8 10.8 0 0 0 3.4-.5"></path></svg>
+            </button>
+          </div>
+        </label>
+        <label class="auth-field" id="authNewPassConfirmField">
+          <span>Confirm password</span>
+          <div class="auth-password-wrap">
+            <input type="password" id="authNewPassConfirm" autocomplete="new-password" minlength="6" placeholder="Re-enter your password" required>
+            <button type="button" class="auth-eye-btn" data-eye-toggle aria-label="Show password">
+              <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18.5 18.5 0 0 1-3.1 3.8"></path><path d="M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6a10.8 10.8 0 0 0 3.4-.5"></path></svg>
+            </button>
+          </div>
+        </label>
+        <small class="field-error" id="authNewPassError" hidden></small>
+        <button type="submit" class="auth-submit-btn" id="authNewPassSubmit">Update password</button>
+      </form>
+    </div>
 
   </div>
   </div>
   </div>
 </div>
 
-<!-- ============ ONBOARDING MODAL (first login account setup) ============ -->
-<div class="onboard-backdrop" id="onboardBackdrop"></div>
-<div class="onboard-modal" id="onboardModal">
-  <div class="onboard-card">
-    <h2 class="onboard-title" id="onboardTitle">Welcome!</h2>
-    <p class="onboard-sub">We would like to take this moment to guide you through the setup of your first account.</p>
-
-    <form id="onboardForm" class="onboard-form">
-      <label class="auth-field">
-        <span>Account Type</span>
-        <select id="obAccountType">
-          <option value="business">Business</option>
-          <option value="residence">Residence</option>
-        </select>
-      </label>
-
-      <div id="obBusinessFields">
-        <label class="auth-field">
-          <span>Business Type</span>
-          <select id="obBusinessType">
-            <option value="">Select business type</option>
-            <option>Retail Shop</option>
-            <option>Wholesale / Trading</option>
-            <option>Restaurant / Café</option>
-            <option>Guesthouse / Hotel</option>
-            <option>Other</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="auth-field">
-        <span>City/Island</span>
-        <select id="obCity">
-          <option value="">Select city/island</option>
-        </select>
-      </label>
-
-      <button type="submit" class="onboard-submit-btn">Submit</button>
-    </form>
+<!-- ============ LOGIN SUCCESS ANIMATION ============ -->
+<div class="login-success" id="loginSuccess" role="status" aria-live="polite" aria-hidden="true">
+  <div class="ls-backdrop"></div>
+  <div class="ls-card">
+    <div class="ls-badge">
+      <span class="ls-pulse ls-pulse-1"></span>
+      <span class="ls-pulse ls-pulse-2"></span>
+      <div class="ls-particles" id="lsParticles"></div>
+      <svg class="ls-svg" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="lsGrad" x1="14" y1="10" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#3FA57F"/>
+            <stop offset="1" stop-color="#164B3B"/>
+          </linearGradient>
+        </defs>
+        <circle class="ls-disc" cx="48" cy="48" r="37" fill="url(#lsGrad)"/>
+        <circle class="ls-ring" cx="48" cy="48" r="44" pathLength="1"/>
+        <path class="ls-tick" d="M32 49.5l11.2 11.2L65 38" pathLength="1"/>
+      </svg>
+    </div>
+    <h2 class="ls-title">Login successful</h2>
+    <p class="ls-sub" id="lsSub">Welcome back!</p>
+    <div class="ls-progress" aria-hidden="true"><span></span></div>
   </div>
 </div>
 
@@ -698,7 +806,7 @@
     </button>
     <div class="nav-actions">
       <button class="icon-btn js-cart-btn" aria-label="Cart">
-        <svg viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
+        <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 1.7h2l5.6 16.1h13.4"/><path d="M4.3 4.4h18.2l-1.4 10.2H7.9"/><path class="cart-grid" d="M6.1 9.5h15.4M10 4.4l1.2 10.2M14.8 4.4v10.2M19.3 4.4l-.9 10.2"/><circle cx="10.7" cy="21.4" r="1.5"/><circle cx="19.6" cy="21.4" r="1.5"/></svg>
         <span class="cart-count js-cart-count" hidden>0</span>
       </button>
       <button class="login-btn js-login-btn" aria-label="Login">
@@ -753,9 +861,10 @@
 
       <div class="auth-field">
         <span>Preferred Currency</span>
-        <div class="pv-currency-toggle" id="pvCurrencyToggle">
-          <button type="button" class="pv-currency-btn active" data-currency="MVR"><img class="cur-icon" src="img/mvr-icon-black.png" alt="MVR"></button>
-          <button type="button" class="pv-currency-btn" data-currency="USD">USD</button>
+        <div class="currency-toggle pv-currency-toggle" id="pvCurrencyToggle" role="group" aria-label="Currency">
+          <span class="currency-toggle-thumb" aria-hidden="true"></span>
+          <button type="button" class="currency-toggle-btn pv-currency-btn active" data-currency="MVR"><img class="cur-icon currency-toggle-icon" src="img/mvr-icon-black.png" alt="MVR"><span>MVR</span></button>
+          <button type="button" class="currency-toggle-btn pv-currency-btn" data-currency="USD"><span class="currency-toggle-icon currency-toggle-usd-icon" aria-hidden="true">$</span><span>USD</span></button>
         </div>
       </div>
 
@@ -795,7 +904,7 @@
     </button>
     <div class="nav-actions">
       <button class="icon-btn js-cart-btn" aria-label="Cart">
-        <svg viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
+        <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 1.7h2l5.6 16.1h13.4"/><path d="M4.3 4.4h18.2l-1.4 10.2H7.9"/><path class="cart-grid" d="M6.1 9.5h15.4M10 4.4l1.2 10.2M14.8 4.4v10.2M19.3 4.4l-.9 10.2"/><circle cx="10.7" cy="21.4" r="1.5"/><circle cx="19.6" cy="21.4" r="1.5"/></svg>
         <span class="cart-count js-cart-count" hidden>0</span>
       </button>
       <button class="login-btn js-login-btn" aria-label="Login">
@@ -845,7 +954,7 @@
     </button>
     <div class="nav-actions">
       <button class="icon-btn js-cart-btn" aria-label="Cart">
-        <svg viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
+        <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 1.7h2l5.6 16.1h13.4"/><path d="M4.3 4.4h18.2l-1.4 10.2H7.9"/><path class="cart-grid" d="M6.1 9.5h15.4M10 4.4l1.2 10.2M14.8 4.4v10.2M19.3 4.4l-.9 10.2"/><circle cx="10.7" cy="21.4" r="1.5"/><circle cx="19.6" cy="21.4" r="1.5"/></svg>
         <span class="cart-count js-cart-count" hidden>0</span>
       </button>
       <button class="login-btn js-login-btn" aria-label="Login">
@@ -888,7 +997,7 @@
   </div>
 </div>
 
-<script src="page-transitions.js"></script>
-<script src="script.js"></script>
+<script src="page-transitions.js" defer></script>
+<script src="script.js?v=20260919q" defer></script>
 </body>
 </html>

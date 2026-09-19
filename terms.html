@@ -8,14 +8,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260919u11">
 </head>
 <body>
 
 <header class="legal-header">
   <div class="legal-header-inner">
     <div class="legal-header-top" id="legalHeaderTop">
-      <a href="index.html" class="legal-back">
+      <a href="index.html" class="legal-back" aria-label="Back to store">
         <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Back to store</span>
       </a>
@@ -113,12 +113,13 @@
   <div class="footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
-        <img src="img/logo.png" alt="MAZI General Trade" class="footer-logo">
+        <img src="img/logo-white.png" alt="MAZI General Trade" class="footer-logo">
         <p class="footer-tagline">Grocery &amp; convenience wholesale, delivered across Male' and beyond.</p>
-        <a href="viber://chat?number=" class="footer-viber-btn" target="_blank" rel="noopener">
-          <img src="img/viber.png" alt="Viber" class="footer-viber-icon">
-          Chat with us on Viber
-        </a>
+        <div class="footer-socials" aria-label="Social links">
+          <a href="#" class="footer-social-link" aria-label="Facebook" title="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.9-5 5v3H6v4h3v4h4v-4h3.2l.8-4H13V9c0-.7.3-1 1-1z" fill="currentColor"/></svg></a>
+          <a href="#" class="footer-social-link" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.7" cy="6.5" r="1.1" fill="currentColor"/></svg></a>
+          <a href="mailto:info@mazitrading.mv" class="footer-social-link" aria-label="Email" title="Email"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
       </div>
 
       <div class="footer-col">
@@ -167,7 +168,7 @@
   </div>
 </footer>
 
-<script src="page-transitions.js"></script>
+<script src="page-transitions.js" defer></script>
 
 </body>
 </html>

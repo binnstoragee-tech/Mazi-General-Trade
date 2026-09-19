@@ -2,6 +2,39 @@
    MAZI GENERAL TRADE — store logic
 ============================================ */
 
+/* ---------- Supabase client (free email/password auth) ----------
+   Reads window.SUPABASE_URL / window.SUPABASE_ANON_KEY from
+   supabase-config.js. Falls back to null if not configured yet, so the
+   rest of the site still loads (auth just won't work until it's filled in). */
+var supabaseClient = null;
+(function initSupabase(){
+  if (typeof window.supabase === 'undefined') return; // CDN script didn't load
+  var url = window.SUPABASE_URL;
+  var key = window.SUPABASE_ANON_KEY;
+  if (!url || !key || url.indexOf('PASTE_YOUR') === 0 || key.indexOf('PASTE_YOUR') === 0) {
+    console.warn('[MAZI] Supabase not configured yet — edit supabase-config.js with your project URL + anon key.');
+    return;
+  }
+  supabaseClient = window.supabase.createClient(url, key);
+})();
+
+// Collapses bursts of resize events (window drag-resize, mobile keyboard
+// open/close, orientation change) down to one call per animation frame
+// instead of running the handler dozens of times a second — this is what
+// was making layout math (thumb/carousel/nav positioning) feel janky on
+// lower-end phones.
+function rafDebounce(fn){
+  let scheduled = false;
+  return function (...args){
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(()=>{
+      scheduled = false;
+      fn.apply(this, args);
+    });
+  };
+}
+
 /* ---------- Category data ---------- */
 const CATEGORIES = [
   { id: 'dairy',        name: 'Dairy' },
@@ -20,99 +53,57 @@ const CATEGORIES = [
 
 /* ---------- Product data ---------- */
 const PRODUCTS = [
-  { id:'MZ001', name:'Coast Full Cream Milk Powder 400g', cat:'dairy', icon:'🥛', pack:'Carton', unit:'24 x 400g', price:1180, stock:'out' },
-  { id:'MZ002', name:'Dutch Farm UHT Milk 1L', cat:'dairy', icon:'🥛', pack:'Carton', unit:'12 x 1L', price:640, stock:'in' },
-  { id:'MZ003', name:'Golden Churn Butter 200g', cat:'dairy', icon:'🧈', pack:'Box', unit:'24 x 200g', price:1450, stock:'in' },
-  { id:'MZ004', name:'Cimory Yogurt Drink Strawberry 125ml', cat:'dairy', icon:'🍓', pack:'Carton', unit:'40 x 125ml', price:160, stock:'low' },
-  { id:'MZ005', name:'Ceylon Breakfast Tea 100 Bags', cat:'tea', icon:'🍵', pack:'Box', unit:'12 x 100bags', price:920, stock:'in' },
-  { id:'MZ006', name:'Green Tea Classic 25 Bags', cat:'tea', icon:'🍃', pack:'Box', unit:'24 x 25bags', price:540, stock:'in' },
-  { id:'MZ007', name:'Nescafe Classic Instant Coffee 200g', cat:'coffee', icon:'☕', pack:'Carton', unit:'12 x 200g', price:1980, stock:'low' },
-  { id:'MZ008', name:'3-in-1 Instant Coffee Mix 20g', cat:'coffee', icon:'☕', pack:'Box', unit:'30 x 20g', price:310, stock:'in' },
-  { id:'MZ009', name:'Sparkling Orange Soda 330ml', cat:'beverages', icon:'🥤', pack:'Carton', unit:'24 x 330ml', price:480, stock:'in' },
-  { id:'MZ010', name:'Tropical Fruit Juice 1L', cat:'beverages', icon:'🧃', pack:'Carton', unit:'12 x 1L', price:660, stock:'in' },
-  { id:'MZ011', name:'Mineral Water 500ml', cat:'beverages', icon:'💧', pack:'Carton', unit:'24 x 500ml', price:220, stock:'in' },
-  { id:'MZ012', name:'Premium Medjool Dates 500g', cat:'dried-fruits', icon:'🌰', pack:'Box', unit:'10 x 500g', price:2100, stock:'low' },
-  { id:'MZ013', name:'Mixed Dried Fruits 250g', cat:'dried-fruits', icon:'🍇', pack:'Box', unit:'20 x 250g', price:1350, stock:'in' },
-  { id:'MZ014', name:'Basmati Rice 5kg', cat:'grains', icon:'🌾', pack:'Bag', unit:'1 x 5kg', price:340, stock:'in' },
-  { id:'MZ015', name:'Rolled Oats 500g', cat:'grains', icon:'🥣', pack:'Carton', unit:'12 x 500g', price:980, stock:'in' },
-  { id:'MZ016', name:'Peanut Butter Crunchy 340g', cat:'grains', icon:'🥜', pack:'Carton', unit:'12 x 340g', price:1120, stock:'low' },
-  { id:'MZ017', name:'Overload Chocolate Bar 40g', cat:'confectionary', icon:'🍫', pack:'Carton', unit:'24 x 40g', price:790, stock:'low' },
-  { id:'MZ018', name:'Butter Cream Crackers 300g', cat:'confectionary', icon:'🍪', pack:'Carton', unit:'12 x 300g', price:860, stock:'in' },
-  { id:'MZ019', name:'Assorted Gummy Candy 100g', cat:'confectionary', icon:'🍬', pack:'Box', unit:'30 x 100g', price:610, stock:'in' },
-  { id:'MZ020', name:'Chicken Chunk in Sunflower Oil 185g', cat:'canned', icon:'🍗', pack:'Carton', unit:'24 x 185g', price:1750, stock:'in' },
-  { id:'MZ021', name:'Tropical Fruit Cocktail 420g', cat:'canned', icon:'🍍', pack:'Carton', unit:'24 x 420g', price:850, stock:'low' },
-  { id:'MZ022', name:'Corned Beef 340g', cat:'canned', icon:'🥫', pack:'Carton', unit:'24 x 340g', price:1980, stock:'in' },
-  { id:'MZ023', name:'All-Purpose Baking Flour 1kg', cat:'cooking', icon:'🌾', pack:'Bag', unit:'1 x 1kg', price:75, stock:'in' },
-  { id:'MZ024', name:'Fine Granulated Sugar 1kg', cat:'cooking', icon:'🧂', pack:'Bag', unit:'1 x 1kg', price:60, stock:'in' },
-  { id:'MZ025', name:'Baking Powder 100g', cat:'cooking', icon:'🧁', pack:'Box', unit:'24 x 100g', price:540, stock:'in' },
-  { id:'MZ026', name:'Strawberry Body Wash 400ml', cat:'personal-care', icon:'🧴', pack:'Carton', unit:'12 x 400ml', price:960, stock:'in' },
-  { id:'MZ027', name:'Refreshing Hand Sanitizer 250ml', cat:'personal-care', icon:'🧼', pack:'Carton', unit:'24 x 250ml', price:1080, stock:'in' },
-  { id:'MZ028', name:'Herbal Shampoo 350ml', cat:'personal-care', icon:'🧴', pack:'Carton', unit:'12 x 350ml', price:890, stock:'low' },
-  { id:'MZ029', name:'White Vinegar 750ml', cat:'sauces', icon:'🍶', pack:'Carton', unit:'12 x 750ml', price:420, stock:'in' },
-  { id:'MZ030', name:'BBQ Flavour Sauce 340g', cat:'sauces', icon:'🍯', pack:'Carton', unit:'24 x 340g', price:920, stock:'in' },
-  { id:'MZ031', name:'Pure Sunflower Cooking Oil 5L', cat:'sauces', icon:'🛢️', pack:'Carton', unit:'4 x 5L', price:1450, stock:'low' },
-  { id:'MZ032', name:'Multi-Surface Cleaning Liquid 1L', cat:'household', icon:'🧽', pack:'Carton', unit:'12 x 1L', price:780, stock:'in' },
-  { id:'MZ033', name:'Glue Stick 21g', cat:'household', icon:'🖇️', pack:'Box', unit:'20 pcs', price:140, stock:'low' },
-  { id:'MZ034', name:'Dishwashing Liquid Lemon 900ml', cat:'household', icon:'🧴', pack:'Carton', unit:'12 x 900ml', price:850, stock:'in' },
+  /* Daiwa, Sanzoft, Carefor, R-Fresh only. id = backend code, name = backend name. */
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:1350, stock:'in' },
+  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
+  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
+  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
+  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
+  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
+  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
+  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
+  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in' },
+  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
+  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
+  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
+  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
+  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
+  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in' },
+  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
+  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
+  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
+  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
+  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
+  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
+  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
 
-  /* --- Daiwa --- */
-  { id:'MZ035', name:'Daiwa Dishwashing Liquid Lemon 3.6L', cat:'household', icon:'🧴', pack:'Carton', unit:'4 x 3.6L', price:1350, stock:'in' },
-  { id:'MZ036', name:'Daiwa Dishwashing Liquid Concentrate & Hygiene 3.6L', cat:'household', icon:'🧴', pack:'Carton', unit:'4 x 3.6L', price:1450, stock:'in' },
-  { id:'MZ037', name:'Daiwa Dishwashing Liquid Mint 3.8L', cat:'household', icon:'🧴', pack:'Carton', unit:'12 x 3.8L', price:3200, stock:'in' },
-  { id:'MZ038', name:'Daiwa Laundry Liquid Detergent 3.5L', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.5L', price:1550, stock:'in' },
-  { id:'MZ039', name:'Daiwa Fabric Softener 3.5L', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.5L', price:1450, stock:'in' },
-  { id:'MZ040', name:'Daiwa Powder Detergent 5kg', cat:'household', icon:'📦', pack:'Carton', unit:'4 x 5kg', price:1680, stock:'in' },
-  { id:'MZ041', name:'Daiwa Liquid Hand Soap 3.5L', cat:'household', icon:'🧼', pack:'Carton', unit:'4 x 3.5L', price:1250, stock:'in' },
-  { id:'MZ042', name:'Daiwa Dust Collector Liquid 3.5L', cat:'household', icon:'🧽', pack:'Carton', unit:'4 x 3.5L', price:1350, stock:'in' },
-  { id:'MZ043', name:'Daiwa Glass Cleaner 3.5L', cat:'household', icon:'🪟', pack:'Carton', unit:'4 x 3.5L', price:1350, stock:'in' },
-  { id:'MZ044', name:'Daiwa Daily Gloss Liquid 3.5L', cat:'household', icon:'✨', pack:'Carton', unit:'4 x 3.5L', price:1350, stock:'in' },
-  { id:'MZ045', name:'Daiwa Turbo Toilet Cleaner 900ml - White', cat:'household', icon:'🚽', pack:'Carton', unit:'12 x 900ml', price:1450, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-White.jpg' },
-  { id:'MZ074', name:'Daiwa Turbo Toilet Cleaner 900ml - Pink', cat:'household', icon:'🚽', pack:'Carton', unit:'12 x 900ml', price:1450, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Pink.jpg' },
-  { id:'MZ075', name:'Daiwa Turbo Toilet Cleaner 900ml - Purple', cat:'household', icon:'🚽', pack:'Carton', unit:'12 x 900ml', price:1450, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Purple.jpg' },
-  { id:'MZ046', name:'Daiwa Drain Unblocker 1L', cat:'household', icon:'🚰', pack:'Carton', unit:'12 x 1L', price:1780, stock:'in', img:'img/household&cleaning/Daiwa Drain Unblocker 1000 ml.jpg' },
-  { id:'MZ047', name:'Daiwa Disinfectant Deodorizer 3.5L', cat:'household', icon:'🧴', pack:'Carton', unit:'4 x 3.5L', price:1350, stock:'in' },
-  { id:'MZ048', name:'Daiwa Floor Cleaner 3.8L (Floral Mist/Lemon/Aqua Blue/Lavender)', cat:'household', icon:'🧹', pack:'Carton', unit:'4 x 3.8L', price:1550, stock:'in' },
-  { id:'MZ073', name:'Daiwa Floor Polishing Wax 1L', cat:'household', icon:'✨', pack:'Carton', unit:'12 x 1L', price:850, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 1000 ml.jpg' },
-  { id:'MZ049', name:'Daiwa Floor Polishing Wax 3.5L', cat:'household', icon:'✨', pack:'Carton', unit:'4 x 3.5L', price:1550, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 3500 ml.jpg' },
-  { id:'MZ050', name:'Daiwa Hygiene Multi-Use Disinfectant 3.5L', cat:'household', icon:'🧴', pack:'Carton', unit:'4 x 3.5L', price:1450, stock:'in' },
-
-  /* --- Sanzoft --- */
-  { id:'MZ051', name:'Sanzoft Laundry Liquid Detergent 5L - Pink Rose Scent', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 5L', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
-  { id:'MZ081', name:'Sanzoft Laundry Liquid Detergent 5L - Violet Scent', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 5L', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
-  { id:'MZ052', name:'Sanzoft Liquid Detergent 5L (Mystical Perfume)', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 5L', price:1980, stock:'in' },
-  { id:'MZ053', name:'Sanzoft Fabric Softener 3.8L - Sunny Sweet', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.8L', price:1450, stock:'in' },
-  { id:'MZ078', name:'Sanzoft Fabric Softener 3.8L - Lovely Pink', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.8L', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
-  { id:'MZ079', name:'Sanzoft Fabric Softener 3.8L - Sense of Violet', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.8L', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
-  { id:'MZ080', name:'Sanzoft Fabric Softener 3.8L - Softly Touch', cat:'household', icon:'🧺', pack:'Carton', unit:'4 x 3.8L', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
-  { id:'MZ054', name:'Sanzoft Fabric Sensation Spray 270ml (Lavish Pink/Elegant Violet/Deep Blue Cotton)', cat:'household', icon:'🌸', pack:'Carton', unit:'12 x 270ml', price:1080, stock:'in' },
-
-  /* --- Pinto --- */
-  { id:'MZ055', name:'Pinto Click Dishwashing Liquid 750ml (Lemon/Kiwi/Pomelo/Passion Fruit)', cat:'household', icon:'🧴', pack:'Carton', unit:'12 x 750ml', price:980, stock:'in' },
-  { id:'MZ056', name:'Pinto Click Dishwashing Liquid Pure & Care 750ml', cat:'household', icon:'🧴', pack:'Carton', unit:'12 x 750ml', price:980, stock:'in' },
-
-  /* --- R-Fresh --- */
-  { id:'MZ057', name:'R-Fresh Air Freshener Gel 180g - Jasmine', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
-  { id:'MZ069', name:'R-Fresh Air Freshener Gel 180g - Lavender', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
-  { id:'MZ070', name:'R-Fresh Air Freshener Gel 180g - Orange', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in' },
-  { id:'MZ071', name:'R-Fresh Air Freshener Gel 180g - Lemon', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
-  { id:'MZ072', name:'R-Fresh Air Freshener Gel 180g - Lily', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
-
-  /* --- Carefor --- */
-  { id:'MZ058', name:'Carefor Air Freshener Gel 180g - Rose', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
-  { id:'MZ076', name:'Carefor Air Freshener Gel 180g - Lemon Grass', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
-  { id:'MZ077', name:'Carefor Air Freshener Gel 180g - Coffee', cat:'household', icon:'🌸', pack:'Carton', unit:'24 x 180g', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
-
-  /* --- Ninja (car care) --- */
-  { id:'MZ059', name:'Ninja Car Wash Clean & Clear 1L', cat:'household', icon:'🚗', pack:'Carton', unit:'12 x 1L', price:1450, stock:'in' },
-  { id:'MZ060', name:'Ninja Concentrated Car Wash 1L', cat:'household', icon:'🚗', pack:'Carton', unit:'12 x 1L', price:1650, stock:'in' },
-  { id:'MZ061', name:'Ninja Leather Restorer Shine & Protect 400ml', cat:'household', icon:'🛋️', pack:'Carton', unit:'12 x 400ml', price:1180, stock:'in' },
-  { id:'MZ062', name:'Ninja Quick Wax Shine & Protect 400ml', cat:'household', icon:'✨', pack:'Carton', unit:'12 x 400ml', price:1180, stock:'in' },
-  { id:'MZ063', name:'Ninja Paste Wax 150g', cat:'household', icon:'🪞', pack:'Carton', unit:'24 x 150g', price:1450, stock:'in' },
-  { id:'MZ064', name:'Ninja Ultra Gloss Spray Wax 400ml', cat:'household', icon:'✨', pack:'Carton', unit:'12 x 400ml', price:1180, stock:'in' },
-  { id:'MZ065', name:'Ninja Tire Shine 400ml', cat:'household', icon:'🛞', pack:'Carton', unit:'12 x 400ml', price:1080, stock:'in' },
-  { id:'MZ066', name:'Ninja Black Tires Shine & Protect Spray 510ml', cat:'household', icon:'🛞', pack:'Carton', unit:'12 x 510ml', price:1180, stock:'in' },
-  { id:'MZ067', name:'Ninja Automotive Multi Purpose Spray 200ml', cat:'household', icon:'🔧', pack:'Carton', unit:'24 x 200ml', price:1580, stock:'in' },
-  { id:'MZ068', name:'Ninja Anti Rat Spray 250ml', cat:'household', icon:'🐭', pack:'Carton', unit:'24 x 250ml', price:1980, stock:'in' },
+  /* --- NO PRICE YET (hidden). When the price is known: set price, remove the leading // --- */
+  // { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  // { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  // { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
 ];
 
 /* ---------- Hero slides ---------- */
@@ -236,6 +227,14 @@ function fmtCur(n, cur){
 // currency — falls back to the live toggle.
 const fmtMvr = n => fmtCur(n, getCurrency());
 const $ = sel => document.querySelector(sel);
+// Escapes user-entered text before it's dropped into an innerHTML template
+// (search terms, delivery address/notes, etc.) so someone can't get a
+// <script>/<img onerror> payload to execute by typing it into a form field.
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
 function syncCurrencyToggleUI(){
@@ -257,13 +256,14 @@ function positionCurrencyThumbs(){
     thumb.style.width = activeBtn.offsetWidth + 'px';
   });
 }
-window.addEventListener('resize', positionCurrencyThumbs);
+window.addEventListener('resize', rafDebounce(positionCurrencyThumbs));
 // Re-renders whatever price displays are currently on screen after the
 // currency toggle changes. Past orders/receipts are intentionally left
 // untouched here — they stay in whichever currency they were placed in
 // (order.currency), not the live toggle.
 function refreshVisibleCurrency(){
   renderProducts();
+  renderPopularProducts();
   updateCartUI();
   if ($('#productView') && $('#productView').classList.contains('open') && state.currentProductId != null){
     const p = PRODUCTS.find(p=>p.id===state.currentProductId);
@@ -286,9 +286,25 @@ function saveRecentSearches(){
 function getRegisteredAccounts(){
   return JSON.parse(localStorage.getItem('mazi_accounts') || '[]');
 }
-function saveRegisteredAccount(mobile){
+function saveRegisteredAccount(mobile, name){
   const accounts = getRegisteredAccounts();
-  accounts.push({ mobile });
+  accounts.push({ mobile, name: name || '' });
+  localStorage.setItem('mazi_accounts', JSON.stringify(accounts));
+}
+function findRegisteredAccount(mobile){
+  return getRegisteredAccounts().find(a => a.mobile === mobile) || null;
+}
+// Called whenever the person edits their name (profile page) so it's
+// remembered for next time they sign in with this number — otherwise every
+// sign-in would reset back to the generic "Account" placeholder.
+function updateRegisteredAccountName(mobile, name){
+  const accounts = getRegisteredAccounts();
+  const idx = accounts.findIndex(a => a.mobile === mobile);
+  if (idx === -1){
+    accounts.push({ mobile, name: name || '' });
+  } else {
+    accounts[idx] = { ...accounts[idx], name: name || '' };
+  }
   localStorage.setItem('mazi_accounts', JSON.stringify(accounts));
 }
 function clearMobileError(){
@@ -296,121 +312,407 @@ function clearMobileError(){
   $('#mobileError').hidden = true;
 }
 
-/* ============ Sign in via mobile number + OTP (demo — no real SMS sent) ============ */
-let pendingMobile = null; // full mobile string, e.g. "+9607770010"
-let currentOtpCode = null;
-function generateOtpCode(){
-  return String(Math.floor(100000 + Math.random() * 900000));
+/* ============ Free email + password authentication ============ */
+let authMode = 'signin';
+let authRecoveryPending = false; // true while the "set a new password" panel is open
+
+/* ---- 60-second cooldown after a rate-limit ("Too many attempts") ----
+   The limit itself is enforced by Supabase on the server; we can't lift it
+   early. What we do here is stop the shopper from hammering the button:
+   the button turns into a live "Try again in 42s" countdown, and the time
+   is stored so it survives closing the modal or refreshing the page. */
+const AUTH_COOLDOWN_SECONDS = 60;
+function createCooldown(storageKey, render){
+  let timer = null;
+  const cd = {
+    left(){
+      let until = 0;
+      try{ until = Number(localStorage.getItem(storageKey)) || 0; }catch(e){}
+      return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+    },
+    start(seconds){
+      try{ localStorage.setItem(storageKey, String(Date.now() + seconds * 1000)); }catch(e){}
+      cd.resume();
+    },
+    resume(){
+      clearInterval(timer);
+      render(cd.left());
+      if (cd.left() <= 0) return;
+      timer = setInterval(()=>{
+        const left = cd.left();
+        render(left);
+        if (left <= 0) clearInterval(timer);
+      }, 1000);
+    }
+  };
+  return cd;
 }
-function maskMobile(mobile){
-  if (mobile.length <= 4) return mobile;
-  return mobile.slice(0, 2) + '•'.repeat(Math.max(0, mobile.length - 4)) + mobile.slice(-2);
+let authRateLimitMsgShown = false;
+const authCooldown = createCooldown('mazi_auth_cooldown_until', left=>{
+  refreshAuthSubmitLabel();
+  if (left <= 0 && authRateLimitMsgShown){ authRateLimitMsgShown = false; clearAuthErrors(); }
+});
+const resetCooldown = createCooldown('mazi_reset_cooldown_until', left=>{
+  const btn = $('#authForgotSubmit');
+  if (!btn) return;
+  btn.disabled = left > 0;
+  btn.classList.toggle('is-cooldown', left > 0);
+  btn.textContent = left > 0 ? `Try again in ${left}s` : 'Send reset link';
+});
+// Single place that decides what the Sign In / Create Account button says.
+function refreshAuthSubmitLabel(){
+  const btn = $('#emailAuthSubmit');
+  if (!btn) return;
+  const left = authCooldown.left();
+  btn.disabled = left > 0;
+  btn.classList.toggle('is-cooldown', left > 0);
+  btn.textContent = left > 0
+    ? `Try again in ${left}s`
+    : (authMode === 'signup' ? 'Create Account' : 'Sign In');
+}
+function clearAuthErrors(){
+  ['emailField', 'passwordField', 'authMobileField'].forEach(id => $(`#${id}`)?.classList.remove('has-error'));
+  ['emailError', 'passwordError', 'authMobileError'].forEach(id => { const el = $(`#${id}`); if (el) el.hidden = true; });
+}
+function setAuthMode(mode){
+  authMode = mode === 'signup' ? 'signup' : 'signin';
+  const isSignup = authMode === 'signup';
+  $('#authTitle').textContent = isSignup ? 'Create Account' : 'Sign In';
+  $('#authSubtitle').textContent = isSignup ? 'Free email and password account' : 'Sign in with your email';
+  refreshAuthSubmitLabel();
+  $('#authForgotRow').hidden = isSignup; // "Forgot password?" only makes sense on Sign In
+  $('#authMobileField').hidden = !isSignup;
+  $('#authMobileInput').required = isSignup;
+  $('#authPasswordInput').autocomplete = isSignup ? 'new-password' : 'current-password';
+  $('#authSwitchPrompt').textContent = isSignup ? 'Already have an account?' : 'New here?';
+  $('#authModeToggle').textContent = isSignup ? 'Sign in' : 'Create an account';
+  clearAuthErrors();
 }
 function showMobileStep(){
-  const authScrollEl = document.querySelector('.auth-card-scroll');
-  const authStartHeight = authScrollEl ? authScrollEl.offsetHeight : null;
-  pendingMobile = null;
-  currentOtpCode = null;
-  clearMobileError();
-  $('#mobileInput').value = '';
-  $('#otpForm').hidden = true;
-  $('#mobileForm').hidden = false;
-  $('#authIconMobile').hidden = false;
-  $('#authIconKey').hidden = true;
-  $('#authTitle').textContent = 'Sign In';
-  $('#authSubtitle').textContent = 'Maldives mobile number';
-  if (authScrollEl && authStartHeight !== null) animateAuthCardHeight(authScrollEl, authStartHeight);
+  hideAuthVerify();
+  setAuthMode('signin');
+  $('#authEmailInput').value = '';
+  $('#authPasswordInput').value = '';
+  $('#authPasswordInput').type = 'password';
+  $('#authPasswordToggle').classList.remove('showing');
+  $('#authPasswordToggle').setAttribute('aria-label', 'Show password');
+  $('#authMobileInput').value = '';
 }
-function showOtpStep(mobile){
-  const authScrollEl = document.querySelector('.auth-card-scroll');
-  const authStartHeight = authScrollEl ? authScrollEl.offsetHeight : null;
-  pendingMobile = mobile;
-  currentOtpCode = generateOtpCode();
-  $('#mobileForm').hidden = true;
-  $('#otpForm').hidden = false;
-  $('#authIconMobile').hidden = true;
-  $('#authIconKey').hidden = false;
-  $('#authTitle').textContent = 'Enter OTP';
-  $('#authSubtitle').textContent = mobile;
-  $('#otpDemoHint').textContent = `Demo mode — no SMS is actually sent. Your code is: ${currentOtpCode}`;
-  resetOtpBoxes();
-  if (authScrollEl && authStartHeight !== null) animateAuthCardHeight(authScrollEl, authStartHeight);
+function showAuthError(message, fieldId){
+  const field = fieldId ? $(`#${fieldId}`) : null;
+  if (field) field.classList.add('has-error');
+  const error = fieldId === 'emailField' ? $('#emailError') : fieldId === 'passwordField' ? $('#passwordError') : $('#authMobileError');
+  if (error){ error.textContent = message; error.hidden = false; }
+}
+function applyAuthenticatedSession(result, opts){
+  const wasSignup = authMode === 'signup'; // closeLogin() resets the mode, so grab it first
+  const profile = result.profile || {};
+  const user = result.user || {};
+  const name = profile.name || user.user_metadata?.name || 'Account';
+  setSession({
+    name,
+    firstName: name,
+    lastName: profile.last_name || '',
+    email: profile.email || user.email || '',
+    mobile: profile.mobile || user.user_metadata?.mobile || '',
+  });
+  closeLogin();
+  if (!(opts && opts.skipSuccess)) showLoginSuccess(name, wasSignup);
 }
 
-/* ============ 6-box OTP input: auto-advance, backspace, paste, and a
-   little pop/shake animation feedback ============ */
-function getOtpBoxes(){
-  return Array.from(document.querySelectorAll('#otpBoxes .otp-box'));
+/* ============ Email confirmation panel (lives inside the auth modal) ============
+   States: 'sent' (just signed up), 'unconfirmed' (tried to sign in before
+   confirming), 'confirmed' (came back from the email link), 'expired'. */
+const AUTH_VERIFY_ICONS = {
+  mail:  '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.6v.01"/></svg>'
+};
+const AUTH_VERIFY_COPY = {
+  sent:        { icon:'mail',  title:'Check your inbox',   text:'We sent a confirmation link to {email}. Tap it to activate your account, then come back and sign in.', primary:'Go to Sign In', resend:true,  hint:true },
+  unconfirmed: { icon:'mail',  title:'Confirm your email', text:'Your account is almost ready. Open the confirmation link we sent to {email}, or request a new one below.', primary:'Go to Sign In', resend:true,  hint:true },
+  confirmed:   { icon:'check', title:'Email confirmed!',   text:'Your MAZI account is verified and you are now signed in. Welcome aboard.', primary:'Continue', resend:false, hint:false },
+  resetSent:   { icon:'mail',  title:'Check your inbox',   text:'If there is an account for {email}, we sent a link to reset your password. Open it to choose a new one.', primary:'Back to Sign In', resend:true,  hint:true },
+  expired:     { icon:'alert', title:'Link expired',       text:'This email link is invalid or has expired. Go back to sign in — you can request a new confirmation email, or tap "Forgot password?" to get a new reset link.', primary:'Back to Sign In', resend:false, hint:false }
+};
+let authVerifyState = null;
+let authVerifyEmail = '';
+let authResendLeft = 0;
+let authResendTimer = null;
+
+function setAuthVerifyStatus(msg, isError){
+  const el = $('#authVerifyStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.hidden = !msg;
+  el.classList.toggle('is-error', !!isError);
 }
-function syncOtpValue(){
-  $('#otpInput').value = getOtpBoxes().map(b => b.value).join('');
+function updateAuthResendBtn(){
+  const btn = $('#authVerifyResend');
+  if (!btn) return;
+  btn.disabled = authResendLeft > 0;
+  btn.textContent = authResendLeft > 0 ? `Resend email in ${authResendLeft}s` : 'Resend email';
 }
-function resetOtpBoxes(){
-  const boxes = getOtpBoxes();
-  boxes.forEach(b => { b.value = ''; b.classList.remove('filled', 'error'); });
-  $('#otpBoxes').classList.remove('shake');
-  $('#otpField').classList.remove('has-error');
-  $('#otpError').hidden = true;
-  syncOtpValue();
-  if (boxes[0]) setTimeout(() => boxes[0].focus(), 50);
+function startAuthResendCooldown(seconds){
+  clearInterval(authResendTimer);
+  authResendLeft = seconds;
+  updateAuthResendBtn();
+  if (seconds <= 0) return;
+  authResendTimer = setInterval(()=>{
+    authResendLeft -= 1;
+    updateAuthResendBtn();
+    if (authResendLeft <= 0) clearInterval(authResendTimer);
+  }, 1000);
 }
-function markOtpError(){
-  const boxes = getOtpBoxes();
-  $('#otpField').classList.add('has-error');
-  $('#otpError').hidden = false;
-  boxes.forEach(b => b.classList.add('error'));
-  $('#otpBoxes').classList.remove('shake');
-  void $('#otpBoxes').offsetWidth; // restart animation
-  $('#otpBoxes').classList.add('shake');
-  if (boxes[0]) { boxes[0].focus(); boxes[0].select(); }
+function hideAuthPanels(){
+  ['authForgot', 'authNewPass'].forEach(id=>{ const el = $(`#${id}`); if (el) el.hidden = true; });
 }
-function setupOtpBoxes(){
-  const boxes = getOtpBoxes();
-  boxes.forEach((box, i) => {
-    box.addEventListener('input', () => {
-      box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
-      $('#otpField').classList.remove('has-error');
-      $('#otpError').hidden = true;
-      box.classList.remove('error');
-      $('#otpBoxes').classList.remove('shake');
-      if (box.value){
-        box.classList.remove('filled');
-        void box.offsetWidth; // restart pop animation even on repeat digit
-        box.classList.add('filled');
-        if (i < boxes.length - 1) boxes[i + 1].focus();
-      } else {
-        box.classList.remove('filled');
-      }
-      syncOtpValue();
+function hideAuthVerify(){
+  authVerifyState = null;
+  hideAuthPanels();
+  const panel = $('#authVerify');
+  if (!panel) return;
+  clearInterval(authResendTimer);
+  authResendLeft = 0;
+  panel.hidden = true;
+  $('#authModal .auth-head').hidden = false;
+  $('#emailAuthForm').hidden = false;
+}
+function showAuthVerify(state, email){
+  const cfg = AUTH_VERIFY_COPY[state];
+  const panel = $('#authVerify');
+  if (!cfg || !panel) return;
+  authVerifyState = state;
+  if (email) authVerifyEmail = email;
+  hideAuthPanels();
+
+  panel.dataset.state = state;
+  $('#authVerifyIcon').innerHTML = AUTH_VERIFY_ICONS[cfg.icon];
+  $('#authVerifyTitle').textContent = cfg.title;
+
+  const textEl = $('#authVerifyText');
+  const parts = cfg.text.split('{email}');
+  textEl.textContent = parts[0];
+  if (parts.length > 1){
+    const strong = document.createElement('strong');
+    strong.textContent = authVerifyEmail;
+    textEl.appendChild(strong);
+    textEl.appendChild(document.createTextNode(parts[1]));
+  }
+  $('#authVerifyPrimary').textContent = cfg.primary;
+  $('#authVerifyResend').hidden = !cfg.resend;
+  $('#authVerifyHint').hidden = !cfg.hint;
+  setAuthVerifyStatus('');
+
+  $('#authModal .auth-head').hidden = true;
+  $('#emailAuthForm').hidden = true;
+  panel.hidden = false;
+  panel.classList.remove('auth-verify-in');
+  void panel.offsetWidth; // restart the entrance animation
+  panel.classList.add('auth-verify-in');
+
+  $('#authBackdrop').classList.add('show');
+  $('#authModal').classList.add('open');
+
+  // right after signup the email was just sent, so start the resend cooldown
+  startAuthResendCooldown(state === 'sent' || state === 'resetSent' ? 60 : 0);
+}
+function bindAuthVerifyEvents(){
+  $('#authVerifyPrimary').addEventListener('click', ()=>{
+    if (authVerifyState === 'confirmed'){
+      closeLogin();
+      const sess = getSession();
+      showLoginSuccess(sess && sess.name, true);
+      return;
+    }
+    const email = authVerifyEmail;
+    hideAuthVerify();
+    setAuthMode('signin');
+    if (email) $('#authEmailInput').value = email;
+    $('#authPasswordInput').focus();
+  });
+  $('#authVerifyResend').addEventListener('click', ()=>{
+    if (!authVerifyEmail || authResendLeft > 0) return;
+    const btn = $('#authVerifyResend');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    setAuthVerifyStatus('');
+    const resend = authVerifyState === 'resetSent' ? 'sendPasswordReset' : 'resendConfirmation';
+    const request = window.MaziAPI && MaziAPI[resend]
+      ? MaziAPI[resend](authVerifyEmail)
+      : Promise.reject(new Error('The authentication service is not configured yet.'));
+    request.then(()=>{
+      setAuthVerifyStatus('New email sent. Please check your inbox.');
+      startAuthResendCooldown(60);
+    }).catch(err=>{
+      setAuthVerifyStatus(err.message || 'Could not send the email. Please try again.', true);
+      startAuthResendCooldown(err && err.code === 'RATE_LIMITED' ? 60 : 0);
     });
-    box.addEventListener('keydown', e => {
-      if (e.key === 'Backspace' && !box.value && i > 0){
-        const prev = boxes[i - 1];
-        prev.value = '';
-        prev.classList.remove('filled');
-        prev.focus();
-        syncOtpValue();
-      } else if (e.key === 'ArrowLeft' && i > 0){
-        e.preventDefault(); boxes[i - 1].focus();
-      } else if (e.key === 'ArrowRight' && i < boxes.length - 1){
-        e.preventDefault(); boxes[i + 1].focus();
-      }
+  });
+}
+
+/* ============ Forgot password + set a new password ============ */
+function showAuthForgot(){
+  const typed = $('#authEmailInput').value.trim();
+  hideAuthVerify(); // back to a known state, then swap the form for the forgot panel
+  $('#authModal .auth-head').hidden = true;
+  $('#emailAuthForm').hidden = true;
+  $('#authForgotEmail').value = typed;
+  $('#authForgotField').classList.remove('has-error');
+  $('#authForgotError').hidden = true;
+  const panel = $('#authForgot');
+  panel.hidden = false;
+  panel.classList.remove('auth-verify-in');
+  void panel.offsetWidth;
+  panel.classList.add('auth-verify-in');
+  resetCooldown.resume();
+  $('#authForgotEmail').focus();
+}
+function showAuthNewPassword(){
+  hideAuthVerify();
+  $('#authModal .auth-head').hidden = true;
+  $('#emailAuthForm').hidden = true;
+  ['authNewPassInput', 'authNewPassConfirm'].forEach(id=>{ $(`#${id}`).value = ''; });
+  $('#authNewPassError').hidden = true;
+  ['authNewPassField', 'authNewPassConfirmField'].forEach(id=> $(`#${id}`).classList.remove('has-error'));
+  const panel = $('#authNewPass');
+  panel.hidden = false;
+  panel.classList.remove('auth-verify-in');
+  void panel.offsetWidth;
+  panel.classList.add('auth-verify-in');
+  authRecoveryPending = true;
+  $('#authBackdrop').classList.add('show');
+  $('#authModal').classList.add('open');
+  $('#authNewPassInput').focus();
+}
+function bindForgotPasswordEvents(){
+  $('#authForgotBtn').addEventListener('click', showAuthForgot);
+  $('#authForgotBack').addEventListener('click', ()=>{
+    const typed = $('#authForgotEmail').value.trim();
+    hideAuthVerify();
+    setAuthMode('signin');
+    if (typed) $('#authEmailInput').value = typed;
+  });
+  $('#authForgotEmail').addEventListener('input', ()=>{
+    $('#authForgotField').classList.remove('has-error');
+    $('#authForgotError').hidden = true;
+  });
+  $('#authForgotForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    if (resetCooldown.left() > 0) return;
+    const email = $('#authForgotEmail').value.trim();
+    const field = $('#authForgotField');
+    const errEl = $('#authForgotError');
+    const showErr = msg=>{ errEl.textContent = msg; errEl.hidden = false; field.classList.add('has-error'); };
+    field.classList.remove('has-error');
+    errEl.hidden = true;
+    if (!/^\S+@\S+\.\S+$/.test(email)){
+      showErr('Please enter a valid email address.');
+      return;
+    }
+    const btn = $('#authForgotSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    const request = window.MaziAPI && MaziAPI.sendPasswordReset
+      ? MaziAPI.sendPasswordReset(email)
+      : Promise.reject(new Error('The authentication service is not configured yet.'));
+    request.then(()=>{
+      resetCooldown.start(AUTH_COOLDOWN_SECONDS);
+      showAuthVerify('resetSent', email);
+    }).catch(err=>{
+      showErr(err.message || 'Could not send the email. Please try again.');
+      if (err && err.code === 'RATE_LIMITED') resetCooldown.start(AUTH_COOLDOWN_SECONDS);
+      else resetCooldown.resume();
     });
-    box.addEventListener('paste', e => {
-      e.preventDefault();
-      const digits = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
-      if (!digits) return;
-      digits.split('').slice(0, boxes.length - i).forEach((ch, j) => {
-        boxes[i + j].value = ch;
-        boxes[i + j].classList.remove('filled');
-        void boxes[i + j].offsetWidth;
-        boxes[i + j].classList.add('filled');
+  });
+  $('#authNewPassForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const pw = $('#authNewPassInput').value;
+    const pw2 = $('#authNewPassConfirm').value;
+    const errEl = $('#authNewPassError');
+    const showErr = (msg, ...fieldIds)=>{
+      errEl.textContent = msg;
+      errEl.hidden = false;
+      fieldIds.forEach(id=> $(`#${id}`).classList.add('has-error'));
+    };
+    errEl.hidden = true;
+    ['authNewPassField', 'authNewPassConfirmField'].forEach(id=> $(`#${id}`).classList.remove('has-error'));
+    if (pw.length < 6){ showErr('Password must be at least 6 characters.', 'authNewPassField'); return; }
+    if (pw !== pw2){ showErr('Passwords do not match.', 'authNewPassConfirmField'); return; }
+    const btn = $('#authNewPassSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+    MaziAPI.updatePassword(pw)
+      .then(()=> MaziAPI.getSession())
+      .then(session=>{
+        if (!session || !session.user) throw new Error('No session');
+        return MaziAPI.getProfile().then(profile=>({
+          user: session.user,
+          profile,
+          isNewUser: !profile || !profile.onboarded
+        }));
+      })
+      .then(result=>{
+        authRecoveryPending = false; // signed in for real now — keep the session on close
+        hideAuthVerify();
+        applyAuthenticatedSession(result);
+      })
+      .catch(err=>{
+        showErr(err && err.code === 'NOT_AUTHENTICATED'
+          ? 'This reset link has expired. Close this window and request a new one.'
+          : ((err && err.message) || 'Could not update your password. Please try again.'));
+      })
+      .finally(()=>{
+        btn.disabled = false;
+        btn.textContent = 'Update password';
       });
-      syncOtpValue();
-      const nextEmpty = boxes.slice(i).find(b => !b.value);
-      (nextEmpty || boxes[boxes.length - 1]).focus();
+  });
+}
+
+/* The confirmation link in the email brings the shopper back here with
+   #access_token=...&type=signup (or #error_code=... if it expired). supabase-js
+   reads the tokens itself; we just sign the shopper in and show a proper
+   "Email confirmed" screen instead of dropping them on a silent homepage. */
+function handleEmailConfirmationLanding(){
+  const hash = window.location.hash || '';
+  if (!/access_token=|error_code=|error_description=/.test(hash)) return;
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const cleanUrl = ()=> history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  if (params.get('error') || params.get('error_code') || params.get('error_description')){
+    cleanUrl();
+    showAuthVerify('expired');
+    return;
+  }
+  if (params.get('type') === 'recovery' && window.MaziAPI){
+    // Link from the "Forgot password?" email: supabase-js has already turned
+    // the tokens into a temporary session, so ask for the new password.
+    MaziAPI.getSession().then(session=>{
+      if (!session || !session.user) throw new Error('No session');
+      cleanUrl();
+      showAuthNewPassword();
+    }).catch(()=>{
+      cleanUrl();
+      showAuthVerify('expired');
     });
-    box.addEventListener('focus', () => box.select());
+    return;
+  }
+  if (params.get('type') !== 'signup' || !window.MaziAPI) return;
+
+  MaziAPI.getSession().then(session=>{
+    if (!session || !session.user) throw new Error('No session');
+    return MaziAPI.getProfile().then(profile=>({
+      user: session.user,
+      profile,
+      isNewUser: !profile || !profile.onboarded
+    }));
+  }).then(result=>{
+    cleanUrl();
+    applyAuthenticatedSession(result, { skipSuccess: true });
+    showAuthVerify('confirmed', result.user.email);
+  }).catch(()=>{
+    cleanUrl();
+    showAuthVerify('expired');
   });
 }
 
@@ -517,7 +819,7 @@ function initSidebarRail(){
   if (!wrap) return;
 
   wrap.addEventListener('scroll', updateSidebarRail, { passive:true });
-  window.addEventListener('resize', updateSidebarRail);
+  window.addEventListener('resize', rafDebounce(updateSidebarRail));
 
   if (upBtn) upBtn.addEventListener('click', ()=>{
     wrap.scrollBy({ top: -96, behavior: 'smooth' });
@@ -646,7 +948,7 @@ function initBrandsTicker(){
   viewport.addEventListener('mouseleave', ()=>{ hovering = false; });
   document.addEventListener('mouseleave', ()=>{ hovering = false; });
 
-  window.addEventListener('resize', measure);
+  window.addEventListener('resize', rafDebounce(measure));
   measure();
 
   // Images load async — re-measure once they've all settled so the loop
@@ -672,13 +974,6 @@ let heroTimer = null;
 
 function renderHero(){
   $('#heroTrack').innerHTML = HERO_SLIDES.map(s => {
-    const isExternal = !!s.link && s.link !== '#';
-    const isAction = !!s.action;
-    const href = s.link || '#productGrid';
-    const target = isExternal ? ' target="_blank" rel="noopener"' : '';
-    const ctaTag = isAction
-      ? `<button type="button" class="hero-cta" data-hero-action="${s.action}">${s.cta}</button>`
-      : `<a href="${href}" class="hero-cta"${target}>${s.cta}</a>`;
     const hasResponsiveImg = !!(s.imgMobile && s.imgWeb);
     const hasImg = hasResponsiveImg || !!s.img;
     const slideStyle = hasResponsiveImg
@@ -686,12 +981,6 @@ function renderHero(){
       : (s.img ? `background-image:url('${s.img}')` : '');
     return `
     <div class="hero-slide${hasImg ? ' has-img' : ''}${hasResponsiveImg ? ' has-responsive-img' : ''}" style="${slideStyle}">
-      <div class="hero-slide-content">
-        <div class="hero-eyebrow">${s.eyebrow}</div>
-        <h2 class="hero-title">${s.title}</h2>
-        <p class="hero-desc">${s.desc}</p>
-        ${ctaTag}
-      </div>
       ${hasImg
         ? ``
         : `<div class="hero-visual">${s.icon}</div>`}
@@ -706,15 +995,8 @@ function renderHero(){
     b.addEventListener('click', ()=> goToSlide(parseInt(b.dataset.i)));
   });
 
-  $$('#heroTrack [data-hero-action]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const action = btn.dataset.heroAction;
-      if (action === 'install-guide' && window.MaziInstallGuide) window.MaziInstallGuide.show();
-    });
-  });
-
   positionHeroDotHighlight();
-  window.addEventListener('resize', positionHeroDotHighlight);
+  window.addEventListener('resize', rafDebounce(positionHeroDotHighlight));
 
   startHeroAuto();
 }
@@ -909,6 +1191,21 @@ function productImg(p){
   return `img/products/${p.id}.png`;
 }
 
+/* ============ Popular products preview (home redesign) ============ */
+function renderPopularProducts(){
+  const grid = $('#popularProductsGrid');
+  if (!grid) return;
+  // Prefer in-stock items that already have a real photo, so the preview
+  // never leans on the placeholder/emoji path; falls back to any in-stock
+  // item if fewer than 4 photographed products exist yet.
+  const withPhotos = PRODUCTS.filter(p => p.img && p.stock !== 'out');
+  const rest = PRODUCTS.filter(p => !p.img && p.stock !== 'out');
+  const picks = [...withPhotos, ...rest].slice(0, 6);
+  grid.innerHTML = picks.map(p => productCardHtml(p)).join('');
+  $$('.card-action-slot', grid).forEach(bindCardSlot);
+  bindProductCardClicks(grid);
+}
+
 function renderSkeletons(count = 6){
   $('#emptyState').hidden = true;
   $('#productGrid').style.display = 'grid';
@@ -965,8 +1262,12 @@ function renderProductDetail(p){
   bindCardSlot($('#productDetailCard .pd-actions'));
 }
 
+// Same-category products shown in the "Similar Products" carousel (max 8).
+function getSimilarProducts(p){
+  return PRODUCTS.filter(x => x.cat === p.cat && x.id !== p.id).slice(0, 8);
+}
 function renderSimilarProducts(p){
-  const similar = PRODUCTS.filter(x => x.cat === p.cat && x.id !== p.id).slice(0, 8);
+  const similar = getSimilarProducts(p);
   const section = $('#similarProductsSection');
   if (!similar.length){ section.hidden = true; return; }
   section.hidden = false;
@@ -993,7 +1294,11 @@ function scrollSimilarCarousel(dir){
 }
 
 function renderOtherProducts(p){
-  const pool = shuffleArray(PRODUCTS.filter(x => x.cat !== p.cat && x.id !== p.id));
+  // "Other Products" = everything that is neither the product being viewed nor
+  // already shown in Similar Products. (Previously it only used OTHER categories,
+  // so it stayed empty while every product lives in a single category.)
+  const similarIds = new Set(getSimilarProducts(p).map(x => x.id));
+  const pool = shuffleArray(PRODUCTS.filter(x => x.id !== p.id && !similarIds.has(x.id)));
   state.otherProductsPool = pool;
   state.otherProductsShown = [];
   const section = $('#otherProductsSection');
@@ -1139,22 +1444,45 @@ function closeCart(){
   $('#cartDrawer').classList.remove('open');
   $('#drawerBackdrop').classList.remove('show');
 }
+/* Bottom nav: remember which tab was active so the transient "Categories"
+   highlight can hand it back once the categories menu closes. */
+let bnPrevAction = 'home';
+function setBottomNavActive(action){
+  $$('.bn-item[data-action]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.action === action);
+  });
+}
+function currentBottomNavAction(){
+  const a = document.querySelector('.bn-item.active');
+  return a ? a.dataset.action : 'home';
+}
 function openMenu(){
+  const cur = currentBottomNavAction();
+  if (cur !== 'categories') bnPrevAction = cur;
+  setBottomNavActive('categories');
   $('#mobileMenu').classList.add('open');
   $('#menuBackdrop').classList.add('show');
 }
 function closeMenu(){
   $('#mobileMenu').classList.remove('open');
   $('#menuBackdrop').classList.remove('show');
+  if (currentBottomNavAction() === 'categories') setBottomNavActive(bnPrevAction || 'home');
 }
 function openLogin(){
   $('#authBackdrop').classList.add('show');
   $('#authModal').classList.add('open');
   showMobileStep();
+  authCooldown.resume(); // pick the "Try again in Ns" countdown back up if one is still running
 }
 function closeLogin(){
   $('#authBackdrop').classList.remove('show');
   $('#authModal').classList.remove('open');
+  // Closed the "set a new password" panel without finishing: drop the
+  // temporary recovery session so nobody is left half signed in.
+  if (authRecoveryPending){
+    authRecoveryPending = false;
+    if (window.MaziAPI && MaziAPI.logout) MaziAPI.logout().catch(()=>{});
+  }
 }
 
 /* ============ Session (login state) ============ */
@@ -1239,8 +1567,15 @@ function refreshOpenSearchPanel(){
 }
 function renderAuthButton(){
   const session = getSession();
+  document.body.classList.toggle('is-authenticated', !!session);
   $$('.js-login-btn').forEach(btn=>{ btn.hidden = !!session; });
   $$('.js-profile-wrap').forEach(wrap=>{ wrap.hidden = !session; });
+  // Logged-in desktop shoppers change currency from the profile dropdown,
+  // so there is no separate MVR/USD pill in the navbar anymore.
+  const mobileCurrencyWrap = $('#navbarCurrencyWrap');
+  // The mobile change-currency icon is useful as a visual affordance even
+  // for guests; the dropdown itself is gated by CSS until login.
+  if (mobileCurrencyWrap) mobileCurrencyWrap.hidden = false;
   if (!session) closeProfileDropdown();
 }
 function toggleProfileDropdown(dropdown){
@@ -1248,9 +1583,29 @@ function toggleProfileDropdown(dropdown){
     if (d !== dropdown) d.classList.remove('open');
   });
   dropdown.classList.toggle('open');
+  // Re-measure the currency pill inside the dropdown now that it's visible —
+  // it may have been rendered while profile-wrap was still [hidden] (logged
+  // out), so its thumb position/width wasn't correct until now.
+  if (dropdown.classList.contains('open')) positionCurrencyThumbs();
 }
 function closeProfileDropdown(){
   $$('.profile-dropdown').forEach(d=> d.classList.remove('open'));
+}
+// Mobile-only currency dropdown (replaces the old hamburger/menu button —
+// the "Categories" menu is already reachable from the bottom nav on mobile).
+function toggleCurrencyDropdown(){
+  const wrap = $('#navbarCurrencyWrap');
+  if (!wrap) return;
+  const isOpen = wrap.classList.toggle('open');
+  const btn = $('#navHamburgerBtn');
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+function closeCurrencyDropdown(){
+  const wrap = $('#navbarCurrencyWrap');
+  if (!wrap) return;
+  wrap.classList.remove('open');
+  const btn = $('#navHamburgerBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 function openProfileMenu(){
   $('#profileMenuBackdrop').classList.add('show');
@@ -1259,20 +1614,6 @@ function openProfileMenu(){
 function closeProfileMenu(){
   $('#profileMenuBackdrop').classList.remove('show');
   $('#profileMenu').classList.remove('open');
-}
-
-/* ============ Viber chat bubble popup ============ */
-function openViberPopup(){
-  $('#viberPopupBackdrop').classList.add('show');
-  $('#viberPopup').classList.add('open');
-  $('#viberFab').classList.add('is-open');
-  $('#viberFab').setAttribute('aria-expanded','true');
-}
-function closeViberPopup(){
-  $('#viberPopupBackdrop').classList.remove('show');
-  $('#viberPopup').classList.remove('open');
-  $('#viberFab').classList.remove('is-open');
-  $('#viberFab').setAttribute('aria-expanded','false');
 }
 
 /* ============ Auth loading (3-dot) ============ */
@@ -1334,10 +1675,14 @@ function closeLogoutConfirm(){
   $('#logoutConfirmModal').classList.remove('open');
 }
 function performLogout(){
-  withAuthLoading(()=>{
-    clearSession();
-    showToast('Logged out');
-  }, 800);
+  showAuthLoading();
+  Promise.resolve(window.MaziAPI && MaziAPI.logout ? MaziAPI.logout() : null)
+    .catch(err => showToast(err.message || 'Could not log out from the server'))
+    .finally(()=>{
+      hideAuthLoading();
+      clearSession();
+      showToast('Logged out');
+    });
 }
 
 /* ============ Orders ============ */
@@ -1549,7 +1894,7 @@ function checkOrderUpdates(){
 // These are real notifications from the browser/OS — they can show on a
 // phone's lock screen or a desktop's notification tray, even if this tab
 // isn't focused, as long as the browser is running.
-const NOTIF_ICON = 'img/logo.png';
+const NOTIF_ICON = 'img/logo-green.png';
 
 function notifSupported(){
   return typeof window !== 'undefined' && 'Notification' in window;
@@ -1965,18 +2310,18 @@ function openOrderConfirmModal(order){
   const loc = customer.location;
   let locationHtml = '—';
   if (customer.method === 'delivery' && loc && loc.address){
-    locationHtml = loc.address + (loc.note ? `<br>${loc.note}` : '');
+    locationHtml = escapeHtml(loc.address) + (loc.note ? `<br>${escapeHtml(loc.note)}` : '');
   } else if (customer.method === 'boat' && loc && loc.boatDetails){
-    locationHtml = `${loc.boatName} &middot; ${loc.boatContact}${loc.boatDeparture ? `<br>Departs ${new Date(loc.boatDeparture).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}` : ''}<br>${loc.address}, ${loc.islandName} (${loc.islandCode})${loc.note ? `<br>${loc.note}` : ''}`;
+    locationHtml = `${escapeHtml(loc.boatName)} &middot; ${escapeHtml(loc.boatContact)}${loc.boatDeparture ? `<br>Departs ${new Date(loc.boatDeparture).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}` : ''}<br>${escapeHtml(loc.address)}, ${escapeHtml(loc.islandName)} (${escapeHtml(loc.islandCode)})${loc.note ? `<br>${escapeHtml(loc.note)}` : ''}`;
   } else if (customer.method === 'pickup' && loc){
-    locationHtml = `${loc.store}${loc.day ? ` &middot; ${loc.day}` : ''}${loc.note ? `<br>${loc.note}` : ''}`;
+    locationHtml = `${escapeHtml(loc.store)}${loc.day ? ` &middot; ${escapeHtml(loc.day)}` : ''}${loc.note ? `<br>${escapeHtml(loc.note)}` : ''}`;
   }
 
   $('#ocDetails').innerHTML = `
     <div><div class="oc-detail-key">Order ID</div><div class="oc-detail-val">${order.id}</div></div>
     <div><div class="oc-detail-key">Order Date</div><div class="oc-detail-val">${formatOrderDate(order.placedAt)}</div></div>
     <div><div class="oc-detail-key">Status</div><div class="oc-detail-val">Pending Confirmation</div></div>
-    <div><div class="oc-detail-key">Contact</div><div class="oc-detail-val">${contact}</div></div>
+    <div><div class="oc-detail-key">Contact</div><div class="oc-detail-val">${escapeHtml(contact)}</div></div>
     <div><div class="oc-detail-key">${customer.method === 'pickup' ? 'Pickup' : 'Delivery'} Method</div><div class="oc-detail-val">${methodLabels[customer.method] || '—'}</div></div>
     <div><div class="oc-detail-key">${customer.method === 'pickup' ? 'Pickup Details' : 'Delivery To'}</div><div class="oc-detail-val">${locationHtml}</div></div>
   `;
@@ -2162,20 +2507,22 @@ function saveProfileView(){
   const session = getSession() || {};
   const firstName = $('#pvFirstName').value.trim() || session.firstName || 'Account';
   const mobileDigits = $('#pvMobile').value.trim().replace(/[^0-9]/g, '');
+  const mobile = mobileDigits ? `+960${mobileDigits}` : (session.mobile || '');
+  if (mobile) updateRegisteredAccountName(mobile, firstName);
   setSession({
     ...session,
     name: firstName,
     firstName,
     lastName: $('#pvLastName').value.trim(),
     email: $('#pvEmail').value.trim(),
-    mobile: mobileDigits ? `+960${mobileDigits}` : (session.mobile || ''),
+    mobile,
     dob: $('#pvDob').value,
     currency: getCurrency(),
   });
   showToast('Profile updated');
 }
 
-/* ============ Onboarding (first login account setup) ============ */
+/* ============ Atoll / island data ============ */
 const ATOLLS = {
   'HA (Haa Alif)': ['Dhidhdhoo', 'Hoarafushi', 'Kelaa', 'Ihavandhoo'],
   'HDh (Haa Dhaalu)': ['Kulhudhuffushi', 'Nolhivaranfaru', 'Hanimaadhoo'],
@@ -2198,15 +2545,6 @@ const ATOLLS = {
   'Gn (Gnaviyani)': ['Fuvahmulah'],
   'S (Addu)': ['Hithadhoo', 'Maradhoo', 'Feydhoo', 'Hulhudhoo'],
 };
-
-function populateAllCities(){
-  const sel = $('#obCity');
-  sel.innerHTML = '<option value="">Select city/island</option>' +
-    `<optgroup label="Popular"><option>Male'</option><option>Hulhumale'</option></optgroup>` +
-    Object.entries(ATOLLS).map(([atoll, cities]) =>
-      `<optgroup label="${atoll}">${cities.map(c => `<option>${c}</option>`).join('')}</optgroup>`
-    ).join('');
-}
 
 function populateAtollSelect(selectId){
   const sel = $(selectId);
@@ -2240,22 +2578,61 @@ function renderDeliveryEstimate(){
   }
 }
 
-function toggleBusinessFields(){
-  const isBusiness = $('#obAccountType').value === 'business';
-  $('#obBusinessFields').hidden = !isBusiness;
+/* ============ Login success animation ============
+   Shown right after a successful sign in / sign up (replaces the old
+   "Welcome! set up your account" onboarding form). */
+let loginSuccessTimer = null;
+let loginSuccessLeaveTimer = null;
+function buildLoginSuccessParticles(){
+  const wrap = $('#lsParticles');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const colors = ['#2E8C6C', '#3FA57F', '#164B3B', '#E9C46A', '#BFE3D2'];
+  const count = 16;
+  for (let i = 0; i < count; i++){
+    const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+    const dist = 56 + Math.random() * 26;
+    const p = document.createElement('span');
+    p.className = 'ls-particle' + (i % 3 === 0 ? ' is-bar' : '');
+    p.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+    p.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+    p.style.setProperty('--rot', Math.round(Math.random() * 360) + 'deg');
+    p.style.setProperty('--size', (5 + Math.random() * 5).toFixed(1) + 'px');
+    p.style.setProperty('--delay', (0.62 + Math.random() * 0.12).toFixed(2) + 's');
+    p.style.background = colors[i % colors.length];
+    wrap.appendChild(p);
+  }
 }
+function showLoginSuccess(name, isNew){
+  const root = $('#loginSuccess');
+  if (!root) return;
+  clearTimeout(loginSuccessTimer);
+  clearTimeout(loginSuccessLeaveTimer);
 
-function openOnboarding(displayName){
-  $('#onboardTitle').textContent = displayName ? `Welcome ${displayName}!` : 'Welcome!';
-  $('#obAccountType').value = 'business';
-  toggleBusinessFields();
-  populateAllCities();
-  $('#onboardBackdrop').classList.add('show');
-  $('#onboardModal').classList.add('open');
+  const first = String(name || '').trim().split(/\s+/)[0];
+  const hasName = first && first !== 'Account' && !first.includes('@');
+  $('#lsSub').textContent = isNew
+    ? (hasName ? `Welcome to MAZI, ${first}!` : 'Welcome to MAZI!')
+    : (hasName ? `Welcome back, ${first}!` : 'Welcome back!');
+
+  buildLoginSuccessParticles();
+  root.classList.remove('show', 'leaving');
+  void root.offsetWidth; // restart every animation from the top
+  root.classList.add('show');
+  root.setAttribute('aria-hidden', 'false');
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  loginSuccessTimer = setTimeout(hideLoginSuccess, reduce ? 1400 : 2800);
 }
-function closeOnboarding(){
-  $('#onboardBackdrop').classList.remove('show');
-  $('#onboardModal').classList.remove('open');
+function hideLoginSuccess(){
+  const root = $('#loginSuccess');
+  if (!root || !root.classList.contains('show') || root.classList.contains('leaving')) return;
+  clearTimeout(loginSuccessTimer);
+  root.classList.add('leaving');
+  loginSuccessLeaveTimer = setTimeout(()=>{
+    root.classList.remove('show', 'leaving');
+    root.setAttribute('aria-hidden', 'true');
+  }, 450);
 }
 
 // Smooth height morph used when the auth card switches between the mobile-
@@ -2342,7 +2719,7 @@ function renderMobileSearchBody(rawValue){
   if (value){
     const matches = PRODUCTS.filter(p => p.name.toLowerCase().includes(value)).slice(0, 8);
     if (matches.length === 0){
-      body.innerHTML = `<p class="ms-empty">No suggestions for "${rawValue}"</p>`;
+      body.innerHTML = `<p class="ms-empty">No suggestions for "${escapeHtml(rawValue)}"</p>`;
       return;
     }
     body.innerHTML = `
@@ -2372,9 +2749,9 @@ function renderMobileSearchBody(rawValue){
     </div>
     <div class="ms-recent-tags">
       ${state.recentSearches.map(term => `
-        <button class="ms-recent-tag" data-recent="${term.replace(/"/g,'&quot;')}">
-          <span>${term}</span>
-          <span class="ms-recent-tag-remove" data-remove-recent="${term.replace(/"/g,'&quot;')}" aria-label="Remove">&times;</span>
+        <button class="ms-recent-tag" data-recent="${escapeHtml(term)}">
+          <span>${escapeHtml(term)}</span>
+          <span class="ms-recent-tag-remove" data-remove-recent="${escapeHtml(term)}" aria-label="Remove">&times;</span>
         </button>
       `).join('')}
     </div>
@@ -2420,6 +2797,7 @@ function initNavScroll(){
   const nav = $('.navbar');
   const root = document.documentElement;
   const gap = 8; // breathing room below the navbar when it's visible
+  let lastFullH = 0;
 
   function setOffset(){
     const hidden = nav.classList.contains('nav-hidden');
@@ -2427,6 +2805,14 @@ function initNavScroll(){
     const h = hidden ? 20 : rawH + gap;
     root.style.setProperty('--nav-offset', h + 'px');
     root.style.setProperty('--nav-flush', rawH + 'px');
+    // Stable "navbar fully shown" height — the sidebar category list sizes
+    // itself from this so it only scrolls when it truly can't fit the screen
+    // (and doesn't resize every time the navbar hides while scrolling).
+    if (!hidden && rawH !== lastFullH){
+      lastFullH = rawH;
+      root.style.setProperty('--nav-full', rawH + 'px');
+      if (typeof updateSidebarRail === 'function') requestAnimationFrame(updateSidebarRail);
+    }
     return h;
   }
 
@@ -2435,10 +2821,9 @@ function initNavScroll(){
 
   function tick(){
     const currentY = window.scrollY;
-    const isMobile = window.innerWidth <= 980;
 
     const wasHidden = nav.classList.contains('nav-hidden');
-    const shouldHide = !isMobile && currentY > lastY && currentY > 4;
+    const shouldHide = currentY > lastY && currentY > 4;
     if (shouldHide !== wasHidden){
       nav.classList.toggle('nav-hidden', shouldHide);
       // Hiding/showing the navbar only moves it (transform), it doesn't
@@ -2481,12 +2866,12 @@ function initNavScroll(){
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(tick);
-  });
+  }, { passive:true });
 
-  window.addEventListener('resize', ()=>{
+  window.addEventListener('resize', rafDebounce(()=>{
     setOffset();
     updateCategoryHighlights();
-  });
+  }));
 }
 
 /* ============ Init / event wiring ============ */
@@ -2496,6 +2881,7 @@ function init(){
   renderCategoryNav();
   renderHero();
   renderProducts();
+  renderPopularProducts();
   syncCurrencyToggleUI();
   updateCartUI();
   initNavScroll();
@@ -2541,12 +2927,6 @@ function init(){
 
   $('#closeMenu').addEventListener('click', closeMenu);
   $('#menuBackdrop').addEventListener('click', closeMenu);
-
-  $('#viberFab').addEventListener('click', ()=>{
-    $('#viberPopup').classList.contains('open') ? closeViberPopup() : openViberPopup();
-  });
-  $('#viberPopupClose').addEventListener('click', closeViberPopup);
-  $('#viberPopupBackdrop').addEventListener('click', closeViberPopup);
 
   $('#loginBtn').addEventListener('click', openLogin);
   renderAuthButton();
@@ -2636,9 +3016,9 @@ function init(){
     closeOrderConfirmModal();
     openOrdersView();
   });
-  window.addEventListener('resize', ()=>{
+  window.addEventListener('resize', rafDebounce(()=>{
     if ($('#receiptModal').classList.contains('open')) fitReceiptPaper();
-  });
+  }));
   $('#logoutConfirmBtn').addEventListener('click', ()=>{
     closeLogoutConfirm();
     if (_confirmAction) _confirmAction();
@@ -2648,7 +3028,7 @@ function init(){
   $('#productViewClose').addEventListener('click', closeProductView);
   $('#similarPrevBtn').addEventListener('click', ()=> scrollSimilarCarousel(-1));
   $('#similarNextBtn').addEventListener('click', ()=> scrollSimilarCarousel(1));
-  $('#similarProductsGrid').addEventListener('scroll', ()=> updateSimilarCarouselArrows());
+  $('#similarProductsGrid').addEventListener('scroll', ()=> updateSimilarCarouselArrows(), { passive:true });
   $('#pvSaveBtn').addEventListener('click', saveProfileView);
   $('#ordersViewClose').addEventListener('click', closeOrdersView);
   $('#pvDeleteAccountLink').addEventListener('click', e=>{
@@ -2662,62 +3042,127 @@ function init(){
   });
   $('#catToggleBtn').addEventListener('click', openMenu);
 
-  $('#authClose').addEventListener('click', closeLogin);
-  $('#authBackdrop').addEventListener('click', closeLogin);
-  $('#mobileForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    const digits = $('#mobileInput').value.trim();
-    const valid = /^[0-9]{7}$/.test(digits);
-    $('#mobileField').classList.toggle('has-error', !valid);
-    $('#mobileError').hidden = valid;
-    if (!valid) return;
-
-    const mobile = `+960${digits}`;
-    showOtpStep(mobile);
+  // ---- Home redesign: hamburger, hero search pill, quick category
+  // cards, promo banner, popular products "View All", Viber CTA banner ----
+  const hamburgerBtn = $('#navHamburgerBtn');
+  if (hamburgerBtn) hamburgerBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    toggleCurrencyDropdown();
   });
-  $('#mobileInput').addEventListener('input', clearMobileError);
-  $('#otpForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    if (!pendingMobile) return;
-    const entered = $('#otpInput').value.trim();
-    if (entered.length < 6 || entered !== currentOtpCode){
-      markOtpError();
-      return;
-    }
-    const mobile = pendingMobile;
-    const accounts = getRegisteredAccounts();
-    const isNewAccount = !accounts.some(a => a.mobile === mobile);
-    if (isNewAccount) saveRegisteredAccount(mobile);
-    pendingMobile = null;
-    currentOtpCode = null;
-    closeLogin();
-    withAuthLoading(()=>{
-      setSession({ name: 'Account', firstName: 'Account', lastName: '', email: '', mobile });
-      if (isNewAccount) openOnboarding();
+  document.addEventListener('click', e=>{
+    const currencyWrap = $('#navbarCurrencyWrap');
+    if (currencyWrap && !currencyWrap.contains(e.target)) closeCurrencyDropdown();
+  });
+  // Tapping MVR/USD inside the mobile currency dropdown switches the
+  // currency but must NOT close the dropdown — only tapping the
+  // hamburger icon again or tapping outside (handled above) closes it.
+
+  const heroSearchBar = $('#heroSearchBar');
+  if (heroSearchBar) heroSearchBar.addEventListener('click', openMobileSearch);
+
+  function scrollToCatalog(){
+    const target = $('#sectionTitle');
+    if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  $$('.quick-cat-card').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      setCategory(btn.dataset.cat);
+      renderCategoryNav();
+      renderProducts();
+      scrollToCatalog();
     });
   });
-  setupOtpBoxes();
+
+  const promoShopBtn = $('#promoShopBtn');
+  // Same behaviour as the other Offers buttons — no offers exist yet.
+  if (promoShopBtn) promoShopBtn.addEventListener('click', ()=> showToast('No offers saved yet'));
+
+  const popularViewAllBtn = $('#popularViewAllBtn');
+  if (popularViewAllBtn) popularViewAllBtn.addEventListener('click', ()=>{
+    setCategory('all');
+    renderCategoryNav();
+    renderProducts();
+    scrollToCatalog();
+  });
+
+  // homeViberCtaBtn is now a direct <a href="viber://..."> link (no popup) —
+  // update the href in index.html once you have the real Viber Community link.
+
+  $('#authClose').addEventListener('click', closeLogin);
+  $('#authBackdrop').addEventListener('click', closeLogin);
+  $('#emailAuthForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    if (authCooldown.left() > 0) return; // still cooling down after a rate-limit
+    clearAuthErrors();
+    const email = $('#authEmailInput').value.trim();
+    const password = $('#authPasswordInput').value;
+    const mobileDigits = $('#authMobileInput').value.trim().replace(/[^0-9]/g, '');
+    if (!/^\S+@\S+\.\S+$/.test(email)){
+      showAuthError('Please enter a valid email address.', 'emailField');
+      return;
+    }
+    if (password.length < 6){
+      showAuthError('Password must be at least 6 characters.', 'passwordField');
+      return;
+    }
+    if (authMode === 'signup' && !/^\d{7}$/.test(mobileDigits)){
+      showAuthError('Enter a valid 7-digit Maldives number.', 'authMobileField');
+      return;
+    }
+    const submitBtn = $('#emailAuthSubmit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = authMode === 'signup' ? 'Creating...' : 'Signing in...';
+    showAuthLoading();
+    const mobile = mobileDigits ? `+960${mobileDigits}` : '';
+    const request = !window.MaziAPI
+      ? Promise.reject(new Error('The authentication service is not configured yet.'))
+      : authMode === 'signup'
+        ? MaziAPI.signUpWithPassword(email, password, mobile)
+        : MaziAPI.signInWithPassword(email, password);
+    request.then(result=>{
+      if (result.needsEmailConfirmation){
+        showAuthVerify('sent', email);
+        return;
+      }
+      applyAuthenticatedSession(result);
+    }).catch(err=>{
+      if (err && err.code === 'EMAIL_NOT_CONFIRMED'){
+        showAuthVerify('unconfirmed', email);
+        return;
+      }
+      if (err && err.code === 'RATE_LIMITED'){
+        authRateLimitMsgShown = true;
+        showAuthError('Too many attempts. Please wait a minute, then try again.', 'emailField');
+        authCooldown.start(AUTH_COOLDOWN_SECONDS);
+        return;
+      }
+      showAuthError(err.message || 'We could not complete your login. Please try again.', 'emailField');
+    }).finally(()=>{
+      hideAuthLoading();
+      refreshAuthSubmitLabel(); // back to "Sign In" / "Create Account", or the cooldown countdown
+    });
+  });
+  $('#authModeToggle').addEventListener('click', ()=> setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+  bindAuthVerifyEvents();
+  bindForgotPasswordEvents();
+  $('#authPasswordToggle').addEventListener('click', ()=>{
+    const input = $('#authPasswordInput');
+    const showing = input.type === 'password';
+    input.type = showing ? 'text' : 'password';
+    $('#authPasswordToggle').classList.toggle('showing', showing);
+    $('#authPasswordToggle').setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+  });
+  $('#authEmailInput').addEventListener('input', clearAuthErrors);
+  $('#authPasswordInput').addEventListener('input', clearAuthErrors);
+  $('#authMobileInput').addEventListener('input', clearAuthErrors);
   $$('.pv-currency-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> setCurrency(btn.dataset.currency));
   });
   $$('.currency-toggle-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> setCurrency(btn.dataset.currency));
   });
-  $('#otpResendBtn').addEventListener('click', ()=>{
-    if (!pendingMobile) return;
-    currentOtpCode = generateOtpCode();
-    $('#otpDemoHint').textContent = `Demo mode — no SMS is actually sent. Your code is: ${currentOtpCode}`;
-    resetOtpBoxes();
-  });
-  $('#otpBackBtn').addEventListener('click', showMobileStep);
-
-  $('#obAccountType').addEventListener('change', toggleBusinessFields);
-  $('#onboardBackdrop').addEventListener('click', closeOnboarding);
-  $('#onboardForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    closeOnboarding();
-    showToast('Account setup saved');
-  });
+  $('#loginSuccess').addEventListener('click', hideLoginSuccess);
 
   $$('[data-eye-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -2756,16 +3201,17 @@ function init(){
   });
 
   if (document.fonts && document.fonts.ready){
-    document.fonts.ready.then(updateCategoryHighlights);
+    document.fonts.ready.then(()=>{ updateCategoryHighlights(); updateSidebarRail(); });
   }
 
   $$('.bn-item[data-action]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      $$('.bn-item[data-action]').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
       const action = btn.dataset.action;
-      if (action==='cart') openCart();
-      else if (action==='profile'){
+      if (action==='categories'){ openMenu(); return; }  // openMenu() highlights the tab itself
+      // If the categories menu is open and another tab is tapped, close it first.
+      if ($('#mobileMenu').classList.contains('open')) closeMenu();
+      setBottomNavActive(action);
+      if (action==='profile'){
         if (getSession()) openProfileMenu();
         else openLogin();
       }
@@ -2775,6 +3221,7 @@ function init(){
   });
 
   handleOpenParam();
+  handleEmailConfirmationLanding();
 }
 
 /* ============ Deep-link actions (from legal pages, etc.) ============ */

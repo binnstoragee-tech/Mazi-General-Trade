@@ -17,7 +17,7 @@
 
   loader.hidden = false;
 
-  var MIN_VISIBLE_MS = 3000; // logo + dots stay on screen for 3s
+  var MIN_VISIBLE_MS = 600; // brief branded flash only — just enough to avoid a jarring instant flicker
   var startedAt = Date.now();
 
   function hideLoader() {
@@ -42,6 +42,6 @@
     window.addEventListener('load', hideLoader);
   }
 
-  // Hard safety cap: never let the loader block the app for more than 5s
-  setTimeout(hideLoader, 5000);
+  // Hard safety cap: never let the loader block the app for more than 2.5s
+  setTimeout(hideLoader, 2500);
 })();

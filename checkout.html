@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checkout — MAZI General Trade</title>
+<title>Checkout - MGT</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260919u11">
 </head>
 <body class="co-page" id="coPage">
 
 <header class="co-header">
   <div class="co-header-inner">
-    <a href="index.html" class="co-back">
+    <a href="index.html" class="co-back" aria-label="Back to store">
       <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Back to store</span>
     </a>
@@ -339,11 +339,11 @@
   <div class="footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
-        <img src="img/logo.png" alt="MAZI General Trade" class="footer-logo">
+        <img src="img/logo-white.png" alt="MAZI General Trade" class="footer-logo">
         <p class="footer-tagline">Grocery &amp; convenience wholesale, delivered across Male' and beyond.</p>
         <a href="viber://chat?number=" class="footer-viber-btn" target="_blank" rel="noopener">
-          <img src="img/viber.png" alt="Viber" class="footer-viber-icon">
-          Chat with us on Viber
+          <img src="img/viber.webp" alt="Viber" class="footer-viber-icon">
+          Join our Viber Community
         </a>
       </div>
 
@@ -393,7 +393,10 @@
   </div>
 </footer>
 
-<script src="page-transitions.js"></script>
-<script src="checkout.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+<script src="supabase-config.js" defer></script>
+<script src="api.js" defer></script>
+<script src="page-transitions.js" defer></script>
+<script src="checkout.js" defer></script>
 </body>
 </html>
