@@ -70,8 +70,21 @@
     if (/User already registered/i.test(raw)) return fail('USER_EXISTS', 'This email already has an account. Please sign in.');
     if (/same as the old|different from the old/i.test(raw)) return fail('SAME_PASSWORD', 'Your new password must be different from your old one.');
     if (/JWT|not authenticated|Invalid login|session/i.test(raw)) return fail('NOT_AUTHENTICATED', MESSAGES.NOT_AUTHENTICATED);
-    if (/only request this after|for security purposes/i.test(raw)) return fail('RATE_LIMITED', 'Please wait a minute before requesting another email.');
-    if (/rate limit|too many/i.test(raw)) return fail('RATE_LIMITED', 'Too many attempts. Please wait a moment and try again.');
+    // "For security purposes, you can only request this after 45 seconds" -> short per-address wait
+    var wait = raw.match(/after\s+(\d+)\s+seconds?/i);
+    if (wait || /only request this|for security purposes/i.test(raw)) {
+      var secs = wait ? parseInt(wait[1], 10) : 60;
+      var e1 = fail('RATE_LIMITED', 'Please wait ' + secs + ' seconds before requesting another email.');
+      e1.retryAfter = secs;
+      return e1;
+    }
+    // "email rate limit exceeded" -> the project-wide hourly email quota is used up
+    // (Supabase's built-in email sender only allows a handful of emails per hour).
+    // Waiting a minute will not fix this one.
+    if (/email rate limit|over_email_send_rate_limit/i.test(raw) || err.code === 'over_email_send_rate_limit') {
+      return fail('EMAIL_LIMIT', 'Our email limit was reached for now. Please try again in about an hour.');
+    }
+    if (/rate limit|too many/i.test(raw)) return fail('RATE_LIMITED', 'Too many attempts. Please wait a minute, then try again.');
     if (/Token has expired|invalid.*(token|code)|otp/i.test(raw)) return fail('INVALID_OTP', 'That code is incorrect or has expired.');
     if (/Failed to fetch|NetworkError|network/i.test(raw)) return fail('NETWORK', 'Connection problem. Please check your internet and try again.');
     return fail(err.code || 'UNKNOWN', raw || 'Something went wrong.', err.details || null);

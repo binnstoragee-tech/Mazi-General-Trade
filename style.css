@@ -4528,13 +4528,15 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
    logged-in view keeps currency selection inside the profile menu instead. */
 @media (min-width:721px){
   .navbar-top{position:relative;}
+  /* Leaves a clear gap between the search bar and the currency icon
+     (which is absolutely positioned to the right of the search). */
   body:not(.is-authenticated) .navbar-search-row{
-    padding-right:28px;
+    padding-right:60px;
   }
   body:not(.is-authenticated) .navbar-currency-wrap{
     display:flex;
     position:absolute;
-    right:104px;
+    right:112px;
     top:50%;
     transform:translateY(-50%);
     z-index:3;

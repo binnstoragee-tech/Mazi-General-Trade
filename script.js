@@ -322,6 +322,18 @@ let authRecoveryPending = false; // true while the "set a new password" panel is
    the button turns into a live "Try again in 42s" countdown, and the time
    is stored so it survives closing the modal or refreshing the page. */
 const AUTH_COOLDOWN_SECONDS = 60;
+const EMAIL_LIMIT_COOLDOWN_SECONDS = 300; // hourly email quota is used up — a minute won't help, so don't let people keep retrying
+function isRateLimitError(err){
+  return !!err && (err.code === 'RATE_LIMITED' || err.code === 'EMAIL_LIMIT');
+}
+function rateLimitSeconds(err){
+  if (err && err.code === 'EMAIL_LIMIT') return EMAIL_LIMIT_COOLDOWN_SECONDS;
+  return err && err.retryAfter ? err.retryAfter + 1 : AUTH_COOLDOWN_SECONDS;
+}
+function formatWait(seconds){
+  if (seconds <= 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 function createCooldown(storageKey, render){
   let timer = null;
   const cd = {
@@ -357,7 +369,7 @@ const resetCooldown = createCooldown('mazi_reset_cooldown_until', left=>{
   if (!btn) return;
   btn.disabled = left > 0;
   btn.classList.toggle('is-cooldown', left > 0);
-  btn.textContent = left > 0 ? `Try again in ${left}s` : 'Send reset link';
+  btn.textContent = left > 0 ? `Try again in ${formatWait(left)}` : 'Send reset link';
 });
 // Single place that decides what the Sign In / Create Account button says.
 function refreshAuthSubmitLabel(){
@@ -367,7 +379,7 @@ function refreshAuthSubmitLabel(){
   btn.disabled = left > 0;
   btn.classList.toggle('is-cooldown', left > 0);
   btn.textContent = left > 0
-    ? `Try again in ${left}s`
+    ? `Try again in ${formatWait(left)}`
     : (authMode === 'signup' ? 'Create Account' : 'Sign In');
 }
 function clearAuthErrors(){
@@ -451,7 +463,7 @@ function updateAuthResendBtn(){
   const btn = $('#authVerifyResend');
   if (!btn) return;
   btn.disabled = authResendLeft > 0;
-  btn.textContent = authResendLeft > 0 ? `Resend email in ${authResendLeft}s` : 'Resend email';
+  btn.textContent = authResendLeft > 0 ? `Resend email in ${formatWait(authResendLeft)}` : 'Resend email';
 }
 function startAuthResendCooldown(seconds){
   clearInterval(authResendTimer);
@@ -546,7 +558,7 @@ function bindAuthVerifyEvents(){
       startAuthResendCooldown(60);
     }).catch(err=>{
       setAuthVerifyStatus(err.message || 'Could not send the email. Please try again.', true);
-      startAuthResendCooldown(err && err.code === 'RATE_LIMITED' ? 60 : 0);
+      startAuthResendCooldown(isRateLimitError(err) ? rateLimitSeconds(err) : 0);
     });
   });
 }
@@ -621,7 +633,7 @@ function bindForgotPasswordEvents(){
       showAuthVerify('resetSent', email);
     }).catch(err=>{
       showErr(err.message || 'Could not send the email. Please try again.');
-      if (err && err.code === 'RATE_LIMITED') resetCooldown.start(AUTH_COOLDOWN_SECONDS);
+      if (isRateLimitError(err)) resetCooldown.start(rateLimitSeconds(err));
       else resetCooldown.resume();
     });
   });
@@ -3131,10 +3143,10 @@ function init(){
         showAuthVerify('unconfirmed', email);
         return;
       }
-      if (err && err.code === 'RATE_LIMITED'){
+      if (isRateLimitError(err)){
         authRateLimitMsgShown = true;
-        showAuthError('Too many attempts. Please wait a minute, then try again.', 'emailField');
-        authCooldown.start(AUTH_COOLDOWN_SECONDS);
+        showAuthError(err.message, 'emailField');
+        authCooldown.start(rateLimitSeconds(err));
         return;
       }
       showAuthError(err.message || 'We could not complete your login. Please try again.', 'emailField');
