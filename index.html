@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=20260920b">
+<link rel="stylesheet" href="style.css?v=20260920f">
 </head>
 <body class="has-bottom-nav">
 
@@ -32,7 +32,7 @@
 </div>
 <script src="supabase.js" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="api.js?v=20260920b" defer></script>
+<script src="api.js?v=20260920e" defer></script>
 <script src="loader.js" defer></script>
 
 <!-- ============ NAVBAR ============ -->
@@ -160,22 +160,22 @@
     <!-- Quick category cards (redesign) -->
     <section class="quick-cats" id="quickCats">
       <button class="quick-cat-card" data-cat="all">
-        <span class="qc-icon">🛒</span>
+        <span class="qc-icon" aria-hidden="true"></span>
         <span class="qc-label">All Categories</span>
         <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="quick-cat-card" data-cat="dairy">
-        <span class="qc-icon">🥛</span>
+        <span class="qc-icon" aria-hidden="true"></span>
         <span class="qc-label">Dairy</span>
         <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="quick-cat-card" data-cat="beverages">
-        <span class="qc-icon">🥤</span>
+        <span class="qc-icon" aria-hidden="true"></span>
         <span class="qc-label">Beverages</span>
         <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="quick-cat-card" data-cat="household">
-        <span class="qc-icon">🧴</span>
+        <span class="qc-icon" aria-hidden="true"></span>
         <span class="qc-label">Household &amp; Cleaning</span>
         <svg class="qc-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -190,12 +190,23 @@
       </div>
       <div class="viber-cta-text">
         <strong>Chat with us on Viber</strong>
-        <span>Get product info, stock updates and quick support.</span>
+        <span>Get product info, stock updates, quick support — or join our Viber Community.</span>
       </div>
-      <a href="viber://chat?number=" target="_blank" rel="noopener" class="viber-cta-btn" id="homeViberCtaBtn">
-        Chat Now
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
+      <div class="viber-cta-actions">
+        <a href="viber://chat?number=" target="_blank" rel="noopener" class="viber-cta-btn" id="homeViberCtaBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L4 20l1.05-4.3A8.5 8.5 0 1 1 21 11.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Chat Now
+        </a>
+        <span class="viber-cta-divider" aria-hidden="true"></span>
+        <!-- No community link yet — href stays empty and the click handler
+             in script.js shows a "coming soon" toast instead of a dead
+             navigation. Paste the real invite.viber.com link into href
+             (and drop data-pending) once the group is up. -->
+        <a href="" target="_blank" rel="noopener" class="viber-cta-btn viber-cta-btn-secondary" id="homeViberCommunityBtn" data-pending="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.36M14.5 3.13a3.5 3.5 0 0 1 0 6.74M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Join Community
+        </a>
+      </div>
     </div>
 
     <!-- Popular products preview (redesign) -->
@@ -221,6 +232,7 @@
           <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
+      <img src="img/home/1.jpeg" alt="" class="promo-banner-img" onerror="this.remove()">
     </section>
 
     <!-- Brands ticker (infinite auto-scroll) -->
@@ -433,6 +445,26 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- ============ INSTALL APP BANNER ============
+     A small nag banner (bottom-right on desktop, full-width bar on
+     mobile) that offers to install the PWA, similar to a browser's own
+     "install this app" prompt. Separate from the manual "How to
+     Install?" guide modal above — that one only opens when tapped;
+     this one appears on its own after a short delay and can be
+     dismissed. See installBannerShow()/installBannerDismiss() in
+     install-prompt.js. -->
+<div class="install-banner" id="installBanner" role="dialog" aria-label="Install MAZI General Trade app" hidden>
+  <img src="img/favicon.png" alt="" class="install-banner-icon">
+  <div class="install-banner-text">
+    <strong>MAZI General Trade</strong>
+    <span>Install the app on this device</span>
+  </div>
+  <button type="button" class="install-banner-cta" id="installBannerCta">Install App</button>
+  <button type="button" class="install-banner-close" id="installBannerClose" aria-label="Dismiss">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
 
 <!-- Order status notifications (glass popups) -->
 <div class="order-notif-stack" id="orderNotifStack" aria-live="polite"></div>
@@ -999,6 +1031,6 @@
 </div>
 
 <script src="page-transitions.js" defer></script>
-<script src="script.js?v=20260920b" defer></script>
+<script src="script.js?v=20260920e" defer></script>
 </body>
 </html>

@@ -285,4 +285,60 @@
 
   // Called from the "View" button on the "How to Install?" hero slide.
   window.MaziInstallGuide = { show: show, hide: hide };
+
+  /* ---- Bottom-corner "Install App" nag banner ----
+     Separate from the guide modal above: this one shows itself a few
+     seconds after page load (instead of waiting to be tapped), and can
+     be dismissed. A dismissal is remembered for a week so it doesn't
+     nag every single visit. Its own "Install App" button re-uses the
+     same show() as the hero banner's "View" button — same native-prompt
+     vs. per-device-guide logic either way. */
+  var BANNER_DELAY_MS = 2500;
+  var BANNER_SNOOZE_DAYS = 7;
+  var BANNER_SNOOZE_KEY = 'mazi_install_banner_dismissed_until';
+
+  function bannerIsSnoozed() {
+    try {
+      var until = Number(localStorage.getItem(BANNER_SNOOZE_KEY)) || 0;
+      return Date.now() < until;
+    } catch (e) { return false; }
+  }
+  function bannerSnooze() {
+    try {
+      localStorage.setItem(BANNER_SNOOZE_KEY, String(Date.now() + BANNER_SNOOZE_DAYS * 24 * 60 * 60 * 1000));
+    } catch (e) {}
+  }
+
+  function initInstallBanner() {
+    var banner = document.getElementById('installBanner');
+    if (!banner) return; // markup not on this page
+
+    var cta = document.getElementById('installBannerCta');
+    var close = document.getElementById('installBannerClose');
+
+    function hideBanner() { banner.hidden = true; }
+
+    if (close) close.addEventListener('click', function () { bannerSnooze(); hideBanner(); });
+    if (cta) cta.addEventListener('click', function () { hideBanner(); show(); });
+
+    // The native "installed" event should also dismiss the banner
+    // immediately, not just wait for the next isStandalone() check.
+    window.addEventListener('appinstalled', hideBanner);
+
+    if (isStandalone() || bannerIsSnoozed()) return;
+
+    setTimeout(function () {
+      // Re-check right before showing — the visitor may have installed
+      // or opened the full guide modal in the meantime.
+      if (isStandalone() || bannerIsSnoozed()) return;
+      if (document.body.style.overflow === 'hidden') return; // some other modal is open
+      banner.hidden = false;
+    }, BANNER_DELAY_MS);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInstallBanner);
+  } else {
+    initInstallBanner();
+  }
 })();

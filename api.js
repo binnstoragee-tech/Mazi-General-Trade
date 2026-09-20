@@ -313,7 +313,7 @@
     });
   }
 
-  var PROFILE_FIELDS = ['name', 'email', 'mobile', 'account_type', 'business_type', 'business_name', 'gst_tin',
+  var PROFILE_FIELDS = ['name', 'last_name', 'email', 'mobile', 'dob', 'account_type', 'business_type', 'business_name', 'gst_tin',
                         'atoll', 'city', 'onboarded', 'notifications_enabled'];
   function updateProfile(fields) {
     return run(function () {

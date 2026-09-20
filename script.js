@@ -54,66 +54,80 @@ const CATEGORIES = [
 /* ---------- Product data ---------- */
 const PRODUCTS = [
   /* Daiwa, Sanzoft, Carefor, R-Fresh only. id = backend code, name = backend name. */
-  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:1350, stock:'in' },
-  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
-  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
-  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
-  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:1550, stock:'in' },
-  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
-  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
-  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
-  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
-  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:1250, stock:'low' },
-  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
-  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
-  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1450, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
-  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in' },
-  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
-  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:1980, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
-  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
-  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
-  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:1080, stock:'low' },
-  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in' },
-  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
-  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
-  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
-  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
-  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
-  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
-  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:1180, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
+  /* TEMP: every price is 0 for now. When the real prices are ready, set them here, in
+     checkout.js AND in the database (see 09_set_all_prices_zero.sql / 02_seed.sql). */
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN.jpg' },
+  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN.jpg' },
+  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN.jpg' },
+  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN.jpg' },
+  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN.jpg' },
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN.jpg' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN.jpg' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN.jpg' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN.jpg' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN.jpg' },
+  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
+  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
+  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
+  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
+  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
+  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
+  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
+  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
+  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in' },
+  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
+  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
+  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
+  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
+  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
+  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
+  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
 
-  /* --- NO PRICE YET (hidden). When the price is known: set price, remove the leading // --- */
-  // { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  /* --- previously hidden (no price yet) — now shown; price is still 0 --- */
+  { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN.jpg' },
+  { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN.jpg' },
+  { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN.jpg' },
+  { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN.jpg' },
+  { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN.jpg' },
+  { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN.jpg' },
+  { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN.jpg' },
+  { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN.jpg' },
+  { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN.jpg' },
+  { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN.jpg' },
+  { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN.jpg' },
+  { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN.jpg' },
+  { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN.jpg' },
+  { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN.jpg' },
+  { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN.jpg' },
+  // NEW (not in backend list yet) - provisional TBC- codes; replace with the real backend code + pack size
+  { id:'TBC-DW-DRAIN-1000', name:'DAIWA DRAIN UNBLOCKER 1000 ML.', cat:'household', icon:'🚿', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Drain Unblocker 1000 ml.jpg' },
+  { id:'TBC-DW-WAX-1000', name:'DAIWA FLOOR POLISHING WAX 1000 ML.', cat:'household', icon:'✨', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 1000 ml.jpg' },
+  { id:'TBC-DW-WAX-3500', name:'DAIWA FLOOR POLISHING WAX 3500 ML.', cat:'household', icon:'✨', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 3500 ml.jpg' },
+  { id:'TBC-DW-TURBO-PINK', name:'DAIWA TURBO TOILET CLEANER 900 ML.-PINK', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Pink.jpg' },
+  { id:'TBC-DW-TURBO-PURPLE', name:'DAIWA TURBO TOILET CLEANER 900 ML.-PURPLE', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Purple.jpg' },
+  { id:'TBC-DW-TURBO-WHITE', name:'DAIWA TURBO TOILET CLEANER 900 ML.-WHITE', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-White.jpg' },
+  { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
 ];
 
 /* ---------- Hero slides ---------- */
 /* TODO: paste the Viber community invite link here (e.g. https://invite.viber.com/?g=xxxxxxxx) */
 const VIBER_COMMUNITY_LINK = '';
 
+/* imgWeb    = 2100x900 (21:9)  -> screens 721px and wider
+   imgMobile = 1200x750 (16:10) -> phones (720px and narrower)
+   Both must be set on a slide, otherwise it falls back to `img`.
+   The hero box uses the same ratios (see .hero in style.css), so the photo
+   fills it edge to edge with no bars. */
 const HERO_SLIDES = [
-  { eyebrow:'This Week', title:'Free delivery on orders over MVR 500', desc:"Order today within Male' and get it delivered by tomorrow.", cta:'Start Shopping', icon:'🚚', img:'img/delivery.jpg' },
-  { eyebrow:'New Arrivals', title:'New products landing every week', desc:'Join our Viber community to be the first to know when new stock arrives.', cta:'Viber Community', icon:'🆕', img:'img/shipment.jpg', link: VIBER_COMMUNITY_LINK || '#' },
-  { eyebrow:'App', title:'How to<br>Install?', desc:'Add MAZI to your home screen for one-tap access and a faster, app-like experience.', cta:'View', icon:'📲', imgMobile:'img/mobile-install-apps.jpg', imgWeb:'img/web-install-apps.jpg', action:'install-guide' },
+  { imgWeb:'img/home/a-desktop.jpeg', imgMobile:'img/home/a-phone.jpeg' },
+  { imgWeb:'img/home/b-desktop.jpeg', imgMobile:'img/home/b-phone.jpeg' },
+  { imgWeb:'img/home/c-desktop.jpeg', imgMobile:'img/home/c-phone.jpeg' },
 ];
 
 /* ---------- State ---------- */
@@ -420,13 +434,18 @@ function applyAuthenticatedSession(result, opts){
   const wasSignup = authMode === 'signup'; // closeLogin() resets the mode, so grab it first
   const profile = result.profile || {};
   const user = result.user || {};
-  const name = profile.name || user.user_metadata?.name || 'Account';
+  // No 'Account' fallback here — an empty name means the shopper hasn't
+  // set one yet, and the Personal Details form (openProfileView) should
+  // show a blank First Name field, not the literal word "Account".
+  const name = profile.name || user.user_metadata?.name || '';
   setSession({
     name,
     firstName: name,
     lastName: profile.last_name || '',
     email: profile.email || user.email || '',
     mobile: profile.mobile || user.user_metadata?.mobile || '',
+    dob: profile.dob || '',
+    currency: getCurrency(),
   });
   closeLogin();
   if (!(opts && opts.skipSuccess)) showLoginSuccess(name, wasSignup);
@@ -757,6 +776,19 @@ function showToast(msg, sub){
 }
 
 /* ============ Sidebar / category strip / pills ============ */
+/* Scroll so the product list (heading + first products) sits right under the
+   top of the screen. Going down the navbar slides away, going up it slides
+   back in — so leave room for it only in the second case. */
+function scrollToCatalogSection(){
+  const target = $('#sectionTitle');
+  if (!target) return;
+  const navFull = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-full')) || 0;
+  const y = target.getBoundingClientRect().top + window.scrollY;
+  const goingDown = y > window.scrollY;
+  const offset = goingDown ? 24 : navFull + 20;
+  window.scrollTo({ top: Math.max(0, y - offset), behavior:'smooth' });
+}
+
 // Switching category always clears any active search — otherwise the
 // heading/results stay stuck on "Results for ..." (and filtered by the old
 // keyword) instead of reflecting the category the person just tapped.
@@ -784,6 +816,9 @@ function renderCategoryNav(){
       $$('[data-cat]').forEach(b=> b.classList.toggle('active', b.dataset.cat === state.category));
       renderProducts();
       closeMenu();
+      // Sidebar / menu picks jump down to the filtered products
+      // (the home quick-category cards do this in their own handler).
+      if (!btn.closest('.quick-cat-card')) requestAnimationFrame(scrollToCatalogSection);
     });
   });
 
@@ -803,7 +838,18 @@ function updateSidebarRail(){
   const downBtn = $('#sidebarRailDown');
   if (!wrap || !rail || !track || !thumb) return;
 
+  // Row density depends only on the screen size (worst case = navbar shown),
+  // so rows don't tighten/loosen every time the navbar hides while scrolling.
+  // Tighter rows are tried first; the scroll rail only appears if the list
+  // STILL doesn't fit in the space that's actually free right now.
+  const inner = $('#sidebarInner');
+  if (inner) inner.classList.remove('compact');
+  const naturalH = wrap.scrollHeight;
+  const navFull = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-full')) || 0;
+  const availShown = window.innerHeight - (navFull + 8) - 52;
+  if (inner) inner.classList.toggle('compact', navFull > 0 && naturalH > availShown);
   const scrollable = wrap.scrollHeight > wrap.clientHeight + 1;
+  if (!scrollable) wrap.scrollTop = 0;
   rail.hidden = !scrollable;
   if (!scrollable) return;
 
@@ -1527,41 +1573,18 @@ function mergeGuestCartIntoAccount(){
 function setSession(data){
   localStorage.setItem('mazi_session', JSON.stringify(data));
   mergeGuestCartIntoAccount();
-  recoverMisfiledGuestOrders();
   state.recentSearches = loadRecentSearches();
   state.cart = loadCart();
   refreshVisibleCurrency(); // re-renders product grid + open product detail so Add to Cart / Added-to-cart state matches the new account's cart
   updateOrdersNotifBadge();
+  syncOrders();      // pull this account's real orders from the server
+  startOrdersLive(); // and listen for status changes made by staff
   initOrdersNotifPrompt(); // re-check auth state so the prompt reflects being logged in right away
   refreshOpenSearchPanel();
   renderAuthButton();
 }
-// One-time recovery: checkout.js used to key orders off session.email alone,
-// so anyone who logged in via mobile OTP (email left blank) had their
-// placed orders silently saved under the "guest" bucket instead of their
-// real mobile-keyed bucket. checkout.js now matches script.js's accountId()
-// logic, but past orders are still stranded under mazi_orders_guest — pull
-// them into the current (real) account's order history so nothing placed
-// before the fix looks like it disappeared. Since checkout.js has always
-// required a logged-in session to place an order, mazi_orders_guest can
-// only contain orders misfiled by that bug, never genuine guest orders —
-// safe to fold in and clear.
-function recoverMisfiledGuestOrders(){
-  const GUEST_KEY = 'mazi_orders_guest';
-  const targetKey = ordersKey();
-  if (targetKey === GUEST_KEY) return; // not logged in — nothing to recover into
-  try{
-    const misfiled = JSON.parse(localStorage.getItem(GUEST_KEY) || '[]');
-    if (!Array.isArray(misfiled) || misfiled.length === 0) return;
-    const existing = JSON.parse(localStorage.getItem(targetKey) || '[]');
-    const existingIds = new Set(existing.map(o=> o.id));
-    const merged = existing.concat(misfiled.filter(o=> !existingIds.has(o.id)));
-    merged.sort((a,b)=> (b.placedAt||0) - (a.placedAt||0));
-    localStorage.setItem(targetKey, JSON.stringify(merged));
-    localStorage.removeItem(GUEST_KEY);
-  } catch(e){}
-}
 function clearSession(){
+  stopOrdersLive();
   localStorage.removeItem('mazi_session');
   state.recentSearches = loadRecentSearches();
   state.cart = loadCart();
@@ -1705,49 +1728,85 @@ const ORDER_STEPS = [
   { key:'delivered',  label:'Delivered' },
 ];
 
-// Demo progression: an order's status advances automatically over time
-// so the tracker below has something real to show as it "completes",
-// instead of every order sitting frozen at step 1 forever.
-const ORDER_STAGE_MINUTES = [0, 1, 3, 6]; // minutes after placement each step unlocks
-
+// Order status is REAL now: it lives in the database (Supabase) and staff change
+// it from admin.html. This device only mirrors it. localStorage is just a
+// per-account cache so the Orders view opens instantly / works briefly offline.
 function getOrders(){
-  return JSON.parse(localStorage.getItem(ordersKey()) || '[]');
+  try{ return JSON.parse(localStorage.getItem(ordersKey()) || '[]'); }
+  catch(e){ return []; }
 }
 function saveOrders(orders){
   localStorage.setItem(ordersKey(), JSON.stringify(orders));
 }
 
 function orderStatusIndex(order){
-  const minutesElapsed = (Date.now() - order.placedAt) / 60000;
-  let idx = 0;
-  ORDER_STAGE_MINUTES.forEach((m, i)=>{ if (minutesElapsed >= m) idx = i; });
-  return idx;
+  const i = ORDER_STEPS.findIndex(step => step.key === order.status);
+  return i < 0 ? 0 : i;
 }
 
-function placeOrder(customer){
-  const ids = Object.keys(state.cart);
-  if (ids.length === 0) return null;
+// Old versions saved "orders" only in the customer's own browser (nothing
+// ever reached the shop). Those have no server status, so drop them.
+function purgeLegacyLocalOrders(){
+  try{
+    const orders = getOrders();
+    const kept = orders.filter(o => o && o.status);
+    if (kept.length !== orders.length) saveOrders(kept);
+  } catch(e){}
+}
 
-  const items = ids.map(id=>{
-    const p = PRODUCTS.find(p=>p.id===id);
-    const qty = state.cart[id];
-    return { id:p.id, name:p.name, pack:p.pack, unit:p.unit, price:p.price, qty };
+// Merge the server's list into the cache, keeping the local-only flags that
+// drive popups/badges (notifiedIdx, badgeUnseen).
+function mergeServerOrders(serverOrders){
+  const prevById = {};
+  getOrders().forEach(o => { prevById[o.id] = o; });
+  const merged = serverOrders.map(o=>{
+    const prev = prevById[o.id];
+    const idx = orderStatusIndex(o);
+    // First time this device sees an order: don't pop a notification for a
+    // status it already had — only for changes from now on.
+    o.notifiedIdx = prev && prev.notifiedIdx !== undefined ? prev.notifiedIdx : idx;
+    o.badgeUnseen = !!(prev && prev.badgeUnseen);
+    if (prev && !prev.cancelled && o.cancelled){
+      // Cancelled by staff (a self-cancel is already cached as cancelled)
+      o.badgeUnseen = true;
+      showToast('Order #' + o.id + ' was cancelled', o.refundStatus === 'pending' ? 'Your refund is being processed.' : '');
+    }
+    return o;
   });
-  const subtotal = items.reduce((s,it)=> s + it.price*it.qty, 0);
-  const deliveryFee = customer && typeof customer.deliveryFee === 'number' ? customer.deliveryFee : null;
-  const total = customer && typeof customer.total === 'number' ? customer.total : subtotal;
+  saveOrders(merged);
+}
 
-  const orders = getOrders();
-  const orderNo = `MZ${new Date().getFullYear()}${String(orders.length+1).padStart(4,'0')}`;
-  const order = { id:orderNo, placedAt:Date.now(), items, subtotal, deliveryFee, total, currency:getCurrency(), customer: customer || null };
-  orders.unshift(order);
-  saveOrders(orders);
+let ordersSyncPromise = null;
+function syncOrders(){
+  if (!getSession() || !window.MaziAPI || !MaziAPI.listOrders) return Promise.resolve();
+  if (ordersSyncPromise) return ordersSyncPromise;
+  ordersSyncPromise = MaziAPI.listOrders().then(rows=>{
+    mergeServerOrders(rows);
+    updateOrdersNotifBadge();
+    checkOrderUpdates();
+    const view = $('#ordersView');
+    if (view && view.classList.contains('open')) renderOrdersView();
+  }).catch(err=>{
+    if (err && err.code === 'NOT_AUTHENTICATED'){
+      // Only log the shopper out if the server really has no session for them.
+      MaziAPI.getSession().then(sess=>{
+        if (!sess){ clearSession(); showToast('Your session expired. Please log in again.'); }
+      }).catch(()=>{});
+    }
+  }).finally(()=>{ ordersSyncPromise = null; });
+  return ordersSyncPromise;
+}
 
-  state.cart = {};
-  saveCart();
-  updateCartUI();
-
-  return order;
+// Live updates: the moment staff change a status, the shopper's device hears
+// about it. (Falls back to the 30-second poll in init() if realtime is off.)
+let ordersUnsub = null;
+function startOrdersLive(){
+  stopOrdersLive();
+  if (!getSession() || !window.MaziAPI || !MaziAPI.subscribeOrders) return;
+  try{ ordersUnsub = MaziAPI.subscribeOrders(()=> syncOrders()); } catch(e){}
+}
+function stopOrdersLive(){
+  if (ordersUnsub){ try{ ordersUnsub(); } catch(e){} ordersUnsub = null; }
 }
 
 function orderStepDotContent(done){
@@ -2086,13 +2145,20 @@ function initProfileNotifToggle(){
 // browser's own install UI is what people see and use.
 
 function cancelOrder(orderId){
-  const orders = getOrders();
-  const order = orders.find(o=> o.id === orderId);
-  if (!order) return;
-  order.cancelled = true;
-  saveOrders(orders);
-  renderOrdersView();
-  showToast('Order cancelled');
+  showAuthLoading();
+  return MaziAPI.cancelOrder(orderId).then(updated=>{
+    const orders = getOrders();
+    const i = orders.findIndex(o=> o.id === orderId);
+    updated.notifiedIdx = i >= 0 ? (orders[i].notifiedIdx || 0) : 0;
+    updated.badgeUnseen = false;
+    if (i >= 0) orders[i] = updated; else orders.unshift(updated);
+    saveOrders(orders);
+    renderOrdersView();
+    showToast('Order cancelled');
+  }).catch(err=>{
+    showToast((err && err.message) || 'Could not cancel this order.');
+    return syncOrders(); // staff may already have moved it on
+  }).finally(hideAuthLoading);
 }
 
 function openCancelOrderConfirm(orderId){
@@ -2101,7 +2167,7 @@ function openCancelOrderConfirm(orderId){
     sub: "This order hasn't been approved yet. Once cancelled, this can't be undone.",
     note: "If you've already sent payment via bank transfer or QR code, it won't be refunded instantly — refunds are processed manually by our team and may take a few business days.",
     confirmLabel: 'Cancel Order',
-    onConfirm: ()=> withAuthLoading(()=> cancelOrder(orderId), 700),
+    onConfirm: ()=> cancelOrder(orderId),
   });
 }
 
@@ -2208,7 +2274,7 @@ function renderOrdersView(){
             </button>
           </div>
           ${order.cancelled ? `
-            <div class="order-cancelled-note">This order was cancelled.</div>
+            <div class="order-cancelled-note">This order was cancelled.${order.refundStatus === 'pending' ? ' Your refund is being processed by our team.' : (order.refundStatus === 'refunded' ? ' Your refund has been sent.' : '')}</div>
           ` : `
             <div class="order-steps">
               ${renderOrderStatus(order)}
@@ -2258,6 +2324,7 @@ function toggleOrderItems(orderId){
 function openOrdersView(){
   ordersVisibleCount = ORDERS_PAGE_SIZE;
   renderOrdersView();
+  syncOrders();
   closeOtherFullScreenViews('ordersView');
   $('#ordersView').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -2517,21 +2584,35 @@ function closeProfileView(){
 }
 function saveProfileView(){
   const session = getSession() || {};
-  const firstName = $('#pvFirstName').value.trim() || session.firstName || 'Account';
+  const firstName = $('#pvFirstName').value.trim() || session.firstName || '';
+  const lastName = $('#pvLastName').value.trim();
+  const email = $('#pvEmail').value.trim();
+  const dob = $('#pvDob').value;
   const mobileDigits = $('#pvMobile').value.trim().replace(/[^0-9]/g, '');
   const mobile = mobileDigits ? `+960${mobileDigits}` : (session.mobile || '');
   if (mobile) updateRegisteredAccountName(mobile, firstName);
-  setSession({
+  const nextSession = {
     ...session,
     name: firstName,
     firstName,
-    lastName: $('#pvLastName').value.trim(),
-    email: $('#pvEmail').value.trim(),
+    lastName,
+    email,
     mobile,
-    dob: $('#pvDob').value,
+    dob,
     currency: getCurrency(),
-  });
-  showToast('Profile updated');
+  };
+  // Reflect the edit right away, but the source of truth is the server row
+  // (profiles table) — without saving there, these fields reset back to
+  // whatever's on the server the next time the shopper logs in, e.g. after
+  // a logout wipes the local-only session.
+  setSession(nextSession);
+  if (window.MaziAPI && MaziAPI.updateProfile){
+    MaziAPI.updateProfile({ name: firstName, last_name: lastName, email, mobile, dob: dob || null })
+      .then(()=> showToast('Profile updated'))
+      .catch(()=> showToast('Saved locally, but syncing to your account failed — check your connection'));
+  } else {
+    showToast('Profile updated');
+  }
 }
 
 /* ============ Atoll / island data ============ */
@@ -2817,6 +2898,9 @@ function initNavScroll(){
     const h = hidden ? 20 : rawH + gap;
     root.style.setProperty('--nav-offset', h + 'px');
     root.style.setProperty('--nav-flush', rawH + 'px');
+    // The category list's max height follows --nav-offset, so re-check
+    // whether it still needs a scrollbar whenever the navbar moves.
+    if (typeof updateSidebarRail === 'function') requestAnimationFrame(updateSidebarRail);
     // Stable "navbar fully shown" height — the sidebar category list sizes
     // itself from this so it only scrolls when it truly can't fit the screen
     // (and doesn't resize every time the navbar hides while scrolling).
@@ -2888,7 +2972,7 @@ function initNavScroll(){
 
 /* ============ Init / event wiring ============ */
 function init(){
-  recoverMisfiledGuestOrders(); // heal already-logged-in sessions right away, not just on next login
+  purgeLegacyLocalOrders(); // orders saved only in the browser (old demo flow) were never received by the shop
 
   renderCategoryNav();
   renderHero();
@@ -2907,8 +2991,11 @@ function init(){
   // then re-check whenever the tab/app regains focus.
   checkOrderUpdates();
   setInterval(checkOrderUpdates, 5000);
+  syncOrders();
+  startOrdersLive();
+  setInterval(syncOrders, 30000); // safety net if realtime is not enabled
   document.addEventListener('visibilitychange', ()=>{
-    if (!document.hidden) checkOrderUpdates();
+    if (!document.hidden){ syncOrders(); checkOrderUpdates(); }
   });
 
   // Register the notifications service worker up front (permission is
@@ -3073,8 +3160,7 @@ function init(){
   if (heroSearchBar) heroSearchBar.addEventListener('click', openMobileSearch);
 
   function scrollToCatalog(){
-    const target = $('#sectionTitle');
-    if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+    scrollToCatalogSection();
   }
 
   $$('.quick-cat-card').forEach(btn=>{
@@ -3100,6 +3186,20 @@ function init(){
 
   // homeViberCtaBtn is now a direct <a href="viber://..."> link (no popup) —
   // update the href in index.html once you have the real Viber Community link.
+
+  // "Join Now" (Viber Community) has no real link yet — data-pending="true"
+  // in index.html marks that. Once the invite.viber.com link is pasted into
+  // its href and data-pending is removed, this just becomes a normal link
+  // and the click handler below no longer intercepts it.
+  const homeViberCommunityBtn = $('#homeViberCommunityBtn');
+  if (homeViberCommunityBtn){
+    homeViberCommunityBtn.addEventListener('click', (e)=>{
+      if (homeViberCommunityBtn.dataset.pending === 'true'){
+        e.preventDefault();
+        showToast('Viber Community link coming soon');
+      }
+    });
+  }
 
   $('#authClose').addEventListener('click', closeLogin);
   $('#authBackdrop').addEventListener('click', closeLogin);

@@ -168,6 +168,8 @@ input{font-family:inherit;}
 .login-btn svg path,.login-btn svg circle{stroke-width:1.7;}
 .login-btn:hover{background:var(--green-100);}
 .login-btn[hidden]{display:none;}
+/* Product detail page: no login icon for guests (logged-in users still get the profile menu) */
+#productView .login-btn{display:none;}
 
 .currency-toggle{
   position:relative;
@@ -232,6 +234,7 @@ input{font-family:inherit;}
 
 .profile-wrap{position:relative;flex-shrink:0;}
 .profile-wrap[hidden]{display:none;}
+.profile-view-topbar .profile-wrap{display:none;} /* already inside the profile page — no need for the account icon here */
 .profile-btn{
   display:flex;align-items:center;justify-content:center;
   width:clamp(38px,3.2vw,46px);height:clamp(38px,3.2vw,46px);
@@ -357,9 +360,11 @@ input{font-family:inherit;}
   flex:1;
   min-width:0;
   /* Grow with the screen: only scroll when the list really doesn't fit in the
-     viewport (navbar + title + breathing room already subtracted). */
-  max-height:calc(100vh - var(--nav-full, 90px) - 8px - 60px);
-  max-height:calc(100dvh - var(--nav-full, 90px) - 8px - 60px);
+     viewport. Uses the navbar's CURRENT offset (it shrinks / hides while you
+     scroll down), so the list takes all the room that's actually free.
+     52px = title + its margin + bottom breathing room. */
+  max-height:calc(100vh - var(--nav-offset, 10px) - 52px);
+  max-height:calc(100dvh - var(--nav-offset, 10px) - 52px);
   overflow-y:auto;
   scrollbar-width:none;
   -ms-overflow-style:none;
@@ -431,6 +436,10 @@ input{font-family:inherit;}
   transition:transform .3s cubic-bezier(.22,1,.36,1), opacity .2s ease;
 }
 .sidebar-list li button:hover{color:var(--ink-soft);transform:translateX(4px);}
+/* Short laptop screens: tighten the rows a little before ever resorting to a
+   scrollbar (toggled from updateSidebarRail() only when it makes the list fit). */
+.sidebar-inner.compact .sidebar-list{gap:0;}
+.sidebar-inner.compact .sidebar-list li button{padding-top:5px;padding-bottom:5px;}
 .sidebar-list li button.active{color:var(--ink-soft);font-weight:700;padding-left:16px;}
 .sidebar-list li button.active::before{transform:translateY(-50%) scaleY(1);opacity:1;}
 
@@ -441,7 +450,7 @@ input{font-family:inherit;}
   position:relative;
   border-radius:var(--radius);
   overflow:hidden;
-  aspect-ratio:16/6;
+  aspect-ratio:21/9;
   background:var(--ink);
   margin-bottom:22px;
 }
@@ -469,11 +478,12 @@ input{font-family:inherit;}
   z-index:1;
 }
 
-/* Warm overlay tint — photo hero slides only (Delivery / Shipment) */
+/* Photo hero slides render with no text on top of them (see renderHero()
+   in script.js — hasImg slides skip the eyebrow/title/desc entirely), so
+   the darkening gradient that used to protect that text just muddies the
+   photo now. Leave image slides at full brightness/color. */
 .hero-slide.has-img::after{
-  background:
-    linear-gradient(115deg, rgba(255,214,180,.16) 0%, rgba(255,214,180,0) 26%),
-    linear-gradient(90deg, rgba(0,0,0,.52) 0%, rgba(0,0,0,.34) 25%, rgba(0,0,0,.12) 45%, rgba(0,0,0,0) 62%);
+  background:none;
 }
 
 /* Glow switch — soft dot that breathes out into an elongated glowing pill,
@@ -1189,6 +1199,65 @@ input{font-family:inherit;}
 .checkout-btn:hover,
 .checkout-btn:focus-visible,
 .checkout-btn:active{background:var(--green-900);color:var(--cream);}
+
+/* ============ Install App banner ============ */
+.install-banner{
+  position:fixed;right:20px;bottom:20px;left:auto;
+  display:flex;align-items:center;gap:12px;
+  width:min(380px, calc(100vw - 40px));
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px 14px;
+  box-shadow:0 18px 44px rgba(15,58,46,.18), 0 1px 0 rgba(255,255,255,.7) inset;
+  z-index:1250;
+  animation:installBannerIn .35s var(--ease-glass);
+}
+.install-banner[hidden]{display:none;}
+.install-banner-icon{
+  width:40px;height:40px;flex-shrink:0;
+  border-radius:11px;object-fit:cover;
+  background:var(--green-100);
+  border:1px solid var(--line);
+}
+.install-banner-text{
+  display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;
+}
+.install-banner-text strong{font-size:13.5px;font-weight:700;color:var(--ink);}
+.install-banner-text span{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.install-banner-cta{
+  flex-shrink:0;
+  background:var(--green-700);color:var(--white);
+  border:none;border-radius:999px;
+  padding:9px 16px;font-size:12.5px;font-weight:700;
+  cursor:pointer;white-space:nowrap;
+  transition:background .15s;
+}
+.install-banner-cta:hover,
+.install-banner-cta:focus-visible{background:var(--green-900);}
+.install-banner-close{
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  width:24px;height:24px;padding:0;margin-left:2px;
+  background:none;border:none;color:var(--ink-soft);cursor:pointer;
+  border-radius:50%;transition:background .15s,color .15s;
+}
+.install-banner-close:hover,
+.install-banner-close:focus-visible{background:var(--green-100);color:var(--ink);}
+.install-banner-close svg{width:15px;height:15px;}
+
+@keyframes installBannerIn{
+  from{opacity:0;transform:translateY(14px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* Mobile: full-width bar pinned to the bottom instead of a floating card */
+@media (max-width:560px){
+  .install-banner{
+    left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));
+    width:auto;padding:10px 10px 10px 12px;
+  }
+  .install-banner-text span{white-space:normal;}
+}
 
 /* ============ Toast (glass) ============ */
 .toast{
@@ -3084,7 +3153,7 @@ input{font-family:inherit;}
   .navbar.nav-compact .icon-btn{width:44px;height:44px;}
 
   .layout{padding:14px;gap:14px;}
-  .hero{aspect-ratio:4/3;}
+  .hero{aspect-ratio:16/10;}
   .hero-slide{padding:20px 24px;background-position:top center;}
   .hero-slide-content{max-width:78%;}
   .hero-visual{display:none;}
@@ -4680,7 +4749,7 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .quick-cat-card:hover{background:var(--green-700);}
 .quick-cat-card:active{transform:scale(.97);}
 .quick-cat-card:first-child{background:var(--green-900);}
-.quick-cat-card .qc-icon{font-size:22px;line-height:1;}
+.quick-cat-card .qc-icon{display:block;width:44px;height:44px;flex-shrink:0;font-size:0;line-height:0;color:transparent;overflow:hidden;background:center/contain no-repeat;pointer-events:none;-webkit-user-drag:none;}
 .quick-cat-card .qc-label{font-size:13px;font-weight:600;line-height:1.25;}
 .quick-cat-card .qc-chevron{
   position:absolute;right:10px;bottom:12px;
@@ -4700,7 +4769,7 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
     box-shadow:0 4px 12px rgba(15,58,46,.16), inset 0 1px 0 rgba(255,255,255,.08);
     overflow:hidden;
   }
-  .quick-cat-card .qc-icon{font-size:30px;line-height:1;}
+  .quick-cat-card .qc-icon{width:38px;height:38px;}
   .quick-cat-card .qc-label{
     font-size:10px;font-weight:700;line-height:1.2;
     padding-right:9px;width:100%;
@@ -4712,40 +4781,136 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
   .quick-cats{gap:5px;}
   .quick-cat-card,
   .quick-cat-card:first-child{padding:9px 5px 8px 7px;}
-  .quick-cat-card .qc-icon{font-size:27px;}
+  .quick-cat-card .qc-icon{width:34px;height:34px;}
   .quick-cat-card .qc-label{font-size:9px;}
+}
+
+/* ---- Quick category cards: one colour + one illustrated icon each ---- */
+.quick-cat-card[data-cat],
+.quick-cat-card[data-cat]:first-child{
+  background:linear-gradient(155deg,var(--qc-a) 0%,var(--qc-b) 100%);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 8px 18px var(--qc-sh), inset 0 1px 0 rgba(255,255,255,.16);
+  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+.quick-cat-card[data-cat]:hover{filter:brightness(1.1);transform:translateY(-2px);}
+.quick-cat-card[data-cat]:active{transform:scale(.97);filter:none;}
+.quick-cat-card[data-cat="all"]      {--qc-a:#3A4158;--qc-b:#1E2233;--qc-sh:rgba(30,34,51,.28);}
+.quick-cat-card[data-cat="dairy"]    {--qc-a:#3F86E0;--qc-b:#2359B5;--qc-sh:rgba(35,89,181,.28);}
+.quick-cat-card[data-cat="beverages"]{--qc-a:#8A4FD6;--qc-b:#5A2E9E;--qc-sh:rgba(90,46,158,.28);}
+.quick-cat-card[data-cat="household"]{--qc-a:#E0407A;--qc-b:#B01F55;--qc-sh:rgba(176,31,85,.28);}
+.quick-cat-card[data-cat="all"] .qc-icon      {background-image:url("img/cat-all.svg");}
+.quick-cat-card[data-cat="dairy"] .qc-icon    {background-image:url("img/cat-dairy.svg");}
+.quick-cat-card[data-cat="beverages"] .qc-icon{background-image:url("img/cat-beverages.svg");}
+.quick-cat-card[data-cat="household"] .qc-icon{background-image:url("img/cat-household.svg");}
+@media (max-width:720px){
+  .quick-cat-card[data-cat]{box-shadow:0 5px 12px var(--qc-sh), inset 0 1px 0 rgba(255,255,255,.16);}
+}
+
+/* Icons centred in the free space above the label */
+.quick-cat-card .qc-icon{width:100%;background-position:center;}
+@media (min-width:721px){
+  .quick-cat-card[data-cat]{min-height:150px;}
+  .quick-cat-card .qc-icon{flex:1 1 auto;height:auto;min-height:60px;background-size:contain;}
+}
+@media (max-width:720px){
+  .quick-cat-card .qc-icon{height:42px;}
+}
+@media (max-width:370px){
+  .quick-cat-card .qc-icon{height:36px;}
 }
 
 /* ---- Special offers promo banner ---- */
 .promo-banner{
-  border-radius:24px;
-  background:linear-gradient(135deg, var(--green-900) 0%, var(--green-800) 55%, var(--green-700) 100%);
-  padding:26px 26px;
+  --pb-1:#361046; --pb-2:#68206F; --pb-3:#B23A7A;
+  --pb-gold:#FFC857; --pb-gold-2:#FFE29A;
+  border-radius:26px;
+  background:
+    radial-gradient(520px 260px at 6% 0%, rgba(255,160,205,.30) 0%, rgba(255,160,205,0) 70%),
+    radial-gradient(420px 240px at 38% 115%, rgba(255,200,87,.20) 0%, rgba(255,200,87,0) 70%),
+    linear-gradient(120deg, var(--pb-1) 0%, var(--pb-2) 52%, var(--pb-3) 100%);
+  padding:34px 32px;
   margin-bottom:26px;
   overflow:hidden;
   position:relative;
+  isolation:isolate;
+  min-height:250px;
+  display:flex;align-items:center;
+  box-shadow:0 18px 40px rgba(104,32,111,.28), inset 0 1px 0 rgba(255,255,255,.16);
 }
-.promo-banner-text{position:relative;z-index:1;max-width:420px;}
+/* soft "suds" bubbles — a nod to the cleaning / laundry products */
+.promo-banner::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255,255,255,.22) 0 2px, transparent 3px),
+    radial-gradient(circle at 44% 78%, rgba(255,255,255,.16) 0 3px, transparent 4px),
+    radial-gradient(circle at 18% 70%, rgba(255,255,255,.14) 0 2px, transparent 3px),
+    radial-gradient(circle at 52% 20%, rgba(255,255,255,.14) 0 4px, transparent 5px),
+    radial-gradient(circle 46px at 40% 92%, rgba(255,255,255,.07) 0 44px, transparent 46px),
+    radial-gradient(circle 30px at 48% 10%, rgba(255,255,255,.07) 0 28px, transparent 30px);
+}
+.promo-banner-text{position:relative;z-index:2;max-width:440px;}
+.promo-banner-img{
+  position:absolute;top:0;right:0;
+  width:52%;height:100%;
+  object-fit:cover;object-position:center;
+  z-index:1;
+  /* long, soft fade into the banner colour so the photo melts in */
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 22%, #000 48%);
+  mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 22%, #000 48%);
+  filter:saturate(1.08) contrast(1.04);
+}
+/* gentle plum tint over the photo so it matches the banner */
+.promo-banner::after{
+  content:"";position:absolute;top:0;right:0;width:52%;height:100%;z-index:1;pointer-events:none;
+  background:linear-gradient(200deg, rgba(178,58,122,0) 40%, rgba(104,32,111,.32) 100%);
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 45%);
+  mask-image:linear-gradient(90deg, transparent 0%, #000 45%);
+}
+@media (max-width:640px){
+  .promo-banner{padding:26px 22px;min-height:0;border-radius:22px;}
+  /* photo stays as a faint backdrop instead of disappearing on phones */
+  .promo-banner-img{display:block;width:100%;opacity:.16;object-position:80% center;
+    -webkit-mask-image:linear-gradient(270deg, #000 0%, transparent 62%);
+    mask-image:linear-gradient(270deg, #000 0%, transparent 62%);}
+  .promo-banner::after{display:none;}
+}
 .promo-eyebrow{
-  color:var(--green-100);
-  font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
-  margin-bottom:8px;
+  display:inline-flex;align-items:center;gap:8px;
+  color:#FFD3E6;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+  margin-bottom:12px;
+  padding:6px 14px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
 }
 .promo-banner h2{
-  color:#fff;font-size:clamp(22px,3vw,30px);line-height:1.2;font-weight:800;margin-bottom:10px;
+  color:#fff;font-size:clamp(24px,3.4vw,36px);line-height:1.14;font-weight:800;margin-bottom:12px;
+  letter-spacing:-.01em;text-shadow:0 2px 14px rgba(40,8,50,.35);
 }
-.promo-banner h2 span{color:var(--green-500);}
-.promo-banner p{color:rgba(255,255,255,.78);font-size:14px;margin-bottom:18px;}
+.promo-banner h2 span{
+  background:linear-gradient(90deg, var(--pb-gold-2), var(--pb-gold));
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:var(--pb-gold);
+  text-shadow:none;
+}
+.promo-banner p{color:rgba(255,255,255,.86);font-size:15px;margin-bottom:22px;}
 .promo-cta{
-  display:inline-flex;align-items:center;gap:8px;
-  background:var(--green-500);color:#fff;
+  display:inline-flex;align-items:center;gap:10px;
+  background:linear-gradient(180deg, #FFE08A 0%, #FFC24A 100%);
+  color:#4A1450;
   border-radius:999px;
-  padding:12px 20px;
-  font-weight:700;font-size:14px;
-  transition:background .15s ease;
+  padding:13px 22px;
+  font-weight:800;font-size:14px;
+  box-shadow:0 8px 20px rgba(255,194,74,.32), inset 0 1px 0 rgba(255,255,255,.6);
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
 }
-.promo-cta:hover{background:var(--green-600);}
-.promo-cta svg{width:16px;height:16px;}
+.promo-cta:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:0 12px 26px rgba(255,194,74,.42), inset 0 1px 0 rgba(255,255,255,.6);}
+.promo-cta:active{transform:scale(.97);}
+.promo-cta svg{width:16px;height:16px;transition:transform .15s ease;}
+.promo-cta:hover svg{transform:translateX(3px);}
 
 /* ---- Popular products preview ---- */
 .popular-products{margin-bottom:26px;}
@@ -4805,6 +4970,14 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .viber-cta-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(30,10,80,.24);}
 .viber-cta-btn:active{transform:scale(.96);}
 .viber-cta-btn svg{width:14px;height:14px;}
+.viber-cta-actions{position:relative;z-index:1;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.viber-cta-divider{width:1px;align-self:stretch;background:rgba(255,255,255,.28);border-radius:1px;}
+.viber-cta-btn-secondary{
+  background:rgba(255,255,255,.1);color:#fff;
+  border:1.5px solid rgba(255,255,255,.55);
+  box-shadow:none;
+}
+.viber-cta-btn-secondary:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.8);box-shadow:none;}
 
 /* faint chat-bubble decorations behind the button */
 .viber-cta-deco{
@@ -4818,12 +4991,17 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .viber-cta-deco-2{width:34px;height:26px;right:14px;bottom:-8px;}
 
 @media (max-width:480px){
-  .viber-cta-banner{gap:11px;padding:14px 12px 14px 14px;border-radius:14px;}
+  /* Two buttons no longer fit beside the icon+text on a phone-width
+     banner, so wrap onto a second row and let each button share the
+     width instead of squeezing both into the original single row. */
+  .viber-cta-banner{gap:11px 0;flex-wrap:wrap;padding:14px 12px 14px 14px;border-radius:14px;}
   .viber-cta-icon{width:40px;height:40px;}
   .viber-cta-text strong{font-size:13.5px;}
   .viber-cta-text span{font-size:10.5px;}
-  .viber-cta-btn{padding:9px 12px;font-size:12px;gap:5px;}
-  .viber-cta-btn svg{width:13px;height:13px;}
+  .viber-cta-actions{width:100%;margin-top:12px;gap:8px;}
+  .viber-cta-divider{display:none;}
+  .viber-cta-btn{padding:9px 10px;font-size:11.5px;gap:5px;flex:1;justify-content:center;}
+  .viber-cta-btn svg{width:13px;height:13px;flex-shrink:0;}
   .viber-cta-deco-1{right:96px;}
 }
 
@@ -5576,4 +5754,98 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .auth-verify-hint[hidden]{display:none;}
 @media (prefers-reduced-motion:reduce){
   .auth-verify-in,.auth-verify[data-state="confirmed"] .auth-verify-icon{animation:none;}
+}
+
+/* ============================================================
+   FOOTER ALIGNMENT — even columns, top-aligned brand block,
+   matching row rhythm and text style across all columns
+   ============================================================ */
+.footer-top{
+  grid-template-columns:minmax(240px,1.5fr) repeat(4,minmax(130px,1fr));
+  align-items:start;
+}
+.footer-brand{display:flex;flex-direction:column;align-items:flex-start;}
+/* The logo file has transparent space above/below the artwork. Trim it so the
+   logo top lines up with the column headings and its left edge with the text. */
+.footer-logo{
+  --fl-h:156px;
+  height:var(--fl-h);
+  margin:calc(var(--fl-h) * -.35) 0 calc(var(--fl-h) * -.35 + 16px) calc(var(--fl-h) * -.058);
+}
+/* Get in Touch: same look and row spacing as the link columns */
+.footer-contact{gap:12px!important;}
+.footer-contact li:first-child,
+.footer-contact li:last-child a{color:rgba(255,255,255,.62);font-weight:400;}
+.footer-contact li:last-child a:hover{color:#fff;}
+@media (max-width:1100px){
+  .footer-top{grid-template-columns:repeat(4,1fr);}
+  .footer-brand{grid-column:1/-1;}
+}
+@media (max-width:640px){
+  .footer-top{grid-template-columns:1fr 1fr;}
+  .footer-logo{--fl-h:108px;}
+  .footer-contact{gap:9px!important;}
+}
+@media (max-width:360px){
+  .footer-logo{--fl-h:92px;}
+}
+
+
+/* ============================================================
+   Product photos — plain white background (no green gradient,
+   no dotted pattern). The cube placeholder still shows behind
+   a card ONLY when the product has no photo yet.
+   ============================================================ */
+.card-media,
+.cart-row-media,
+.order-item-media,
+.co-item-media{
+  background:#fff;
+}
+.card-media::before{display:none;}       /* remove the dotted pattern */
+.card-media::after{display:none;}        /* remove the cube icon behind the photo */
+.card-media:has(.card-img.img-missing)::after{display:block;}
+
+
+/* ============================================================
+   Button hover highlight — buttons visibly change to gray when the
+   cursor is on them. Mouse/trackpad only, so phones don't get a
+   "stuck" highlight after a tap.
+   ============================================================ */
+.card-add{
+  transition:background .15s, color .15s, border-color .15s, box-shadow .15s, transform .15s,
+    width .35s var(--ease-glass), border-radius .35s var(--ease-glass),
+    padding .35s var(--ease-glass), gap .35s var(--ease-glass);
+}
+.co-btn{
+  transition:background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+}
+
+@media (hover:hover){
+
+  /* Add to Cart — product cards + product page */
+  .card-add:not(.card-add-disabled):not(.success):not(.loading):not(.card-add-done):hover{
+    background:#E4E6E5;
+    border-color:#C9CDCB;
+    box-shadow:0 6px 16px rgba(0,0,0,.10);
+  }
+
+  /* Quantity  –  /  +  on the product cards (dark button -> gray) */
+  .card-qty .qty-btn:not(:disabled):hover{background:#6B716E;color:#fff;}
+
+  /* Quantity  –  /  +  on the product page */
+  .pd-actions .card-qty.pd-qty .qty-btn:not(:disabled):hover{
+    background:#E4E6E5;
+    color:var(--ink);
+  }
+
+  /* Other white buttons (checkout, coupon, notifications) */
+  .co-btn-primary:not(:disabled):hover,
+  .co-btn-ghost:not(:disabled):hover,
+  .ck-coupon-btn:not(:disabled):hover,
+  .notif-prompt-btn:not(:disabled):not(.loading):not(.success):hover{
+    background:#E4E6E5;
+    border-color:#C9CDCB;
+    color:var(--ink);
+  }
 }
