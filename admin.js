@@ -17,9 +17,9 @@
 
   var S = {
     view: 'dashboard',
-    tab: { live: 'all', history: 'all', stock: 'all' },
+    tab: { live: 'all', history: 'all', stock: 'all', accounts: 'pending' },
     q: '',
-    orders: [], products: [], log: [],
+    orders: [], products: [], log: [], shops: [], shopsError: null,
     productsError: null, drawerId: null, profile: null
   };
   var knownIds = null, pollTimer = null, busy = false, menuEl = null;
@@ -195,7 +195,7 @@
   }
   var INFO = {
     about: '<h3>About us</h3><p>MAZI General Trade is a grocery and convenience wholesaler based in Male\', Republic of Maldives, delivering across Male\' and beyond.</p><p>This portal is for our staff to manage orders and stock.</p>',
-    contact: '<h3>Contact</h3><p>Email: <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a></p><p>Male\', Republic of Maldives</p>',
+    contact: '<h3>Contact</h3><p>Phone / Viber: <a href="tel:+9609291600">+960 929 1600</a></p><p>Email: <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a></p><p>Male\', Republic of Maldives</p>',
     help: '<h3>Help</h3><ol><li>Sign in with the email and password of your staff account, then press <b>Go</b>.</li><li>Forgot your password? Type your email, then press <b>Forgot Password</b> — we send you a reset link.</li><li>New here? Press <b>Create New Account</b>, confirm your email, then ask the shop owner to give your account staff access.</li></ol><p>Shopping as a customer? <a href="index.html">Go to the MAZI shop</a>.</p><p>Still stuck? Write to <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a>.</p>'
   };
   function openInfo(k) { $('infoBody').innerHTML = INFO[k] || ''; $('infoModal').classList.remove('hidden'); }
@@ -222,11 +222,16 @@
       S.productsError = e;
     });
   }
+  function loadShops() {
+    return MaziAPI.adminListShops().then(function (rows) { S.shops = rows || []; S.shopsError = null; })
+      .catch(function (e) { S.shopsError = e; });
+  }
   function loadAll(initial) {
     if (busy) return Promise.resolve();
     busy = true;
     var jobs = [loadOrders(initial)];
     if (S.view === 'stock' || S.view === 'dashboard' || initial) jobs.push(loadStock());
+    jobs.push(loadShops());
     return Promise.all(jobs).catch(function (e) {
       if (e && e.code === 'NOT_AUTHENTICATED') showLogin('Session expired. Please sign in again.');
       else toast((e && e.message) || 'Could not load data.', true);
@@ -273,14 +278,17 @@
     var fresh = S.orders.filter(function (o) { return o.status === 'placed'; }).length;
     Array.prototype.forEach.call(document.querySelectorAll('#nav [data-view]'), function (b) { b.classList.toggle('active', b.dataset.view === S.view); });
     var nc = $('navCnt'); nc.textContent = active; nc.classList.toggle('hidden', !active);
+    var pend = S.shops.filter(function (x) { return x.status === 'pending'; }).length;
+    var sc = $('navShopCnt'); if (sc) { sc.textContent = pend; sc.classList.toggle('hidden', !pend); }
     var bn = $('bellN'); bn.textContent = fresh; bn.classList.toggle('hidden', !fresh);
-    $('search').placeholder = S.view === 'stock' ? 'Search products' : 'Search order, name or mobile';
+    $('search').placeholder = S.view === 'stock' ? 'Search products' : (S.view === 'accounts' ? 'Search account, owner or mobile' : 'Search order, name or mobile');
     if ($('search').value !== S.q) $('search').value = S.q;
     var searchWrap = document.querySelector('.search');
     if (searchWrap) searchWrap.classList.toggle('hidden', S.view === 'dashboard');
 
     if (S.view === 'dashboard') renderDashboard();
     else if (S.view === 'stock') renderStock();
+    else if (S.view === 'accounts') renderAccounts();
     else renderOrders();
     if (S.drawerId) refreshDrawer();
   }
@@ -568,6 +576,61 @@
     if (focusId && focusId.indexOf('qty-') === 0 && $(focusId)) $(focusId).focus();
   }
 
+  /* ---------- accounts (My Accounts approval) ---------- */
+  function renderAccounts() {
+    var h = '<h1>Accounts</h1><p class="lead">Business and residence accounts that customers add from their profile. Approve a business account so the customer can select it at checkout.</p>';
+    if (S.shopsError) {
+      var msg = String(S.shopsError.message || '');
+      if (/admin_list_shops|does not exist|schema cache|not authorized/i.test(msg)) {
+        h += '<div class="note-banner"><b>One-time setup needed.</b> Open Supabase → SQL Editor and run <code>11_shops_admin.sql</code>, then press Refresh.</div>';
+      } else {
+        h += '<div class="note-banner">Could not load accounts: ' + esc(msg) + '</div>';
+      }
+      $('panel').innerHTML = h; return;
+    }
+    var L = S.shops, c = { pending: 0, approved: 0, rejected: 0 };
+    L.forEach(function (x) { if (c[x.status] != null) c[x.status]++; });
+    var tab = S.tab.accounts;
+    var defs = [['pending', 'Pending', c.pending], ['approved', 'Approved', c.approved], ['rejected', 'Rejected', c.rejected], ['all', 'All', L.length]];
+    h += '<div class="bar"><div class="tabs">' + defs.map(function (d) {
+      return '<button class="tab' + (tab === d[0] ? ' active' : '') + '" data-tab="' + d[0] + '">' + d[1] + '<span class="n">' + d[2] + '</span></button>';
+    }).join('') + '</div></div>';
+
+    var q = S.q.trim().toLowerCase();
+    var list = L.filter(function (x) {
+      if (tab !== 'all' && x.status !== tab) return false;
+      return !q || [x.name, x.owner_name, x.owner_mobile, x.owner_email, x.gst_tin, x.city, x.atoll].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    if (!list.length) { h += '<div class="empty">' + (tab === 'pending' ? 'No accounts waiting for approval.' : 'No accounts here.') + '</div>'; }
+    else {
+      h += list.map(function (x) {
+        var cls = x.status === 'approved' ? '' : (x.status === 'pending' ? 'amber' : 'red');
+        var biz = x.account_type === 'business';
+        var lines = [
+          biz ? ('Business' + (x.business_type ? ' · ' + x.business_type : '')) : 'Residence',
+          biz ? (x.gst_exempt ? 'Not GST registered' : (x.gst_tin ? 'GST TIN: ' + x.gst_tin : '')) : '',
+          [x.city, x.atoll].filter(Boolean).join(', '),
+          'Owner: ' + [x.owner_name, x.owner_mobile, x.owner_email].filter(Boolean).join(' · '),
+          'Added ' + ago(new Date(x.created_at).getTime())
+        ].filter(Boolean);
+        var btns = '';
+        if (x.status !== 'approved') btns += '<button class="btn sm" data-shop-approve="' + esc(x.id) + '">Approve</button> ';
+        if (x.status !== 'rejected') btns += '<button class="btn ghost sm" data-shop-reject="' + esc(x.id) + '">Reject</button>';
+        return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
+          '<div><b>' + esc(x.name) + '</b> <span class="pill ' + cls + '">' + esc(x.status) + '</span>' +
+          '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
+          '<div style="display:flex;gap:8px">' + btns + '</div></div>';
+      }).join('');
+    }
+    $('panel').innerHTML = h;
+  }
+  function setShopStatus(id, status) {
+    MaziAPI.adminSetShopStatus(id, status).then(function () {
+      toast(status === 'approved' ? 'Account approved' : (status === 'rejected' ? 'Account rejected' : 'Account updated'));
+      return loadShops().then(render);
+    }).catch(function (e) { toast(e.message || 'Could not update the account.', true); });
+  }
+
   function adjustStock(pid, mode) {
     var input = $('qty-' + pid); if (!input) return;
     var v = input.value.trim();
@@ -664,7 +727,7 @@
 
   /* ============ events ============ */
   function onClick(e) {
-    var t = e.target.closest('[data-tab],[data-open],[data-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-set],[data-close],[data-view],[data-goto],[data-notif-enable],[data-notif-off],[data-notif-on]');
+    var t = e.target.closest('[data-tab],[data-open],[data-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-set],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-notif-enable],[data-notif-off],[data-notif-on]');
     if (!t) return;
     var d = t.dataset, o;
     if (d.view) { S.view = d.view; S.q = ''; closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard') { loadStock().then(render); } render(); return; }
@@ -682,6 +745,8 @@
     if (d.tab) { S.tab[S.view] = d.tab; render(); return; }
     if (d.menu) { e.stopPropagation(); openMenu(d.menu, t); return; }
     if (d.open) { openDrawer(d.open); return; }
+    if (d.shopApprove) { setShopStatus(d.shopApprove, 'approved'); return; }
+    if (d.shopReject) { if (confirm('Reject this account?')) setShopStatus(d.shopReject, 'rejected'); return; }
     if (d.add) { adjustStock(d.add, 'add'); return; }
     if (d.set) { adjustStock(d.set, 'set'); return; }
     if (d.next) {

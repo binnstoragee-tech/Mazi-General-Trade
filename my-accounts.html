@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Accounts - MGT</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="style.css?v=20260921e">
+</head>
+<body class="co-page ma-page">
+
+<header class="co-header">
+  <div class="co-header-inner">
+    <a href="index.html" class="co-back" aria-label="Back to store">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Back to store</span>
+    </a>
+  </div>
+</header>
+
+<main class="ma-wrap">
+  <section class="ma-panel">
+    <div class="ma-head">
+      <h1 class="ma-title">My Accounts</h1>
+      <button type="button" class="ma-add-btn" id="maAddBtn">+ Add Account</button>
+    </div>
+    <p class="ma-sub">Choose which account you are ordering for. Business accounts can be selected once they are approved.</p>
+    <div class="ma-msg" id="maMsg" hidden></div>
+    <div class="ma-grid" id="maGrid"></div>
+  </section>
+</main>
+
+<!-- Add New Account -->
+<div class="ma-modal" id="maModal" hidden>
+  <div class="ma-modal-card" role="dialog" aria-modal="true" aria-labelledby="maModalTitle">
+    <h2 id="maModalTitle">Add New Account</h2>
+
+    <label class="ma-field">
+      <span>Account Type</span>
+      <select id="maType">
+        <option value="business">Business</option>
+        <option value="residence">Residence</option>
+      </select>
+    </label>
+
+    <label class="ma-switch" id="maGstSwitchRow">
+      <input type="checkbox" id="maGstExempt">
+      <span class="ma-switch-slider"></span>
+      <span class="ma-switch-text">Enable, if you're not GST registered</span>
+    </label>
+
+    <label class="ma-field" id="maGstField">
+      <span>GST TIN Number</span>
+      <input type="text" id="maGst" placeholder="e.g. 1234567GST501" autocomplete="off">
+    </label>
+
+    <label class="ma-field">
+      <span id="maNameLabel">Shop/Business Name</span>
+      <input type="text" id="maName" autocomplete="off">
+    </label>
+
+    <label class="ma-field" id="maBizTypeField">
+      <span>Business Type</span>
+      <select id="maBizType"></select>
+    </label>
+
+    <div class="ma-row">
+      <label class="ma-field">
+        <span>Atoll</span>
+        <select id="maAtoll"></select>
+      </label>
+      <label class="ma-field">
+        <span>City/Island</span>
+        <select id="maCity"></select>
+      </label>
+    </div>
+
+    <small class="ma-error" id="maError" hidden></small>
+
+    <button type="button" class="ma-submit" id="maSubmit">Submit</button>
+    <button type="button" class="ma-cancel" id="maCancel">Cancel</button>
+  </div>
+</div>
+
+<script src="supabase.js" defer></script>
+<script src="supabase-config.js" defer></script>
+<script src="api.js?v=20260921a" defer></script>
+<script src="my-accounts.js?v=20260921a" defer></script>
+</body>
+</html>

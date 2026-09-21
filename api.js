@@ -234,6 +234,18 @@
     });
   }
 
+  // "Continue with Google" — redirects the shopper to Google's sign-in
+  // page, then back here already signed in. Google verifies the email
+  // itself, so no confirmation email step is needed for this path.
+  function signInWithGoogle() {
+    return run(function () {
+      return getClient().auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: redirectUrl() }
+      }).then(unwrap);
+    });
+  }
+
   // Where the confirmation link in the email sends the shopper back to (this site).
   function redirectUrl() {
     return /^https?:$/.test(window.location.protocol) ? window.location.origin + '/' : undefined;
@@ -315,7 +327,7 @@
     });
   }
 
-  var PROFILE_FIELDS = ['name', 'email', 'mobile', 'account_type', 'business_type', 'business_name', 'gst_tin',
+  var PROFILE_FIELDS = ['name', 'last_name', 'dob', 'email', 'mobile', 'account_type', 'business_type', 'business_name', 'gst_tin',
                         'atoll', 'city', 'onboarded', 'notifications_enabled'];
   function updateProfile(fields) {
     return run(function () {
@@ -461,6 +473,17 @@
       return getClient().rpc('admin_set_business_verified', { p_user: userId, p_verified: !!verified }).then(unwrap);
     });
   }
+  // ---- My Accounts approval (needs 11_shops_admin.sql) ----
+  function adminListShops(status) {
+    return run(function () {
+      return getClient().rpc('admin_list_shops', { p_status: status || null }).then(unwrap).then(function (r) { return r || []; });
+    });
+  }
+  function adminSetShopStatus(id, status) {
+    return run(function () {
+      return getClient().rpc('admin_set_shop_status', { p_shop: id, p_status: status }).then(unwrap);
+    });
+  }
   // ---- stock control (needs supabase/08_stock.sql) ----
   function adminListProducts() {
     return run(function () {
@@ -494,6 +517,41 @@
     });
   }
 
+  // ============================================================
+  // My Accounts (extra Business / Residence accounts under one login)
+  // Table: public.shops  (see 10_shops.sql)
+  // ============================================================
+  var ACTIVE_SHOP_KEY = 'mazi_active_shop';
+  function getActiveShopId() {
+    try { return localStorage.getItem(ACTIVE_SHOP_KEY) || 'personal'; } catch (e) { return 'personal'; }
+  }
+  function setActiveShopId(id) {
+    try { localStorage.setItem(ACTIVE_SHOP_KEY, id || 'personal'); } catch (e) {}
+  }
+  function listShops() {
+    return run(function () {
+      return getClient().from('shops').select('*').order('created_at', { ascending: true })
+        .then(unwrap).then(function (rows) { return rows || []; });
+    });
+  }
+  function addShop(f) {
+    return run(function () {
+      return currentUserId().then(function (uid) {
+        var row = {
+          user_id: uid,
+          account_type: f.accountType === 'business' ? 'business' : 'residence',
+          name: String(f.name || '').trim(),
+          business_type: f.accountType === 'business' ? (f.businessType || null) : null,
+          gst_tin: f.accountType === 'business' && !f.gstExempt ? (f.gstTin || null) : null,
+          gst_exempt: f.accountType === 'business' ? !!f.gstExempt : false,
+          atoll: f.atoll || null,
+          city: f.city || null
+        };
+        return getClient().from('shops').insert(row).select().single().then(unwrap);
+      });
+    });
+  }
+
   window.MaziAPI = {
     get client() { return getClient(); },
     normalizeMobile: normalizeMobile,
@@ -502,11 +560,14 @@
     getConfig: getConfig, listCategories: listCategories, listProducts: listProducts,
     sendOtp: sendOtp, verifyOtp: verifyOtp, signInWithPassword: signInWithPassword,
     signUpWithPassword: signUpWithPassword, resendConfirmation: resendConfirmation,
+    signInWithGoogle: signInWithGoogle,
     sendPasswordReset: sendPasswordReset, updatePassword: updatePassword, getSession: getSession, onAuthChange: onAuthChange, logout: logout,
+    listShops: listShops, addShop: addShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
     getProfile: getProfile, updateProfile: updateProfile, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
     cancelOrder: cancelOrder, subscribeOrders: subscribeOrders,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
+    adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
     adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog
   };

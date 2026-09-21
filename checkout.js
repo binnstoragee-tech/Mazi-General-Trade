@@ -9,57 +9,75 @@
 
 /* ---------- Product data (kept in sync with script.js) ---------- */
 const PRODUCTS = [
-  /* Daiwa, Sanzoft, Carefor, R-Fresh only. id = backend code, name = backend name. */
-  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
-  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
-  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
-  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
-  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
-  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in' },
-  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
-  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
-  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
-  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
-  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
-  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
-  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
+  /* Daiwa, Sanzoft, Carefor, R-Fresh, Pinto. id = backend code, name = backend name.
+     Prices = Sept 2026 shipment invoice MD2026-001 (CIF, USD) x 15.42 MVR/USD.
+     Photos: all in img/household&cleaning/ (new ones named <product code>.png, from the supplier packing list).
+     KEEP THIS LIST IDENTICAL in script.js and checkout.js. */
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:237.53, stock:'in', img:'img/household&cleaning/108DW10103.png' },
+  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW40405.png' },
+  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW10107.png' },
+  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW20205.png' },
+  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW30305.png' },
+  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ10108.png' },
+  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ30307.png' },
+  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ20208.png' },
+  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZSB020201N.png' },
+  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZ000204N.png' },
+  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZ000305.png' },
+  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000401.png' },
+  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000501.png' },
+  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000301.png' },
+  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF01001.png' },
+  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF02001.png' },
+  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF04001.png' },
+  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF03001.png' },
+  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF01001.png' },
+  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF02001.png' },
+  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF04001.png' },
+  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF05001.png' },
+  { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW00008.png' },
+  { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW10304.png' },
+  { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW000501.png' },
+  { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/107DW10102.png' },
+  { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW40402.png' },
+  { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW10105.png' },
+  { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW20202.png' },
+  { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW30302.png' },
+  { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:203.85, stock:'in', img:'img/household&cleaning/102DW10003.png' },
+  { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/103DW10101.png' },
+  { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW00103.png' },
+  { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW50501.png' },
+  { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW40401.png' },
+  { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW20201.png' },
+  { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW30301.png' },
+  { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZSB080802.png' },
+  { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZ000202.png' },
+  { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZ000302.png' },
+  { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ080801N.png' },
+  { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ000201N.png' },
+  { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ000301N.png' },
 
-  /* --- NO PRICE YET (hidden). When the price is known: set price, remove the leading // --- */
-  // { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  /* Pinto Click — pack ratio (pcs per carton) not given in the invoice, unit left blank until confirmed. */
+  { id:'101PTCL101001', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - LEMON', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCL101001.png' },
+  { id:'101PTCLK40101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - KIWI', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLK40101.png' },
+  { id:'101PTCLP20101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - PURE&CARE', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLP20101.png' },
+  { id:'101PTCLP30101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - POMELO&PASSION FRUIT', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLP30101.png' },
+  { id:'101PTLE010101', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - LEMON', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTLE010101.png' },
+  { id:'101PTMA050501', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - MANGO', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTMA050501.png' },
+  { id:'101PTBI010101', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - BIO', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTBI010101.png' },
+  { id:'101PTLE010102Y2', name:'PINTO DISH WASHING LIQUID 3600 ML. - LEMON (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTLE010102Y2.png' },
+  { id:'101PTKL000002', name:'PINTO DISH WASHING LIQUID 3600 ML. - KLEAR (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTKL000002.png' },
+
+  /* TEMP — NO PRICE YET (price:0). Shown only while the list is being reviewed.
+     BEFORE GO-LIVE: give each a price (and set price + active = true in Supabase) or comment the line out. */
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW30302.png' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW00101.png' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW40402.png' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW50502.png' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW20202.png' },
+  { id:'607CR00101', name:'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607CR00101.png' },
+  { id:'607BN00201', name:'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607BN00201.png' },
+  { id:'503ZS00101', name:'ZENSI NATURAL CLEANSING SHOWER 450 ML.', cat:'personal-care', icon:'🚿', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/503ZS00101.png' },
 ];
 const ATOLLS = {
   'Haa Alif (HA)': ['Dhidhdhoo', 'Hoarafushi', 'Kelaa', 'Ihavandhoo'],
@@ -187,6 +205,50 @@ function renderContact(){
   $('#coContactMobile').textContent = s.mobile ? `+960${String(s.mobile).replace(/^\+?960/,'')}` : '';
   $('#coName').value = name !== 'there' ? name : '';
   $('#coMobile').value = s.mobile || '';
+  renderBusinessInfo();
+}
+
+/* Accounts: show every business / extra account of this login in the Contact box
+   (name, type, GST TIN, place, approval status). Read-only — managed from Profile → My Accounts.
+   Individual logins with no extra accounts see nothing extra. */
+function renderBusinessInfo(){
+  const box = $('#coContactBusiness');
+  if (!box || !window.MaziAPI) return;
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const badge = st => {
+    const label = st === 'approved' ? 'Approved' : (st === 'rejected' ? 'Not approved' : 'Pending approval');
+    return `<span class="co-biz-badge ${st === 'approved' ? 'is-verified' : 'is-pending'}">${label}</span>`;
+  };
+  const item = a => `<div class="co-biz-item">
+      <div class="co-contact-bname">${esc(a.name)}${badge(a.status)}</div>
+      ${a.sub ? `<div class="co-contact-btin">${esc(a.sub)}</div>` : ''}
+      ${a.gst ? `<div class="co-contact-btin">${esc(a.gst)}</div>` : ''}
+      ${a.place ? `<div class="co-contact-btin">${esc(a.place)}</div>` : ''}
+    </div>`;
+  const show = list => {
+    if (!list.length){ box.hidden = true; box.innerHTML = ''; return; }
+    box.innerHTML = list.map(item).join('');
+    box.hidden = false;
+  };
+  const fromProfile = ()=> MaziAPI.getProfile().then(p=>{
+    if (!p || p.account_type !== 'business' || !p.business_name) return [];
+    return [{ name: p.business_name, status: p.business_verified === false ? 'pending' : 'approved',
+              sub: 'Business', gst: p.gst_tin ? `GST TIN: ${p.gst_tin}` : 'GST TIN: not provided', place: [p.city, p.atoll].filter(Boolean).join(', ') }];
+  }).catch(()=>[]);
+
+  const shops = MaziAPI.listShops ? MaziAPI.listShops().catch(()=>[]) : Promise.resolve([]);
+  shops.then(list=>{
+    if (list && list.length){
+      show(list.map(x=>({
+        name: x.name, status: x.status,
+        sub: x.account_type === 'business' ? ('Business' + (x.business_type ? ' · ' + x.business_type : '')) : 'Residence',
+        gst: x.account_type === 'business' ? (x.gst_exempt ? 'Not GST registered' : (x.gst_tin ? `GST TIN: ${x.gst_tin}` : '')) : '',
+        place: [x.city, x.atoll].filter(Boolean).join(', ')
+      })));
+    } else {
+      fromProfile().then(show);
+    }
+  });
 }
 
 /* ---------- Review items ---------- */

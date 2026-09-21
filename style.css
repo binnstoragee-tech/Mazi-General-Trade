@@ -1300,6 +1300,14 @@ input{font-family:inherit;}
   color:#fff;
   box-shadow:0 4px 10px rgba(46,140,108,.35);
 }
+.toast[data-toast-type="error"] .toast-icon{
+  background:linear-gradient(145deg, #e05a4e, #b3261e);
+  box-shadow:0 4px 10px rgba(179,38,30,.35);
+}
+.toast[data-toast-type="info"] .toast-icon{
+  background:linear-gradient(145deg, #8a9199, #5f6368);
+  box-shadow:0 4px 10px rgba(95,99,104,.3);
+}
 .toast-icon svg{width:13px;height:13px;}
 .toast-icon.pop{animation:toastIconPop .4s var(--ease-glass);}
 @keyframes toastIconPop{
@@ -1825,24 +1833,36 @@ input{font-family:inherit;}
 .auth-submit-btn{
   margin-top:4px;
   padding:clamp(9px,1.8vh,13px);
-  background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.02) 55%), var(--green-800);
-  backdrop-filter:blur(14px) saturate(160%);
-  -webkit-backdrop-filter:blur(14px) saturate(160%);
+  background:var(--green-800);
   color:var(--cream);
-  border:1px solid rgba(255,255,255,.3);
-  box-shadow:
-    inset 0 1px 1px rgba(255,255,255,.4),
-    inset 0 -3px 6px rgba(0,0,0,.18),
-    0 10px 24px rgba(15,58,46,.22);
-  border-radius:10px;
+  border:1px solid var(--green-800);
+  box-shadow:none;
+  border-radius:0;
   font-size:14px;font-weight:700;
-  transition:background .2s ease, box-shadow .2s ease, transform .15s ease;
+  transition:background .15s ease;
 }
-.auth-submit-btn:hover{background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.02) 55%), var(--green-900);color:var(--cream);box-shadow:
-    inset 0 1px 1px rgba(255,255,255,.4),
-    inset 0 -3px 6px rgba(0,0,0,.18),
-    0 14px 30px rgba(15,58,46,.28);}
-.auth-submit-btn:active{transform:scale(.98);}
+.auth-submit-btn:hover{background:var(--green-900);color:var(--cream);}
+.auth-submit-btn:active{background:var(--green-900);}
+
+.auth-google-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;padding:clamp(9px,1.8vh,13px);
+  background:var(--white);color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:0;
+  font-size:14px;font-weight:600;
+  transition:background .15s ease, border-color .15s ease;
+  margin-bottom:2px;
+}
+.auth-google-btn:hover{background:var(--cream);border-color:var(--line-strong,var(--line));}
+.auth-google-btn:active{background:var(--cream);}
+.auth-or-divider{
+  display:flex;align-items:center;gap:10px;
+  margin:2px 0 4px;
+  color:var(--ink-soft);font-size:12px;
+}
+.auth-or-divider::before,
+.auth-or-divider::after{content:'';flex:1;height:1px;background:var(--line);}
 
 .auth-switch{
   margin-top:2px;text-align:center;font-size:12.5px;color:var(--ink-soft);
@@ -2424,6 +2444,20 @@ input{font-family:inherit;}
 .profile-view-grid{
   display:grid;grid-template-columns:1fr 1fr;gap:20px;
 }
+.pv-business-section{
+  display:flex;flex-direction:column;gap:16px;
+  padding:16px;
+  background:var(--green-100);
+  border:1px solid var(--line);
+}
+.pv-business-section[hidden]{display:none;}
+.pv-business-grid{
+  display:grid;grid-template-columns:1fr;gap:16px;
+}
+@media (min-width:721px){
+  .pv-business-grid{grid-template-columns:1.3fr 1fr 1fr;}
+}
+.pv-business-section .field-hint{margin-top:-6px;}
 .field-hint{font-size:12px;color:var(--ink-soft);margin-top:-2px;}
 .profile-view-card .auth-field input{
   background:var(--glass-bg-strong);
@@ -3091,7 +3125,7 @@ input{font-family:inherit;}
   padding:28px var(--side-pad) 20px;
   border-bottom:1px solid var(--line);
 }
-.legal-header-inner{max-width:900px;margin:0 auto;}
+.legal-header-inner{max-width:none;}
 .legal-header-top{
   position:relative;
   display:flex;align-items:center;justify-content:space-between;gap:16px;
@@ -3117,7 +3151,7 @@ input{font-family:inherit;}
 .legal-body{
   padding:26px var(--side-pad) 70px;
 }
-.legal-body-inner{max-width:900px;margin:0 auto;}
+.legal-body-inner{max-width:none;}
 .legal-section{margin-bottom:18px;}
 .legal-section:last-child{margin-bottom:0;}
 .legal-section h2{
@@ -5329,10 +5363,17 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
   /* Product cards are independent responsive units and can be skipped until
      they approach the viewport, reducing initial layout and paint work. */
   .product-card,
-  .popular-grid .product-card,
   .similar-products-grid .product-card{
     content-visibility:auto;
     contain-intrinsic-size:320px 420px;
+  }
+
+  /* Popular Products is a horizontal-scroll row, not a vertical grid —
+     content-visibility:auto doesn't reliably detect visibility inside a
+     horizontally scrolling container, which was causing the cards to
+     render squished before recalculating. Render these normally instead. */
+  .popular-grid .product-card{
+    content-visibility:visible;
   }
 
   /* Prevent long labels from forcing horizontal overflow on narrow screens. */
@@ -5896,3 +5937,290 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .co-dd-opt:hover,.co-dd-opt.active{background:var(--green-100);}
 .co-dd-opt[aria-selected="true"]{font-weight:700;}
 .co-field.has-error .co-dd-btn{border-color:var(--red);background:var(--red-bg);}
+
+/* ============ "Complete your profile" onboarding — flat/default look ============
+   Scoped to #onboardModal only, so the glassy Sign In / Create Account modal
+   elsewhere is untouched. Plain white card, boxed inputs, no blur/gradients —
+   closer to a plain form (Google Forms-style) than the rest of the site. */
+#onboardModal .auth-card{
+  background:#fff;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  border:1px solid #dadce0;
+  border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+}
+#onboardModal .auth-head-icon{
+  background:var(--green-500);color:#fff;
+  width:32px;height:32px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+}
+#onboardModal .auth-head h2{font-size:19px;font-weight:600;color:#202124;}
+#onboardModal .auth-head p{color:#5f6368;font-size:13px;}
+#onboardModal .auth-field span{font-size:12.5px;font-weight:600;color:#202124;}
+#onboardModal .auth-field input,
+#onboardModal .auth-field select{
+  background:#fff;
+  border:1px solid #dadce0;
+  border-radius:4px;
+  box-shadow:none;
+  transition:border-color .15s ease;
+}
+#onboardModal .auth-field input:focus,
+#onboardModal .auth-field select:focus{
+  border-color:var(--green-500);
+  outline:2px solid var(--green-100);
+  outline-offset:0;
+}
+#onboardModal .auth-field.has-error input,
+#onboardModal .auth-field.has-error select{
+  border-color:var(--red);
+}
+#onboardModal .auth-mobile-wrap{border:1px solid #dadce0;border-radius:4px;background:#fff;box-shadow:none;}
+#onboardModal .auth-mobile-wrap input{border:0;}
+#onboardModal .auth-mobile-prefix{color:#5f6368;}
+
+/* Account-type choice — plain radio-style cards instead of the glossy co-tab look */
+#onboardModal .co-tabs{margin-bottom:0;}
+#onboardModal .co-tab{
+  background:#fff;border:1px solid #dadce0;border-radius:4px;
+  box-shadow:none;transition:border-color .15s ease,background .15s ease;
+}
+#onboardModal .co-tab:hover{border-color:#b0b3b8;}
+#onboardModal .co-tab.active{
+  border:1.5px solid var(--green-500);
+  background:var(--green-100);
+}
+#onboardModal .co-tab-title{color:#202124;font-weight:500;}
+#onboardModal .co-tab.active .co-tab-title{color:var(--green-500);font-weight:700;}
+#onboardModal .co-tab-icon{color:#5f6368;}
+#onboardModal .co-tab.active .co-tab-icon{color:var(--green-500);}
+#onboardModal .co-tab-sub{color:#5f6368;}
+
+/* Flat submit button — solid fill, no gradient/inset glow */
+#onboardModal .auth-submit-btn{
+  background:var(--green-500);color:#fff;
+  box-shadow:none;border-radius:4px;
+  transition:background .15s ease;
+}
+#onboardModal .auth-submit-btn:hover{
+  background:var(--green-600, var(--green-500));
+  box-shadow:none;
+  transform:none;
+}
+#onboardModal .auth-submit-btn:active{transform:none;}
+
+/* ============ Checkout header: same as Profile / Product pages in the store ============
+   Back arrow sits at the far left edge of a full-width white bar; no account icon. */
+.co-header .co-header-inner{
+  max-width:none;
+  padding:16px clamp(20px,4vw,56px);
+  justify-content:flex-start;
+}
+@media (max-width:640px){
+  .co-header .co-header-inner{padding:calc(14px + env(safe-area-inset-top)) 14px 14px;}
+}
+
+/* ============ Checkout: company / wholesaler details in Contact box ============ */
+.co-contact-business{margin-top:10px;padding-top:10px;border-top:1px solid #e3e6e6;}
+.co-contact-business[hidden]{display:none;}
+.co-contact-bname{font-size:12.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+.co-contact-btin{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.co-biz-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.02em;}
+.co-biz-badge.is-verified{background:#e6f4ea;color:#1e7e34;}
+.co-biz-badge.is-pending{background:#fff4e0;color:#a06100;}
+
+/* ============ Profile page: personal details / password cards (BHM-style) ============ */
+#profileView .profile-view-wrap{gap:20px;}
+.pv-password-card .auth-field input{width:100%;}
+.pv-password-card .auth-password-wrap input{width:100%;padding-right:44px;}
+.pv-password-card .pv-pass-ok{color:#1e7e34;font-weight:600;font-size:12.5px;}
+.pv-password-card .field-error[hidden],.pv-password-card .pv-pass-ok[hidden]{display:none;}
+.profile-view-save-btn:disabled{opacity:.6;cursor:default;}
+
+/* ============ My Accounts page ============ */
+.ma-page{background:#f7f8f8;}
+.ma-wrap{max-width:1180px;margin:0 auto;padding:28px clamp(16px,4vw,56px) 80px;}
+.ma-panel{background:#fff;border:1px solid #e3e6e6;padding:28px;}
+.ma-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.ma-title{font-size:20px;font-weight:700;color:var(--ink);margin:0;}
+.ma-sub{font-size:12.5px;color:var(--ink-soft);margin:6px 0 18px;}
+.ma-add-btn{background:none;border:0;color:var(--green-700,#1f7a5a);font-weight:700;font-size:13px;cursor:pointer;padding:8px 0;}
+.ma-add-btn:hover{text-decoration:underline;}
+.ma-msg{font-size:12.5px;padding:10px 14px;margin-bottom:16px;border:1px solid #e3e6e6;background:#f7f8f8;}
+.ma-msg.ok{background:#e6f4ea;border-color:#c5e4cd;color:#1e7e34;}
+.ma-msg.error{background:#fdecec;border-color:#f5c6c6;color:#b3261e;}
+.ma-msg[hidden]{display:none;}
+.ma-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.ma-card{background:#f4f6f6;border:1.5px solid transparent;padding:14px 16px;display:flex;flex-direction:column;gap:6px;}
+.ma-card.is-usable{cursor:pointer;}
+.ma-card.is-usable:hover{border-color:#c9d3d0;}
+.ma-card.is-active{border-color:var(--green-600,#2a9d74);background:#eef8f3;}
+.ma-name{font-size:14px;font-weight:700;color:var(--ink);}
+.ma-type{align-self:flex-start;font-size:10px;font-weight:600;text-transform:uppercase;padding:2px 6px;background:#fff;border:1px solid #e3e6e6;color:var(--ink-soft);}
+.ma-place{font-size:12px;color:var(--ink-soft);}
+.ma-foot{display:flex;align-items:center;justify-content:space-between;margin-top:6px;gap:8px;}
+.ma-status{font-size:10.5px;padding:2px 8px;border:1px solid;border-radius:3px;}
+.ma-status.approved{background:#e6f4ea;border-color:#b9dcc3;color:#1e7e34;}
+.ma-status.pending{background:#fff4e0;border-color:#f0d9a8;color:#a06100;}
+.ma-status.rejected{background:#fdecec;border-color:#f5c6c6;color:#b3261e;}
+.ma-selected{font-size:11.5px;font-weight:700;color:var(--green-700,#1f7a5a);}
+.ma-use,.ma-wait{font-size:11px;color:var(--ink-soft);}
+body.ma-modal-open{overflow:hidden;}
+.ma-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;z-index:200;}
+.ma-modal[hidden]{display:none;}
+.ma-modal-card{background:#fff;width:100%;max-width:420px;padding:26px 28px;display:flex;flex-direction:column;gap:14px;}
+.ma-modal-card h2{font-size:16px;text-align:center;margin:0 0 4px;color:var(--ink);}
+.ma-field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;}
+.ma-field[hidden],.ma-switch[hidden]{display:none;}
+.ma-field>span{font-size:12px;font-weight:600;color:var(--ink);}
+.ma-field input,.ma-field select{height:42px;padding:0 12px;border:1px solid #d5d9d9;background:#fff;font:inherit;font-size:13px;width:100%;}
+.ma-field input:focus,.ma-field select:focus{outline:none;border-color:var(--green-600,#2a9d74);}
+.ma-row{display:flex;gap:12px;}
+.ma-switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:var(--ink-soft);}
+.ma-switch input{position:absolute;opacity:0;pointer-events:none;}
+.ma-switch-slider{width:38px;height:20px;border-radius:999px;background:#cfd4d4;position:relative;flex-shrink:0;transition:background .18s;}
+.ma-switch-slider::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s;}
+.ma-switch input:checked+.ma-switch-slider{background:var(--green-600,#2a9d74);}
+.ma-switch input:checked+.ma-switch-slider::after{transform:translateX(18px);}
+.ma-error{color:#b3261e;font-size:12px;}
+.ma-error[hidden]{display:none;}
+.ma-submit{height:44px;border:0;background:var(--green-600,#2a9d74);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;}
+.ma-submit:disabled{opacity:.6;cursor:default;}
+.ma-cancel{background:none;border:0;color:var(--ink-soft);font-size:12.5px;cursor:pointer;}
+@media (max-width:640px){
+  .ma-panel{padding:20px 16px;}
+  .ma-row{flex-direction:column;}
+}
+
+/* account picker inside the profile dropdown */
+.pd-accounts{border-top:1px solid #e3e6e6;margin-top:4px;padding:8px 14px 4px;}
+.pd-accounts[hidden]{display:none;}
+.pd-accounts-label{font-size:11px;color:var(--ink-soft);margin-bottom:6px;}
+.pd-acc{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;color:var(--ink);cursor:pointer;}
+.pd-acc input{accent-color:var(--green-600,#2a9d74);margin:0;}
+
+/* ============ My Accounts inside the Profile page ============ */
+.ma-modal{z-index:5000;}
+.pv-accounts-card{gap:12px;}
+.pv-accounts-card .ma-sub{margin:0 0 4px;}
+.pv-accounts-card .ma-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));}
+@media (max-width:640px){ .pv-accounts-card .ma-grid{grid-template-columns:1fr;} }
+
+/* ============ Profile page — clean layout ============ */
+#profileView .profile-view-wrap{max-width:760px;margin-left:auto;margin-right:auto;display:flex;flex-direction:column;gap:20px;padding-top:24px;padding-bottom:60px;}
+#profileView .profile-view-card{border-radius:0;padding:28px;gap:18px;}
+.pv-card-title,
+.pv-accounts-card .ma-title{font-size:16px;font-weight:700;color:var(--ink);margin:0;line-height:1.3;}
+.pv-card-title{padding-bottom:12px;border-bottom:1px solid var(--line);}
+.pv-accounts-card .ma-head{padding-bottom:12px;border-bottom:1px solid var(--line);}
+.pv-accounts-card .ma-sub{margin:0;}
+#profileView .profile-view-save-row{padding-top:4px;}
+#profileView .profile-view-delete-bar{border-radius:0;}
+#profileView .profile-view-logout-btn{margin-top:0;border-radius:0;}
+#profileView .pv-details-card .pv-currency-toggle{align-self:flex-start;}
+@media (max-width:640px){
+  #profileView .profile-view-wrap{gap:14px;padding-top:16px;}
+  #profileView .profile-view-card{padding:20px 16px;}
+}
+
+/* ============ Profile page — full-width layout ============ */
+#profileView .profile-view-wrap{
+  max-width:none;width:100%;
+  padding-left:clamp(20px,4vw,56px);padding-right:clamp(20px,4vw,56px);
+  box-sizing:border-box;
+}
+@media (min-width:1000px){
+  #profileView .pv-details-card .profile-view-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .pv-accounts-card .ma-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));}
+  #profileView .pv-password-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 20px;align-items:start;}
+  #profileView .pv-password-card .profile-view-grid{display:contents;}
+  #profileView .pv-password-card>.pv-card-title,
+  #profileView .pv-password-card>.field-error,
+  #profileView .pv-password-card>.pv-pass-ok,
+  #profileView .pv-password-card>.profile-view-save-row{grid-column:1 / -1;}
+}
+@media (min-width:641px) and (max-width:999px){
+  #profileView .pv-details-card .profile-view-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* account picker in the dropdown: real buttons (reliable clicks) with a dot indicator */
+.profile-dropdown .pd-acc{display:flex;align-items:center;gap:10px;width:100%;padding:7px 0;background:none;border:0;text-align:left;font-size:12.5px;color:var(--ink);cursor:pointer;}
+.profile-dropdown .pd-acc:hover{background:none;color:var(--green-700,#1f7a5a);}
+.pd-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid #9aa5a1;flex-shrink:0;box-sizing:border-box;position:relative;}
+.pd-acc.is-active .pd-dot{border-color:var(--green-600,#2a9d74);}
+.pd-acc.is-active .pd-dot::after{content:"";position:absolute;inset:2px;border-radius:50%;background:var(--green-600,#2a9d74);}
+.pd-acc.is-active .pd-acc-name{font-weight:700;}
+
+/* checkout: list of all accounts in the Contact box */
+.co-contact-business .co-biz-item + .co-biz-item{margin-top:10px;padding-top:10px;border-top:1px dashed #e3e6e6;}
+
+/* ============ Checkout — full-width layout (matches Profile page) ============ */
+.co-wrap{
+  max-width:none;width:100%;box-sizing:border-box;
+  padding-left:clamp(20px,4vw,56px);padding-right:clamp(20px,4vw,56px);
+}
+@media (min-width:960px){
+  .co-grid{grid-template-columns:minmax(0,1fr) 400px;gap:32px;}
+}
+@media (min-width:1440px){
+  .co-grid{grid-template-columns:minmax(0,1fr) 460px;gap:40px;}
+}
+/* Full Name + Mobile Number side by side on wide screens */
+@media (min-width:760px){
+  .co-section:has(#coNameField){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px;align-items:start;}
+  .co-section:has(#coNameField)>.co-section-head,
+  .co-section:has(#coNameField)>.co-contact-box{grid-column:1 / -1;}
+}
+@media (max-width:640px){
+  .co-wrap{padding-left:18px;padding-right:18px;}
+}
+
+/* ============ My Orders — full-width layout (matches Profile / Checkout) ============ */
+#ordersView .profile-view-wrap,
+#ordersView .orders-view-wrap{max-width:none;width:100%;box-sizing:border-box;}
+#ordersView .orders-card{border-radius:0;}
+@media (min-width:1000px){
+  #ordersView .orders-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(440px,1fr));
+    gap:20px;align-items:start;
+  }
+}
+
+/* Profile page: don't let late-loading content (My Accounts, saved values) shift the scroll position */
+#profileView{overflow-anchor:none;-webkit-overflow-scrolling:touch;}
+
+/* ===== Product photos: show the whole product, centered (no cropping) =====
+   Photos in img/household&cleaning/ are trimmed and centered on a square canvas
+   with the same margin around every product, so object-fit: contain keeps all
+   products the same size and position. (Was object-fit: cover, which cut off tall bottles.) */
+.card-media .card-img,
+.pd-media img,
+.cart-row-media .cart-row-img,
+.co-item-media img,
+.ck-item-media img,
+.order-item-media img,
+.oc-item-media img,
+.ms-suggest-row .ms-row-icon img{
+  object-fit:contain;
+  object-position:center;
+}
+.card-media .card-img,
+.pd-media img{
+  mix-blend-mode:multiply;   /* white photo backgrounds blend into the tile */
+}
+
+/* Product detail photo — the rule above (transform:scale(1.45)) zoomed the photo because the old
+   source photos had big white margins. The new photos are already trimmed, so no zoom; and on
+   desktop the photo is capped at 600px so the small supplier photos are not blown up (blurry). */
+.pd-media img{
+  transform:none;
+}
+@media (min-width:721px){
+  .pd-media img{
+    width:min(100%,600px);
+    height:auto;
+    max-height:100%;
+    aspect-ratio:1/1;
+  }
+}

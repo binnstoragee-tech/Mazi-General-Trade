@@ -84,7 +84,7 @@ Partial update of the fields above. Onboarding form sends:
 ```json
 { "account_type": "business|residence", "business_type": "Retail Shop", "city": "Male'" }
 ```
-- `business_type` is required only when `account_type = business`. Allowed: `Retail Shop`, `Wholesale / Trading`, `Restaurant / Café`, `Guesthouse / Hotel`, `Other`.
+- `business_type` is required only when `account_type = business`. Allowed: `Retail Shop`, `Wholesale / Trading`, `Restaurant / Café`, `Guesthouse / Hotel`, `Resort`, `Other`.
 - `business_name` and `gst_tin` are listed in the Privacy Policy/Terms but **not yet collected by the UI** (frontend will add them). Business pricing is only for accounts with a valid GST TIN (see Terms §1).
 
 ### `DELETE /me`

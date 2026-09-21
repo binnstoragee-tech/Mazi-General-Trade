@@ -43,57 +43,75 @@ const CATEGORIES = [
 
 /* ---------- Product data ---------- */
 const PRODUCTS = [
-  /* Daiwa, Sanzoft, Carefor, R-Fresh only. id = backend code, name = backend name. */
-  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
-  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
-  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
-  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
-  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Pink Rose Scent.jpg' },
-  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Laundry Liquid Detergent 5000 ml.-Violet Scent.jpg' },
-  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:0, stock:'low' },
-  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in' },
-  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Coffee.jpg' },
-  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Lemon Grass.jpg' },
-  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/Carefor Air Freshener Gel 180 gram.- Rose.jpg' },
-  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Jasmine.jpg' },
-  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lavender.jpg' },
-  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
-  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
+  /* Daiwa, Sanzoft, Carefor, R-Fresh, Pinto. id = backend code, name = backend name.
+     Prices = Sept 2026 shipment invoice MD2026-001 (CIF, USD) x 15.42 MVR/USD.
+     Photos: all in img/household&cleaning/ (new ones named <product code>.png, from the supplier packing list).
+     KEEP THIS LIST IDENTICAL in script.js and checkout.js. */
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:237.53, stock:'in', img:'img/household&cleaning/108DW10103.png' },
+  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW40405.png' },
+  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW10107.png' },
+  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW20205.png' },
+  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:203.85, stock:'in', img:'img/household&cleaning/104DW30305.png' },
+  { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ10108.png' },
+  { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ30307.png' },
+  { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:165.3, stock:'in', img:'img/household&cleaning/001SZ20208.png' },
+  { id:'006SZSB020201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZSB020201N.png' },
+  { id:'006SZ000204N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZ000204N.png' },
+  { id:'006SZ000305', name:'SANZOFT LAUNDRY LIQUID DETERGENT 5000 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:304.08, stock:'in', img:'img/household&cleaning/006SZ000305.png' },
+  { id:'606SZ000401', name:'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000401.png' },
+  { id:'606SZ000501', name:'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000501.png' },
+  { id:'606SZ000301', name:'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 12', price:427.44, stock:'low', img:'img/household&cleaning/606SZ000301.png' },
+  { id:'607CF01001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF01001.png' },
+  { id:'607CF02001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- COFFEE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF02001.png' },
+  { id:'607CF04001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- LEMON GRASS, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF04001.png' },
+  { id:'607CF03001', name:'CAREFOR AIR FRESHENER GEL 180 GRAM.- ROSE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607CF03001.png' },
+  { id:'607RF01001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-JASMINE, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF01001.png' },
+  { id:'607RF02001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF02001.png' },
+  { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF04001.png' },
+  { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:381.18, stock:'in', img:'img/household&cleaning/607RF05001.png' },
+  { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW00008.png' },
+  { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW10304.png' },
+  { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:142.17, stock:'in', img:'img/household&cleaning/101DW000501.png' },
+  { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/107DW10102.png' },
+  { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW40402.png' },
+  { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW10105.png' },
+  { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW20202.png' },
+  { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:180.72, stock:'in', img:'img/household&cleaning/104DW30302.png' },
+  { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:203.85, stock:'in', img:'img/household&cleaning/102DW10003.png' },
+  { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/103DW10101.png' },
+  { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW00103.png' },
+  { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW50501.png' },
+  { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW40401.png' },
+  { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW20201.png' },
+  { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:211.56, stock:'in', img:'img/household&cleaning/501DW30301.png' },
+  { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZSB080802.png' },
+  { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZ000202.png' },
+  { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:219.27, stock:'in', img:'img/household&cleaning/006SZ000302.png' },
+  { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ080801N.png' },
+  { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ000201N.png' },
+  { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:234.69, stock:'in', img:'img/household&cleaning/006SZ000301N.png' },
 
-  /* --- NO PRICE YET (hidden). When the price is known: set price, remove the leading // --- */
-  // { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
-  // { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
-  // { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  // { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  // { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  /* Pinto Click — pack ratio (pcs per carton) not given in the invoice, unit left blank until confirmed. */
+  { id:'101PTCL101001', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - LEMON', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCL101001.png' },
+  { id:'101PTCLK40101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - KIWI', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLK40101.png' },
+  { id:'101PTCLP20101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - PURE&CARE', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLP20101.png' },
+  { id:'101PTCLP30101', name:'PINTO CLICK DISH WASHING LIQUID 750 ML. - POMELO&PASSION FRUIT', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:126.75, stock:'in', img:'img/household&cleaning/101PTCLP30101.png' },
+  { id:'101PTLE010101', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - LEMON', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTLE010101.png' },
+  { id:'101PTMA050501', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - MANGO', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTMA050501.png' },
+  { id:'101PTBI010101', name:'PINTO CLICK DISH WASHING LIQUID 800 ML. - BIO', cat:'household', icon:'🧴', pack:'Carton', unit:'', price:188.43, stock:'in', img:'img/household&cleaning/101PTBI010101.png' },
+  { id:'101PTLE010102Y2', name:'PINTO DISH WASHING LIQUID 3600 ML. - LEMON (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTLE010102Y2.png' },
+  { id:'101PTKL000002', name:'PINTO DISH WASHING LIQUID 3600 ML. - KLEAR (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTKL000002.png' },
+
+  /* TEMP — NO PRICE YET (price:0). Shown only while the list is being reviewed.
+     BEFORE GO-LIVE: give each a price (and set price + active = true in Supabase) or comment the line out. */
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW30302.png' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW00101.png' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW40402.png' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW50502.png' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW20202.png' },
+  { id:'607CR00101', name:'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607CR00101.png' },
+  { id:'607BN00201', name:'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607BN00201.png' },
+  { id:'503ZS00101', name:'ZENSI NATURAL CLEANSING SHOWER 450 ML.', cat:'personal-care', icon:'🚿', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/503ZS00101.png' },
 ];
 
 /* ---------- Hero slides ---------- */
@@ -157,7 +175,15 @@ function cartKey(){
   return 'mazi_cart_' + accountId();
 }
 function loadCart(){
-  try{ return JSON.parse(localStorage.getItem(cartKey()) || '{}'); }
+  try{
+    const saved = JSON.parse(localStorage.getItem(cartKey()) || '{}');
+    // Drop anything that is no longer sold (hidden / removed from PRODUCTS) —
+    // otherwise a stale id in a returning customer's saved cart breaks the cart view.
+    const known = new Set(PRODUCTS.map(p => p.id));
+    const cart = {};
+    Object.keys(saved).forEach(id => { if (known.has(id)) cart[id] = saved[id]; });
+    return cart;
+  }
   catch(e){ return {}; }
 }
 
@@ -306,6 +332,32 @@ function clearMobileError(){
 let authMode = 'signin';
 let authRecoveryPending = false; // true while the "set a new password" panel is open
 
+/* ---- Email validation ----
+   Two layers: (1) a stricter format check than the old "has @ and a dot"
+   regex, so obviously fake addresses like "a@b.c" or "test@test" are
+   rejected before they ever reach Supabase; (2) a blocklist of common
+   disposable/temp-mail domains that spam signups and throwaway bots use,
+   so those never even attempt to create an account. Real Gmail, Yahoo,
+   Outlook, iCloud, and any normal company/domain email are unaffected. */
+const EMAIL_FORMAT_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com','tempmail.com','temp-mail.org','guerrillamail.com','guerrillamail.info',
+  '10minutemail.com','10minutemail.net','throwawaymail.com','yopmail.com','trashmail.com',
+  'getnada.com','maildrop.cc','fakeinbox.com','dispostable.com','mailnesia.com',
+  'sharklasers.com','spam4.me','mintemail.com','mohmal.com','moakt.com'
+]);
+function isValidEmailFormat(email){
+  if (!EMAIL_FORMAT_RE.test(email)) return false;
+  const domain = email.split('@')[1] || '';
+  // Require a real-looking TLD (2+ letters) so things like "user@company" fail.
+  if (!/\.[a-zA-Z]{2,}$/.test(domain)) return false;
+  return true;
+}
+function isDisposableEmail(email){
+  const domain = (email.split('@')[1] || '').toLowerCase();
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+}
+
 /* ---- 60-second cooldown after a rate-limit ("Too many attempts") ----
    The limit itself is enforced by Supabase on the server; we can't lift it
    early. What we do here is stop the shopper from hammering the button:
@@ -388,6 +440,13 @@ function setAuthMode(mode){
   $('#authPasswordInput').autocomplete = isSignup ? 'new-password' : 'current-password';
   $('#authSwitchPrompt').textContent = isSignup ? 'Already have an account?' : 'New here?';
   $('#authModeToggle').textContent = isSignup ? 'Sign in' : 'Create an account';
+  // Direct style toggle (not .hidden) — .auth-google-btn / .auth-or-divider
+  // both set their own display:flex in CSS, which otherwise overrides the
+  // [hidden] attribute and keeps the button visible.
+  const googleBtn = $('#authGoogleBtn');
+  if (googleBtn) googleBtn.style.display = isSignup ? 'none' : '';
+  const googleDivider = $('.auth-or-divider');
+  if (googleDivider) googleDivider.style.display = isSignup ? 'none' : '';
   clearAuthErrors();
 }
 function showMobileStep(){
@@ -410,15 +469,27 @@ function applyAuthenticatedSession(result, opts){
   const wasSignup = authMode === 'signup'; // closeLogin() resets the mode, so grab it first
   const profile = result.profile || {};
   const user = result.user || {};
-  const name = profile.name || user.user_metadata?.name || 'Account';
+  const name = profile.name || user.user_metadata?.full_name || user.user_metadata?.name || 'Account';
+  const mobile = profile.mobile || user.user_metadata?.mobile || '';
   setSession({
     name,
     firstName: name,
     lastName: profile.last_name || '',
     email: profile.email || user.email || '',
-    mobile: profile.mobile || user.user_metadata?.mobile || '',
+    mobile,
+    atoll: profile.atoll || '',
+    city: profile.city || '',
+    accountType: profile.account_type || 'residence',
+    businessName: profile.business_name || '',
   });
   closeLogin();
+  // First-ever sign-in (fresh account, or an older account never onboarded):
+  // collect name/mobile/location/account type before letting them in, instead
+  // of dropping them straight into the "Welcome" animation.
+  if (result.isNewUser && !(opts && opts.deferOnboarding)){
+    openOnboarding({ name: profile.name ? name : '', mobile, wasSignup });
+    return;
+  }
   if (!(opts && opts.skipSuccess)) showLoginSuccess(name, wasSignup);
 }
 
@@ -519,12 +590,21 @@ function showAuthVerify(state, email){
   // right after signup the email was just sent, so start the resend cooldown
   startAuthResendCooldown(state === 'sent' || state === 'resetSent' ? 60 : 0);
 }
+/* When the "Email confirmed!" panel's primary button leads into onboarding
+   instead of straight to the Welcome animation (set just before that panel
+   is shown from handleEmailConfirmationLanding()). */
+let pendingConfirmIsNewUser = false;
+
 function bindAuthVerifyEvents(){
   $('#authVerifyPrimary').addEventListener('click', ()=>{
     if (authVerifyState === 'confirmed'){
       closeLogin();
       const sess = getSession();
-      showLoginSuccess(sess && sess.name, true);
+      if (pendingConfirmIsNewUser){
+        openOnboarding({ name: '', mobile: (sess && sess.mobile) || '', wasSignup: true });
+      } else {
+        showLoginSuccess(sess && sess.name, true);
+      }
       return;
     }
     const email = authVerifyEmail;
@@ -608,7 +688,7 @@ function bindForgotPasswordEvents(){
     const showErr = msg=>{ errEl.textContent = msg; errEl.hidden = false; field.classList.add('has-error'); };
     field.classList.remove('has-error');
     errEl.hidden = true;
-    if (!/^\S+@\S+\.\S+$/.test(email)){
+    if (!isValidEmailFormat(email)){
       showErr('Please enter a valid email address.');
       return;
     }
@@ -710,7 +790,8 @@ function handleEmailConfirmationLanding(){
     }));
   }).then(result=>{
     cleanUrl();
-    applyAuthenticatedSession(result, { skipSuccess: true });
+    pendingConfirmIsNewUser = result.isNewUser;
+    applyAuthenticatedSession(result, { skipSuccess: true, deferOnboarding: true });
     showAuthVerify('confirmed', result.user.email);
   }).catch(()=>{
     cleanUrl();
@@ -722,9 +803,16 @@ function cartCount(){
   return Object.values(state.cart).reduce((s,q)=>s+q,0);
 }
 
-function showToast(msg, sub){
+const TOAST_ICONS = {
+  success: `<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  error: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.15" fill="currentColor"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>`,
+  info: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 10.5v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.15" fill="currentColor"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>`
+};
+// type: 'success' (default) | 'error' | 'info' — picks the icon + accent color the toast shows.
+function showToast(msg, sub, type){
   const t = $('#toast');
-  const iconSvg = `<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  type = TOAST_ICONS[type] ? type : 'success';
+  const iconSvg = TOAST_ICONS[type];
 
   if (sub){
     t.innerHTML = `<span class="toast-icon">${iconSvg}</span><span class="toast-text"><span class="toast-title"></span><span class="toast-sub"></span></span>`;
@@ -734,6 +822,7 @@ function showToast(msg, sub){
     t.innerHTML = `<span class="toast-icon">${iconSvg}</span><span class="toast-msg"></span>`;
     t.querySelector('.toast-msg').textContent = msg;
   }
+  t.dataset.toastType = type;
 
   // restart the icon pop each time
   const icon = t.querySelector('.toast-icon');
@@ -758,10 +847,11 @@ function setCategory(catId){
 }
 
 function renderCategoryNav(){
+  // Categories are listed A–Z by name ("All Categories" always stays on top).
   // Sidebar (desktop) — highlight pill is rebuilt as the first list item each render
   const sidebarItems = [
     `<li><button data-cat="all" class="${state.category==='all'?'active':''}">All Categories</button></li>`,
-    ...CATEGORIES.map(c => `<li><button data-cat="${c.id}" class="${state.category===c.id?'active':''}">${c.name}</button></li>`)
+    ...[...CATEGORIES].sort((a,b)=> a.name.localeCompare(b.name, 'en', {sensitivity:'base'})).map(c => `<li><button data-cat="${c.id}" class="${state.category===c.id?'active':''}">${c.name}</button></li>`)
   ].join('');
   const sidebarHtml = `<div class="sidebar-highlight" id="sidebarHighlight"></div>${sidebarItems}`;
   const mobileHtml = `<div class="sidebar-highlight" id="mobileMenuHighlight"></div>${sidebarItems}`;
@@ -1490,6 +1580,314 @@ function closeLogin(){
   }
 }
 
+/* ============ "Complete your profile" onboarding modal ============
+   Shown once, right after a shopper's very first successful sign-in
+   (Google or email) — before they land in the shop as a full account. */
+const MAZI_ATOLLS = [
+  "Haa Alif (HA)", "Haa Dhaalu (HDh)", "Shaviyani (Sh)", "Noonu (N)", "Raa (R)",
+  "Baa (B)", "Lhaviyani (Lh)", "Kaafu (K)", "Alif Alif (AA)", "Alif Dhaalu (ADh)",
+  "Vaavu (V)", "Meemu (M)", "Faafu (F)", "Dhaalu (Dh)", "Thaa (Th)", "Laamu (L)",
+  "Gaafu Alif (GA)", "Gaafu Dhaalu (GDh)", "Gnaviyani (Gn)", "Seenu (Addu) (S)"
+];
+// Matches the allowed business_type values in MAZI_API_SPEC.md
+const MAZI_BUSINESS_TYPES = ["Retail Shop", "Wholesale / Trading", "Restaurant / Café", "Guesthouse / Hotel", "Other"];
+function populatePvBusinessTypes(){
+  const el = $('#pvBusinessType');
+  if (!el || el.options.length) return; // only needs to run once
+  el.innerHTML = MAZI_BUSINESS_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  enhanceSelect(el);
+}
+let onboardWasSignup = false;
+let onboardAccountType = 'residence';
+let pvAccountType = 'residence';
+function setPvAccountType(type){
+  pvAccountType = type === 'business' ? 'business' : 'residence';
+  $$('#pvTypeTabs .co-tab').forEach(tab=>{
+    tab.classList.toggle('active', tab.dataset.accountType === pvAccountType);
+  });
+  const bizField = $('#pvBusinessSection');
+  if (bizField) bizField.hidden = pvAccountType !== 'business';
+}
+
+function populateOnboardAtolls(){
+  ['#onboardAtoll', '#pvAtoll'].forEach(sel=>{
+    const el = $(sel);
+    if (!el || el.options.length) return; // only needs to run once per select
+    el.innerHTML = MAZI_ATOLLS.map(a => `<option value="${a}">${a}</option>`).join('');
+    enhanceSelect(el);
+  });
+}
+
+/* Turns a plain <select> into a custom dropdown: a styled trigger button +
+   an options panel that opens wherever there's actually room (flips above
+   the field instead of below when the field sits near the bottom of the
+   screen/modal), with full keyboard support. Same component already used
+   for the Atoll picker in checkout.js — ported here so onboardAtoll/pvAtoll
+   get the same treatment instead of the browser's plain native dropdown. */
+function enhanceSelect(sel){
+  if (!sel || sel.dataset.ddReady) return;
+  sel.dataset.ddReady = '1';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'co-dd';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'co-dd-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<strong class="co-dd-label"></strong>'
+    + '<svg class="co-dd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const list = document.createElement('div');
+  list.className = 'co-dd-list';
+  list.setAttribute('role', 'listbox');
+  list.hidden = true;
+
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(btn);
+  wrap.appendChild(sel);
+  wrap.appendChild(list);
+  sel.classList.add('co-dd-native');
+  sel.tabIndex = -1;
+  sel.setAttribute('aria-hidden', 'true');
+
+  const labelEl = btn.querySelector('.co-dd-label');
+  let active = -1;
+
+  function sync(){
+    const o = sel.options[sel.selectedIndex];
+    labelEl.textContent = o ? o.text : '';
+    Array.from(list.children).forEach((b, i)=>{
+      b.setAttribute('aria-selected', i === sel.selectedIndex ? 'true' : 'false');
+    });
+  }
+  function build(){
+    list.innerHTML = '';
+    Array.from(sel.options).forEach((o, i)=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'co-dd-opt';
+      b.setAttribute('role', 'option');
+      b.tabIndex = -1;
+      b.textContent = o.text;
+      b.addEventListener('click', ()=> choose(i));
+      list.appendChild(b);
+    });
+    sync();
+  }
+  function choose(i){
+    const changed = sel.selectedIndex !== i;
+    sel.selectedIndex = i;
+    sync();
+    close(true);
+    if (changed) sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function setActive(i, center){
+    if (active >= 0 && list.children[active]) list.children[active].classList.remove('active');
+    active = Math.max(0, Math.min(list.children.length - 1, i));
+    const el = list.children[active];
+    if (!el) return;
+    el.classList.add('active');
+    if (center){
+      list.scrollTop = el.offsetTop - (list.clientHeight - el.offsetHeight) / 2;
+    } else if (el.offsetTop < list.scrollTop){
+      list.scrollTop = el.offsetTop;
+    } else if (el.offsetTop + el.offsetHeight > list.scrollTop + list.clientHeight){
+      list.scrollTop = el.offsetTop + el.offsetHeight - list.clientHeight;
+    }
+  }
+  function place(){
+    const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const below = vh - r.bottom - 8;
+    const above = r.top - 8;
+    list.style.maxHeight = '';
+    const natural = Math.min(list.scrollHeight + 2, 320);
+    // Prefer DOWN. Flip up only if the list would be cramped below AND there is more room above.
+    const up = below < Math.min(natural, 200) && above > below;
+    const room = up ? above : below;
+    list.style.maxHeight = Math.max(120, Math.min(320, room)) + 'px';
+    wrap.classList.toggle('up', up);
+    list.style.left = '0';
+    list.style.right = 'auto';
+    if (list.getBoundingClientRect().right > vw - 8){
+      list.style.left = 'auto';
+      list.style.right = '0';
+    }
+  }
+  function isOpen(){ return !list.hidden; }
+  function open(){
+    if (isOpen()) return;
+    document.querySelectorAll('.co-dd.open').forEach(w=>{ if (w.__ddClose) w.__ddClose(); });
+    list.hidden = false;
+    wrap.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    place();
+    active = -1;
+    setActive(sel.selectedIndex < 0 ? 0 : sel.selectedIndex, true);
+  }
+  function close(focusBtn){
+    list.hidden = true;
+    wrap.classList.remove('open', 'up');
+    btn.setAttribute('aria-expanded', 'false');
+    if (focusBtn) btn.focus();
+  }
+  wrap.__ddClose = ()=> close(false);
+
+  btn.addEventListener('click', ()=> isOpen() ? close(false) : open());
+  btn.addEventListener('keydown', e=>{
+    const k = e.key;
+    if (k === 'ArrowDown' || k === 'ArrowUp'){
+      e.preventDefault();
+      if (!isOpen()) return open();
+      setActive(active + (k === 'ArrowDown' ? 1 : -1));
+    } else if (k === 'Home' || k === 'End'){
+      if (!isOpen()) return;
+      e.preventDefault();
+      setActive(k === 'Home' ? 0 : list.children.length - 1);
+    } else if (k === 'Enter' || k === ' '){
+      e.preventDefault();
+      if (!isOpen()) open(); else choose(active);
+    } else if (k === 'Escape'){
+      if (isOpen()){ e.preventDefault(); close(true); }
+    } else if (k === 'Tab'){
+      if (isOpen()) close(false);
+    } else if (k.length === 1 && /\S/.test(k)){
+      // type-ahead: jump to the next option that starts with this letter
+      const opts = Array.from(sel.options);
+      const from = (isOpen() ? active : sel.selectedIndex) + 1;
+      const ch = k.toLowerCase();
+      for (let n = 0; n < opts.length; n++){
+        const i = (from + n) % opts.length;
+        if (opts[i].text.toLowerCase().startsWith(ch)){
+          if (isOpen()) setActive(i); else choose(i);
+          break;
+        }
+      }
+    }
+  });
+  // Clicking the list's padding/scrollbar must not trigger the surrounding <label>.
+  wrap.addEventListener('click', e=>{ if (!e.target.closest('.co-dd-btn')) e.preventDefault(); });
+  document.addEventListener('pointerdown', e=>{ if (isOpen() && !wrap.contains(e.target)) close(false); });
+  window.addEventListener('resize', ()=>{ if (isOpen()) close(false); });
+
+  // Keep the custom list in sync when the real <select> is changed from code
+  // (options re-filled, or .value assigned).
+  new MutationObserver(build).observe(sel, { childList: true });
+  const valueDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  Object.defineProperty(sel, 'value', {
+    configurable: true,
+    get(){ return valueDesc.get.call(sel); },
+    set(v){ valueDesc.set.call(sel, v); sync(); }
+  });
+  sel.addEventListener('change', sync);
+  build();
+}
+function clearOnboardErrors(){
+  ['onboardNameField', 'onboardMobileField', 'onboardCityField', 'onboardBusinessField']
+    .forEach(id => $(`#${id}`)?.classList.remove('has-error'));
+  ['onboardNameError', 'onboardMobileError', 'onboardCityError', 'onboardBusinessError']
+    .forEach(id => { const el = $(`#${id}`); if (el) el.hidden = true; });
+}
+function showOnboardError(message, fieldId, errorId){
+  const field = $(`#${fieldId}`);
+  if (field) field.classList.add('has-error');
+  const error = $(`#${errorId}`);
+  if (error){ error.textContent = message; error.hidden = false; }
+}
+function setOnboardAccountType(type){
+  onboardAccountType = type === 'business' ? 'business' : 'residence';
+  $$('#onboardTypeTabs .co-tab').forEach(tab=>{
+    tab.classList.toggle('active', tab.dataset.accountType === onboardAccountType);
+  });
+  const bizField = $('#onboardBusinessField');
+  if (bizField){
+    bizField.hidden = onboardAccountType !== 'business';
+    $('#onboardBusinessName').required = onboardAccountType === 'business';
+  }
+}
+function openOnboarding(prefill){
+  populateOnboardAtolls();
+  onboardWasSignup = !!(prefill && prefill.wasSignup);
+  clearOnboardErrors();
+  setOnboardAccountType('residence');
+  $('#onboardName').value = (prefill && prefill.name) || '';
+  $('#onboardMobile').value = (prefill && prefill.mobile ? prefill.mobile : '').replace(/^\+?960/, '');
+  $('#onboardCity').value = '';
+  $('#onboardBusinessName').value = '';
+  $('#onboardAtoll').value = 'Kaafu (K)';
+  const submitBtn = $('#onboardSubmit');
+  if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = 'Continue'; }
+  $('#authBackdrop').classList.add('show');
+  $('#onboardModal').classList.add('open');
+}
+function closeOnboarding(){
+  $('#authBackdrop').classList.remove('show');
+  $('#onboardModal').classList.remove('open');
+}
+function bindOnboardingEvents(){
+  $$('#onboardTypeTabs .co-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=> setOnboardAccountType(tab.dataset.accountType));
+  });
+  $$('#pvTypeTabs .co-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=> setPvAccountType(tab.dataset.accountType));
+  });
+  const form = $('#onboardForm');
+  if (!form) return;
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    clearOnboardErrors();
+    const name = $('#onboardName').value.trim();
+    const mobileDigits = $('#onboardMobile').value.trim().replace(/[^0-9]/g, '');
+    const atoll = $('#onboardAtoll').value;
+    const city = $('#onboardCity').value.trim();
+    const businessName = $('#onboardBusinessName').value.trim();
+    if (!name){
+      showOnboardError('Please enter your name.', 'onboardNameField', 'onboardNameError');
+      return;
+    }
+    if (!/^\d{7}$/.test(mobileDigits)){
+      showOnboardError('Enter a valid 7-digit Maldives number.', 'onboardMobileField', 'onboardMobileError');
+      return;
+    }
+    if (!city){
+      showOnboardError('Please enter your island or city.', 'onboardCityField', 'onboardCityError');
+      return;
+    }
+    if (onboardAccountType === 'business' && !businessName){
+      showOnboardError('Please enter your business name.', 'onboardBusinessField', 'onboardBusinessError');
+      return;
+    }
+    if (!window.MaziAPI || !MaziAPI.updateProfile){
+      showToast('Could not save your profile. Please try again.', null, 'error');
+      return;
+    }
+    const mobile = `+960${mobileDigits}`;
+    const submitBtn = $('#onboardSubmit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    MaziAPI.updateProfile({
+      name,
+      mobile,
+      atoll,
+      city,
+      account_type: onboardAccountType,
+      business_type: onboardAccountType === 'business' ? 'Wholesale / Trading' : null,
+      business_name: onboardAccountType === 'business' ? businessName : null,
+      onboarded: true
+    }).then(()=>{
+      const sess = getSession() || {};
+      setSession({ ...sess, name, firstName: name, mobile, atoll, city, accountType: onboardAccountType, businessName: onboardAccountType === 'business' ? businessName : '' });
+      closeOnboarding();
+      showLoginSuccess(name, onboardWasSignup);
+    }).catch(err=>{
+      showToast((err && err.message) || 'Could not save your profile. Please try again.', null, 'error');
+    }).finally(()=>{
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Continue';
+    });
+  });
+}
+
 /* ============ Session (login state) ============ */
 function getSession(){
   try{ return JSON.parse(localStorage.getItem('mazi_session') || 'null'); }
@@ -1659,7 +2057,7 @@ function closeLogoutConfirm(){
 function performLogout(){
   showAuthLoading();
   Promise.resolve(window.MaziAPI && MaziAPI.logout ? MaziAPI.logout() : null)
-    .catch(err => showToast(err.message || 'Could not log out from the server'))
+    .catch(err => showToast(err.message || 'Could not log out from the server', null, 'error'))
     .finally(()=>{
       hideAuthLoading();
       clearSession();
@@ -1737,7 +2135,7 @@ function syncOrders(){
     if (err && err.code === 'NOT_AUTHENTICATED'){
       // Only log the shopper out if the server really has no session for them.
       MaziAPI.getSession().then(sess=>{
-        if (!sess){ clearSession(); showToast('Your session expired. Please log in again.'); }
+        if (!sess){ clearSession(); showToast('Your session expired. Please log in again.', null, 'error'); }
       }).catch(()=>{});
     }
   }).finally(()=>{ ordersSyncPromise = null; });
@@ -2104,7 +2502,7 @@ function cancelOrder(orderId){
     renderOrdersView();
     showToast('Order cancelled');
   }).catch(err=>{
-    showToast((err && err.message) || 'Could not cancel this order.');
+    showToast((err && err.message) || 'Could not cancel this order.', null, 'error');
     return syncOrders(); // staff may already have moved it on
   }).finally(hideAuthLoading);
 }
@@ -2381,7 +2779,7 @@ function receiptStoreInfo(){
   return {
     name: 'MAZI General Trade',
     addr: "Male', Republic of Maldives",
-    email: 'info@mazitrading.mv',
+    email: 'mazigeneraltrade@gmail.com',
   };
 }
 
@@ -2514,11 +2912,19 @@ function downloadReceipt(){
 /* ============ Profile page ============ */
 function openProfileView(){
   const session = getSession() || {};
+  populateOnboardAtolls();
+  populatePvBusinessTypes();
   $('#pvFirstName').value = session.firstName || session.name || '';
   $('#pvLastName').value = session.lastName || '';
   $('#pvEmail').value = session.email || '';
   $('#pvMobile').value = (session.mobile || '').replace('+960', '');
   $('#pvDob').value = session.dob || '';
+  $('#pvAtoll').value = session.atoll || 'Kaafu (K)';
+  $('#pvCity').value = session.city || '';
+  setPvAccountType(session.accountType || 'residence');
+  $('#pvBusinessName').value = session.businessName || '';
+  $('#pvBusinessType').value = session.businessType || 'Wholesale / Trading';
+  $('#pvGstTin').value = session.gstTin || '';
   syncCurrencyToggleUI();
   initProfileNotifToggle();
   closeOtherFullScreenViews('profileView');
@@ -2535,18 +2941,70 @@ function saveProfileView(){
   const firstName = $('#pvFirstName').value.trim() || session.firstName || 'Account';
   const mobileDigits = $('#pvMobile').value.trim().replace(/[^0-9]/g, '');
   const mobile = mobileDigits ? `+960${mobileDigits}` : (session.mobile || '');
+  const lastName = $('#pvLastName').value.trim();
+  const email = $('#pvEmail').value.trim();
+  const dob = $('#pvDob').value;
+  const atoll = $('#pvAtoll').value;
+  const city = $('#pvCity').value.trim();
+  const businessName = pvAccountType === 'business' ? $('#pvBusinessName').value.trim() : '';
+  const businessType = pvAccountType === 'business' ? $('#pvBusinessType').value : '';
+  const gstTin = pvAccountType === 'business' ? $('#pvGstTin').value.trim() : '';
+
+  const gstField = $('#pvGstTinField');
+  const gstError = $('#pvGstTinError');
+  gstField?.classList.remove('has-error');
+  if (gstError) gstError.hidden = true;
+  if (gstTin && !/^\d{7}GST\d{3}$/i.test(gstTin)){
+    gstField?.classList.add('has-error');
+    if (gstError) gstError.hidden = false;
+    return;
+  }
+
   if (mobile) updateRegisteredAccountName(mobile, firstName);
-  setSession({
+
+  const applyLocally = ()=> setSession({
     ...session,
     name: firstName,
     firstName,
-    lastName: $('#pvLastName').value.trim(),
-    email: $('#pvEmail').value.trim(),
+    lastName,
+    email,
     mobile,
-    dob: $('#pvDob').value,
+    dob,
+    atoll,
+    city,
+    accountType: pvAccountType,
+    businessName,
+    businessType,
+    gstTin,
     currency: getCurrency(),
   });
-  showToast('Profile updated');
+
+  if (!window.MaziAPI || !MaziAPI.updateProfile){
+    applyLocally();
+    showToast('Profile updated');
+    return;
+  }
+  const saveBtn = $('#pvSaveBtn');
+  if (saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+  MaziAPI.updateProfile({
+    name: firstName,
+    last_name: lastName,
+    email,
+    mobile,
+    atoll,
+    city,
+    account_type: pvAccountType,
+    business_type: pvAccountType === 'business' ? (businessType || 'Wholesale / Trading') : null,
+    business_name: pvAccountType === 'business' ? (businessName || null) : null,
+    gst_tin: pvAccountType === 'business' ? (gstTin || null) : null,
+  }).then(()=>{
+    applyLocally();
+    showToast('Profile updated');
+  }).catch(err=>{
+    showToast((err && err.message) || 'Could not save your profile. Please try again.', null, 'error');
+  }).finally(()=>{
+    if (saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Profile'; }
+  });
 }
 
 /* ============ Atoll / island data ============ */
@@ -2959,10 +3417,10 @@ function init(){
   $('#closeCart').addEventListener('click', closeCart);
   $('#drawerBackdrop').addEventListener('click', closeCart);
   $('#checkoutBtn').addEventListener('click', ()=>{
-    if (cartCount()===0){ showToast('Your cart is empty'); return; }
+    if (cartCount()===0){ showToast('Your cart is empty', null, 'info'); return; }
     if (!getSession()){
       closeCart();
-      showToast('Please log in to place your order');
+      showToast('Please log in to place your order', null, 'info');
       openLogin();
       return;
     }
@@ -2982,7 +3440,7 @@ function init(){
   // product view topbars.
   $$('.js-cart-btn').forEach(btn=> btn.addEventListener('click', openCart));
   $$('.js-login-btn').forEach(btn=> btn.addEventListener('click', openLogin));
-  $$('.js-offers-btn').forEach(btn=> btn.addEventListener('click', ()=> showToast('No offers saved yet')));
+  $$('.js-offers-btn').forEach(btn=> btn.addEventListener('click', ()=> showToast('No offers saved yet', null, 'info')));
   $$('.js-search-btn').forEach(btn=> btn.addEventListener('click', openMobileSearch));
   $$('.js-profile-toggle').forEach(btn=>{
     btn.addEventListener('click', e=>{
@@ -3029,7 +3487,7 @@ function init(){
     closeProfileMenu();
     openLogoutConfirm();
   });
-  $('#wishlistBtn').addEventListener('click', ()=> showToast('No offers saved yet'));
+  $('#wishlistBtn').addEventListener('click', ()=> showToast('No offers saved yet', null, 'info'));
 
   // Footer links
   $$('[data-footer-cat]').forEach(link=>{
@@ -3133,7 +3591,7 @@ function init(){
 
   const promoShopBtn = $('#promoShopBtn');
   // Same behaviour as the other Offers buttons — no offers exist yet.
-  if (promoShopBtn) promoShopBtn.addEventListener('click', ()=> showToast('No offers saved yet'));
+  if (promoShopBtn) promoShopBtn.addEventListener('click', ()=> showToast('No offers saved yet', null, 'info'));
 
   const popularViewAllBtn = $('#popularViewAllBtn');
   if (popularViewAllBtn) popularViewAllBtn.addEventListener('click', ()=>{
@@ -3148,15 +3606,39 @@ function init(){
 
   $('#authClose').addEventListener('click', closeLogin);
   $('#authBackdrop').addEventListener('click', closeLogin);
+  const authGoogleBtn = $('#authGoogleBtn');
+  if (authGoogleBtn) authGoogleBtn.addEventListener('click', ()=>{
+    if (!window.MaziAPI || !MaziAPI.signInWithGoogle){
+      showToast('Google sign-in is not configured yet.', null, 'error');
+      return;
+    }
+    authGoogleBtn.disabled = true;
+    MaziAPI.signInWithGoogle().catch(err=>{
+      authGoogleBtn.disabled = false;
+      showToast((err && err.message) || 'Could not start Google sign-in. Please try again.', null, 'error');
+    });
+    // No .then() needed on success — signInWithOAuth redirects the whole
+    // page to Google, so this code stops running until the shopper is
+    // back on the site already signed in.
+  });
   $('#emailAuthForm').addEventListener('submit', e=>{
     e.preventDefault();
     if (authCooldown.left() > 0) return; // still cooling down after a rate-limit
     clearAuthErrors();
+    // Honeypot: a hidden field real users never see or fill; bots that
+    // auto-fill every input trip it. Fail silently (no error shown) so
+    // bots don't learn anything, but stop the request going through.
+    const honeypot = $('#authWebsiteHoneypot');
+    if (honeypot && honeypot.value.trim() !== '') return;
     const email = $('#authEmailInput').value.trim();
     const password = $('#authPasswordInput').value;
     const mobileDigits = $('#authMobileInput').value.trim().replace(/[^0-9]/g, '');
-    if (!/^\S+@\S+\.\S+$/.test(email)){
+    if (!isValidEmailFormat(email)){
       showAuthError('Please enter a valid email address.', 'emailField');
+      return;
+    }
+    if (isDisposableEmail(email)){
+      showAuthError('Temporary/disposable email addresses are not allowed. Please use your real Gmail or other email.', 'emailField');
       return;
     }
     if (password.length < 6){
@@ -3203,6 +3685,7 @@ function init(){
   $('#authModeToggle').addEventListener('click', ()=> setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
   bindAuthVerifyEvents();
   bindForgotPasswordEvents();
+  bindOnboardingEvents();
   $('#authPasswordToggle').addEventListener('click', ()=>{
     const input = $('#authPasswordInput');
     const showing = input.type === 'password';
@@ -3279,6 +3762,32 @@ function init(){
 
   handleOpenParam();
   handleEmailConfirmationLanding();
+  bindGoogleAuthLanding();
+}
+
+/* Google's "Continue with Google" redirects the whole page away and back;
+   supabase-js parses the returned URL and fires SIGNED_IN on its own (see
+   MaziAPI.onAuthChange), so that's the hook used to finish the sign-in on
+   this end — the click handler in bindOnboardingEvents() above only starts
+   the redirect and never runs again once the shopper is back on the site.
+   Guarded so it never re-fires the email/password flow's own success UI:
+   that path already calls applyAuthenticatedSession() itself and sets the
+   local session before this listener's SIGNED_IN event even arrives. */
+function bindGoogleAuthLanding(){
+  if (!window.MaziAPI || !MaziAPI.onAuthChange) return;
+  MaziAPI.onAuthChange((event, session)=>{
+    if (event !== 'SIGNED_IN' || !session || !session.user) return;
+    if (getSession()) return; // already signed in locally — the email/password flow handled it
+    const provider = session.user.app_metadata && session.user.app_metadata.provider;
+    if (provider !== 'google') return;
+    MaziAPI.getProfile().then(profile=>{
+      applyAuthenticatedSession({
+        user: session.user,
+        profile,
+        isNewUser: !profile || !profile.onboarded
+      });
+    }).catch(()=>{});
+  });
 }
 
 /* ============ Deep-link actions (from legal pages, etc.) ============ */
@@ -3329,7 +3838,7 @@ function handleOpenParam(){
       $('#searchInput').focus();
     }
   } else if (open === 'offers'){
-    showToast('No offers saved yet');
+    showToast('No offers saved yet', null, 'info');
   } else if (open === 'profile'){
     if (getSession()){
       if (from === 'checkout'){
