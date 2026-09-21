@@ -34,6 +34,8 @@
     RATE_LIMITED: 'Too many orders in a short time. Please try again later.',
     PRODUCT_NOT_FOUND: 'Some products are no longer available.',
     OUT_OF_STOCK: 'Some items are out of stock.',
+    INSUFFICIENT_STOCK: 'Not enough stock left for some items. Please lower the quantity.',
+    INVALID_STOCK: 'Enter a valid quantity.',
     ORDER_NOT_FOUND: 'Order not found.',
     CANNOT_CANCEL: 'This order can no longer be cancelled.',
     FORBIDDEN: 'You do not have permission to do that.',
@@ -237,12 +239,12 @@
     return /^https?:$/.test(window.location.protocol) ? window.location.origin + '/' : undefined;
   }
 
-  function signUpWithPassword(email, password, mobile) {
+  function signUpWithPassword(email, password, mobile, name) {
     return run(function () {
       return getClient().auth.signUp({
         email: String(email).trim(),
         password: String(password),
-        options: { data: { mobile: mobile || null }, emailRedirectTo: redirectUrl() }
+        options: { data: { mobile: mobile || null, name: name || null }, emailRedirectTo: redirectUrl() }
       }).then(unwrap).then(function (data) {
         // Supabase hides "already registered" (no error) and returns a user with no identities
         if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
@@ -313,7 +315,7 @@
     });
   }
 
-  var PROFILE_FIELDS = ['name', 'last_name', 'email', 'mobile', 'dob', 'account_type', 'business_type', 'business_name', 'gst_tin',
+  var PROFILE_FIELDS = ['name', 'email', 'mobile', 'account_type', 'business_type', 'business_name', 'gst_tin',
                         'atoll', 'city', 'onboarded', 'notifications_enabled'];
   function updateProfile(fields) {
     return run(function () {
@@ -459,6 +461,31 @@
       return getClient().rpc('admin_set_business_verified', { p_user: userId, p_verified: !!verified }).then(unwrap);
     });
   }
+  // ---- stock control (needs supabase/08_stock.sql) ----
+  function adminListProducts() {
+    return run(function () {
+      return getClient().from('products')
+        .select('id,name,pack,unit,price,stock,stock_qty,active,category_id,icon')
+        .order('name').then(unwrap);
+    });
+  }
+  // opts: { add: 24 }  -> +24 units   |   { set: 100 } -> exactly 100 units
+  function adminAdjustStock(productId, opts) {
+    opts = opts || {};
+    return run(function () {
+      return getClient().rpc('admin_adjust_stock', {
+        p_product_id: productId,
+        p_add: opts.add == null ? null : Math.trunc(opts.add),
+        p_set: opts.set == null ? null : Math.trunc(opts.set)
+      }).then(unwrap);
+    });
+  }
+  function adminListStockLog(limit) {
+    return run(function () {
+      return getClient().from('stock_log').select('*, products(name)')
+        .order('created_at', { ascending: false }).limit(limit || 40).then(unwrap);
+    });
+  }
   // Temporary (5 min) link to view a private payment slip
   function getSlipUrl(path) {
     return run(function () {
@@ -480,6 +507,7 @@
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
     cancelOrder: cancelOrder, subscribeOrders: subscribeOrders,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
-    adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl
+    adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
+    adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog
   };
 })();

@@ -4,12 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Checkout - MGT</title>
-<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=20260920e">
+<link rel="stylesheet" href="style.css?v=20260920d">
 </head>
 <body class="co-page" id="coPage">
 
@@ -104,6 +107,7 @@
             </div>
             <div class="co-hours-box">
               <div class="co-hours-row"><span>Sun&ndash;Thu</span><span>10:00 AM &ndash; 10:00 PM</span></div>
+              <div class="co-hours-row"><span>Fri</span><span>Closed</span></div>
               <div class="co-hours-row"><span>Sat</span><span>10:00 AM &ndash; 10:00 PM</span></div>
             </div>
           </div>
@@ -344,10 +348,17 @@
       <div class="footer-brand">
         <img src="img/logo-white.png" alt="MAZI General Trade" class="footer-logo">
         <p class="footer-tagline">Grocery &amp; convenience wholesale, delivered across Male' and beyond.</p>
-        <a href="viber://chat?number=" class="footer-viber-btn" target="_blank" rel="noopener">
-          <img src="img/viber.webp" alt="Viber" class="footer-viber-icon">
-          Join our Viber Community
-        </a>
+        <div class="footer-socials" aria-label="Social links">
+          <a href="#" class="footer-social-link" aria-label="Facebook" title="Facebook">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.9-5 5v3H6v4h3v4h4v-4h3.2l.8-4H13V9c0-.7.3-1 1-1z" fill="currentColor"/></svg>
+          </a>
+          <a href="#" class="footer-social-link" aria-label="Instagram" title="Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.7" cy="6.5" r="1.1" fill="currentColor"/></svg>
+          </a>
+          <a href="mailto:info@mazitrading.mv" class="footer-social-link" aria-label="Email" title="Email">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
 
       <div class="footer-col">
@@ -363,7 +374,7 @@
       <div class="footer-col">
         <h4>Account</h4>
         <ul>
-          <li><a href="index.html?open=login">Login / Register</a></li>
+          <li><a href="index.html?open=login">Login</a></li>
           <li><a href="index.html?open=orders">My Orders</a></li>
           <li><a href="index.html?open=cart">Cart</a></li>
         </ul>
@@ -398,8 +409,8 @@
 
 <script src="supabase.js" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="api.js?v=20260920e" defer></script>
+<script src="api.js?v=20260920d" defer></script>
 <script src="page-transitions.js" defer></script>
-<script src="checkout.js?v=20260920e" defer></script>
+<script src="checkout.js?v=20260920d" defer></script>
 </body>
 </html>

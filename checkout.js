@@ -10,18 +10,16 @@
 /* ---------- Product data (kept in sync with script.js) ---------- */
 const PRODUCTS = [
   /* Daiwa, Sanzoft, Carefor, R-Fresh only. id = backend code, name = backend name. */
-  /* TEMP: every price is 0 for now. When the real prices are ready, set them here, in
-     checkout.js AND in the database (see 09_set_all_prices_zero.sql / 02_seed.sql). */
-  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN.jpg' },
-  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN.jpg' },
-  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN.jpg' },
-  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN.jpg' },
-  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN.jpg' },
-  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN.jpg' },
-  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN.jpg' },
-  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN.jpg' },
-  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN.jpg' },
-  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN.jpg' },
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'104DW30305', name:'DAIWA FLOOR CLEANER 3800 ML.-LEMON SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low' },
   { id:'001SZ10108', name:'SANZOFT FABRIC SOFTENER 3800 ML.-LOVELY PINK (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Lovely Pink.jpg' },
   { id:'001SZ30307', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SENSE OF VIOLET (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Sense of Violet.jpg' },
   { id:'001SZ20208', name:'SANZOFT FABRIC SOFTENER 3800 ML.-SOFTLY TOUCH (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in', img:'img/household&cleaning/Sanzoft Fabric Softener 3800 ml. -Softly Touch.jpg' },
@@ -40,35 +38,28 @@ const PRODUCTS = [
   { id:'607RF04001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.- Lemon.jpg' },
   { id:'607RF05001', name:'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', cat:'household', icon:'🌸', pack:'Carton', unit:'1 x 24', price:0, stock:'in', img:'img/household&cleaning/R-Fresh Air Freshener Gel 180 gram.-Lily.jpg' },
 
-  /* --- previously hidden (no price yet) — now shown; price is still 0 --- */
-  { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN.jpg' },
-  { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN.jpg' },
-  { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN.jpg' },
-  { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN.jpg' },
-  { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN.jpg' },
-  { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN.jpg' },
-  { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN.jpg' },
-  { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in', img:'img/household&cleaning/DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN.jpg' },
-  { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN.jpg' },
-  { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN.jpg' },
-  { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN.jpg' },
-  { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN.jpg' },
-  { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN.jpg' },
-  { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN.jpg' },
-  { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in', img:'img/household&cleaning/DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN.jpg' },
-  // NEW (not in backend list yet) - provisional TBC- codes; replace with the real backend code + pack size
-  { id:'TBC-DW-DRAIN-1000', name:'DAIWA DRAIN UNBLOCKER 1000 ML.', cat:'household', icon:'🚿', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Drain Unblocker 1000 ml.jpg' },
-  { id:'TBC-DW-WAX-1000', name:'DAIWA FLOOR POLISHING WAX 1000 ML.', cat:'household', icon:'✨', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 1000 ml.jpg' },
-  { id:'TBC-DW-WAX-3500', name:'DAIWA FLOOR POLISHING WAX 3500 ML.', cat:'household', icon:'✨', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Floor Polishing Wax 3500 ml.jpg' },
-  { id:'TBC-DW-TURBO-PINK', name:'DAIWA TURBO TOILET CLEANER 900 ML.-PINK', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Pink.jpg' },
-  { id:'TBC-DW-TURBO-PURPLE', name:'DAIWA TURBO TOILET CLEANER 900 ML.-PURPLE', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-Purple.jpg' },
-  { id:'TBC-DW-TURBO-WHITE', name:'DAIWA TURBO TOILET CLEANER 900 ML.-WHITE', cat:'household', icon:'🚽', pack:'Carton', unit:'TBC', price:0, stock:'in', img:'img/household&cleaning/Daiwa Turbo Toilet Cleaner 900 ml.-White.jpg' },
-  { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
-  { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
-  { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  /* --- NO PRICE YET (hidden). When the price is known: set price, remove the leading // --- */
+  // { id:'101DW00008', name:'DAIWA DISH WASHING LIQUID 800 ML. - HYGIENE , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'101DW10304', name:'DAIWA DISH WASHING LIQUID 800 ML. - LEMON , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'101DW000501', name:'DAIWA DISH WASHING LIQUID 800 ML. - MINT , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'107DW10102', name:'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'104DW40402', name:'DAIWA FLOOR CLEANER 900 ML. - AQUA BLUE , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW10105', name:'DAIWA FLOOR CLEANER 900 ML. - FLORAL MIST , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW20202', name:'DAIWA FLOOR CLEANER 900 ML. - LAVENDER , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'104DW30302', name:'DAIWA FLOOR CLEANER 900 ML. - LEMON , (1 X 10) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 10', price:0, stock:'in' },
+  // { id:'102DW10003', name:'DAIWA GLASS CLEANER 600 ML. , (1 X 12) CTN', cat:'household', icon:'🪟', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'103DW10101', name:'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', cat:'household', icon:'✨', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW00103', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRAGRANCE RICE , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW50501', name:'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW40401', name:'DAIWA LIQUID HAND SOAP 500 ML. - GENTLE SCENT , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW20201', name:'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'501DW30301', name:'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 12', price:0, stock:'in' },
+  // { id:'006SZSB080802', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-MYSTICAL PERFUME (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ000202', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-PINK ROSE SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ000302', name:'SANZOFT LAUNDRY LIQUID DETERGENT 2000 ML.-VIOLET SCENT (1 X 6) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 6', price:0, stock:'in' },
+  // { id:'006SZ080801N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-MYSTICAL PERFUME (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  // { id:'006SZ000201N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-PINK ROSE SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
+  // { id:'006SZ000301N', name:'SANZOFT LAUNDRY LIQUID DETERGENT 3500 ML.-VIOLET SCENT (1 X 4) CTN', cat:'household', icon:'🧺', pack:'Carton', unit:'1 x 4', price:0, stock:'in' },
 ];
 const ATOLLS = {
   'Haa Alif (HA)': ['Dhidhdhoo', 'Hoarafushi', 'Kelaa', 'Ihavandhoo'],
@@ -295,15 +286,18 @@ function renderBankAccounts(){
 
 /* ---------- Delivery preferences ---------- */
 function pickupDayOptions(){
-  const labels = ['TODAY', 'TOMORROW'];
+  // The Male' showroom is CLOSED on Fridays, so Fridays are never offered.
+  // Labels follow the real calendar (TODAY / TOMORROW only when it is
+  // literally today / tomorrow), and we still return 6 open days.
   const out = [];
-  for (let i=0;i<6;i++){
+  for (let i = 0; out.length < 6; i++){
     const d = new Date();
-    d.setDate(d.getDate()+i);
-    const dayLabel = i < labels.length
-      ? `${labels[i]} &middot; ${d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase()}`
-      : d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
-    out.push(dayLabel);
+    d.setDate(d.getDate() + i);
+    if (d.getDay() === 5) continue; // Friday = closed
+    const dateLabel = d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+    out.push(i === 0 ? `TODAY &middot; ${dateLabel}`
+           : i === 1 ? `TOMORROW &middot; ${dateLabel}`
+           : dateLabel);
   }
   return out;
 }
@@ -326,6 +320,172 @@ function setMethod(method){
   $('#coPanelBoat').hidden = method !== 'boat';
   if (method === 'delivery') renderDeliveryEstimate();
   renderSummary();
+}
+
+/* ---------- Custom dropdown (replaces the browser's native <select> pop-up) ----------
+   The browser decides by itself whether a native <select> list opens up or
+   down, and it often flips UPWARD even when there is plenty of room below.
+   This keeps the real <select> in the page (so .value, change events and the
+   rest of this file work exactly as before) but shows our own list instead:
+   it opens DOWN by default and only flips UP when there really isn't enough
+   room below and there is more room above. */
+function enhanceSelect(sel){
+  if (!sel || sel.dataset.ddReady) return;
+  sel.dataset.ddReady = '1';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'co-dd';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'co-dd-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<strong class="co-dd-label"></strong>'
+    + '<svg class="co-dd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const list = document.createElement('div');
+  list.className = 'co-dd-list';
+  list.setAttribute('role', 'listbox');
+  list.hidden = true;
+
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(btn);
+  wrap.appendChild(sel);
+  wrap.appendChild(list);
+  sel.classList.add('co-dd-native');
+  sel.tabIndex = -1;
+  sel.setAttribute('aria-hidden', 'true');
+
+  const labelEl = btn.querySelector('.co-dd-label');
+  let active = -1;
+
+  function sync(){
+    const o = sel.options[sel.selectedIndex];
+    labelEl.textContent = o ? o.text : '';
+    Array.from(list.children).forEach((b, i)=>{
+      b.setAttribute('aria-selected', i === sel.selectedIndex ? 'true' : 'false');
+    });
+  }
+  function build(){
+    list.innerHTML = '';
+    Array.from(sel.options).forEach((o, i)=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'co-dd-opt';
+      b.setAttribute('role', 'option');
+      b.tabIndex = -1;
+      b.textContent = o.text;
+      b.addEventListener('click', ()=> choose(i));
+      list.appendChild(b);
+    });
+    sync();
+  }
+  function choose(i){
+    const changed = sel.selectedIndex !== i;
+    sel.selectedIndex = i;
+    sync();
+    close(true);
+    if (changed) sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function setActive(i, center){
+    if (active >= 0 && list.children[active]) list.children[active].classList.remove('active');
+    active = Math.max(0, Math.min(list.children.length - 1, i));
+    const el = list.children[active];
+    if (!el) return;
+    el.classList.add('active');
+    if (center){
+      list.scrollTop = el.offsetTop - (list.clientHeight - el.offsetHeight) / 2;
+    } else if (el.offsetTop < list.scrollTop){
+      list.scrollTop = el.offsetTop;
+    } else if (el.offsetTop + el.offsetHeight > list.scrollTop + list.clientHeight){
+      list.scrollTop = el.offsetTop + el.offsetHeight - list.clientHeight;
+    }
+  }
+  function place(){
+    const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const below = vh - r.bottom - 8;
+    const above = r.top - 8;
+    list.style.maxHeight = '';
+    const natural = Math.min(list.scrollHeight + 2, 320);
+    // Prefer DOWN. Flip up only if the list would be cramped below AND there is more room above.
+    const up = below < Math.min(natural, 200) && above > below;
+    const room = up ? above : below;
+    list.style.maxHeight = Math.max(120, Math.min(320, room)) + 'px';
+    wrap.classList.toggle('up', up);
+    list.style.left = '0';
+    list.style.right = 'auto';
+    if (list.getBoundingClientRect().right > vw - 8){
+      list.style.left = 'auto';
+      list.style.right = '0';
+    }
+  }
+  function isOpen(){ return !list.hidden; }
+  function open(){
+    if (isOpen()) return;
+    document.querySelectorAll('.co-dd.open').forEach(w=>{ if (w.__ddClose) w.__ddClose(); });
+    list.hidden = false;
+    wrap.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    place();
+    active = -1;
+    setActive(sel.selectedIndex < 0 ? 0 : sel.selectedIndex, true);
+  }
+  function close(focusBtn){
+    list.hidden = true;
+    wrap.classList.remove('open', 'up');
+    btn.setAttribute('aria-expanded', 'false');
+    if (focusBtn) btn.focus();
+  }
+  wrap.__ddClose = ()=> close(false);
+
+  btn.addEventListener('click', ()=> isOpen() ? close(false) : open());
+  btn.addEventListener('keydown', e=>{
+    const k = e.key;
+    if (k === 'ArrowDown' || k === 'ArrowUp'){
+      e.preventDefault();
+      if (!isOpen()) return open();
+      setActive(active + (k === 'ArrowDown' ? 1 : -1));
+    } else if (k === 'Home' || k === 'End'){
+      if (!isOpen()) return;
+      e.preventDefault();
+      setActive(k === 'Home' ? 0 : list.children.length - 1);
+    } else if (k === 'Enter' || k === ' '){
+      e.preventDefault();
+      if (!isOpen()) open(); else choose(active);
+    } else if (k === 'Escape'){
+      if (isOpen()){ e.preventDefault(); close(true); }
+    } else if (k === 'Tab'){
+      if (isOpen()) close(false);
+    } else if (k.length === 1 && /\S/.test(k)){
+      // type-ahead: jump to the next option that starts with this letter
+      const opts = Array.from(sel.options);
+      const from = (isOpen() ? active : sel.selectedIndex) + 1;
+      const ch = k.toLowerCase();
+      for (let n = 0; n < opts.length; n++){
+        const i = (from + n) % opts.length;
+        if (opts[i].text.toLowerCase().startsWith(ch)){
+          if (isOpen()) setActive(i); else choose(i);
+          break;
+        }
+      }
+    }
+  });
+  // Clicking the list's padding/scrollbar must not trigger the surrounding <label>.
+  wrap.addEventListener('click', e=>{ if (!e.target.closest('.co-dd-btn')) e.preventDefault(); });
+  document.addEventListener('pointerdown', e=>{ if (isOpen() && !wrap.contains(e.target)) close(false); });
+  window.addEventListener('resize', ()=>{ if (isOpen()) close(false); });
+
+  // Keep the custom list in sync when the real <select> is changed from code
+  // (options re-filled, or .value assigned).
+  new MutationObserver(build).observe(sel, { childList: true });
+  const valueDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  Object.defineProperty(sel, 'value', {
+    configurable: true,
+    get(){ return valueDesc.get.call(sel); },
+    set(v){ valueDesc.set.call(sel, v); sync(); }
+  });
+  sel.addEventListener('change', sync);
+  build();
 }
 
 function populateAtollSelect(selectId){
@@ -566,6 +726,8 @@ function init(){
   renderSlip();
   renderPickupDays();
 
+  enhanceSelect($('#coAtoll'));
+  enhanceSelect($('#coIsland'));
   populateAtollSelect('#coAtoll');
   $('#coAtoll').value = 'Kaafu (K)';
   populateIslandSelect('#coIsland', $('#coAtoll').value);
@@ -728,7 +890,7 @@ function init(){
         return;
       }
       let msg = (err && err.message) || 'We could not place your order. Please try again.';
-      if (err && (err.code === 'OUT_OF_STOCK' || err.code === 'PRODUCT_NOT_FOUND') && err.detail){
+      if (err && (err.code === 'OUT_OF_STOCK' || err.code === 'INSUFFICIENT_STOCK' || err.code === 'PRODUCT_NOT_FOUND') && err.detail){
         const names = String(err.detail).split(',').map(id=>{
           const p = PRODUCTS.find(p=>p.id===id);
           return p ? p.name : id;
