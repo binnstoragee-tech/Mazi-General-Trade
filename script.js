@@ -1500,7 +1500,7 @@ function updateCartUI(){
     subtotal += lineTotal;
     return `
       <div class="cart-row">
-        <div class="cart-row-media"><img class="cart-row-img" src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')"></div>
+        <div class="cart-row-media"><img class="cart-row-img" decoding="async" src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')"></div>
         <div class="cart-row-info">
           <div class="cart-row-title">${p.name}</div>
           <div class="cart-row-price">${fmt(lineTotal)}</div>
