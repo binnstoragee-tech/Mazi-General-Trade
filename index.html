@@ -655,6 +655,9 @@
         <small class="field-error" id="onboardCityError" hidden>Please enter your island or city.</small>
       </label>
 
+      <!-- Account type / business name removed from onboarding: shoppers add a company
+           account later in Profile → My Accounts. Kept hidden so existing scripts keep working. -->
+      <div id="onboardLegacyAccount" hidden style="display:none" aria-hidden="true">
       <div class="co-tabs" id="onboardTypeTabs">
         <button type="button" class="co-tab active" data-account-type="residence">
           <span class="co-tab-title">
@@ -677,6 +680,7 @@
         <input type="text" id="onboardBusinessName" placeholder="Your business name">
         <small class="field-error" id="onboardBusinessError" hidden>Please enter your business name.</small>
       </label>
+      </div>
 
       <button type="submit" class="auth-submit-btn" id="onboardSubmit">Continue</button>
     </form>
