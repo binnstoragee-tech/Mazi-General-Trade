@@ -104,14 +104,14 @@ const PRODUCTS = [
 
   /* TEMP — NO PRICE YET (price:0). Shown only while the list is being reviewed.
      BEFORE GO-LIVE: give each a price (and set price + active = true in Supabase) or comment the line out. */
-  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW30302.png' },
-  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW00101.png' },
-  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW40402.png' },
-  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW50502.png' },
-  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'low', img:'img/household&cleaning/501DW20202.png' },
-  { id:'607CR00101', name:'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607CR00101.png' },
-  { id:'607BN00201', name:'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/607BN00201.png' },
-  { id:'503ZS00101', name:'ZENSI NATURAL CLEANSING SHOWER 450 ML.', cat:'personal-care', icon:'🚿', pack:'Carton', unit:'', price:0, stock:'low', img:'img/household&cleaning/503ZS00101.png' },
+  { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW30302.png' },
+  { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW00101.png' },
+  { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW40402.png' },
+  { id:'501DW50502', name:'DAIWA LIQUID HAND SOAP 3500 ML. - LAVENDER , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW50502.png' },
+  { id:'501DW20202', name:'DAIWA LIQUID HAND SOAP 3500 ML. - MELON , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW20202.png' },
+  { id:'607CR00101', name:'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/607CR00101.png' },
+  { id:'607BN00201', name:'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/607BN00201.png' },
+  { id:'503ZS00101', name:'ZENSI NATURAL CLEANSING SHOWER 450 ML.', cat:'personal-care', icon:'🚿', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/503ZS00101.png' },
 ];
 
 /* ---------- Hero slides ---------- */
