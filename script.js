@@ -102,8 +102,9 @@ const PRODUCTS = [
   { id:'101PTLE010102Y2', name:'PINTO DISH WASHING LIQUID 3600 ML. - LEMON (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTLE010102Y2.png' },
   { id:'101PTKL000002', name:'PINTO DISH WASHING LIQUID 3600 ML. - KLEAR (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTKL000002.png' },
 
-  /* TEMP — NO PRICE YET (price:0). Shown only while the list is being reviewed.
-     BEFORE GO-LIVE: give each a price (and set price + active = true in Supabase) or comment the line out. */
+  /* FOC (free-of-charge) samples from supplier — no cost basis, so no retail price set yet.
+     Kept out of the shop (price:0, stock:'out') until staff decides a selling price in Supabase.
+     Photos now sourced from the MD2026-001 packing list. */
   { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW30302.png' },
   { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW00101.png' },
   { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW40402.png' },
@@ -116,7 +117,7 @@ const PRODUCTS = [
 
 /* ---------- Hero slides ---------- */
 /* TODO: paste the Viber community invite link here (e.g. https://invite.viber.com/?g=xxxxxxxx) */
-const VIBER_COMMUNITY_LINK = '';
+const VIBER_COMMUNITY_LINK = 'https://invite.viber.com/?g2=AQBGtxOKbXnWkVcx7ibZCjKE09D1%2Fx83cTr%2FLGp36CDHemLo2lo6euVx9GSjLWNK';
 
 const HERO_SLIDES = [
   { eyebrow:'This Week', title:'Free delivery on orders over MVR 500', desc:"Order today within Male' and get it delivered by tomorrow.", cta:'Start Shopping', icon:'🚚', imgMobile:'img/home/a-phone.jpeg', imgWeb:'img/home/a-desktop.jpeg' },
@@ -475,7 +476,11 @@ function applyAuthenticatedSession(result, opts){
     name,
     firstName: name,
     lastName: profile.last_name || '',
-    email: profile.email || user.email || '',
+    // user.email is the real Supabase Auth sign-in address; prefer it over
+    // profiles.email so the Personal Details page (and admin Staff Access,
+    // which reads straight from profiles.email) can never drift from what
+    // the shopper actually signs in with.
+    email: user.email || profile.email || '',
     mobile,
     atoll: profile.atoll || '',
     city: profile.city || '',
@@ -1138,7 +1143,19 @@ function getFilteredProducts(){
 function stockMeta(p){
   if (p.stock === 'out') return { cls: 'out-stock', label: 'Out of Stock' };
   if (p.stock === 'low') return { cls: 'low-stock', label: 'Low Stock' };
+  if (p.stock === 'untracked') return { cls: '', label: '' };
   return { cls: 'in-stock', label: 'In Stock' };
+}
+
+// Renders the stock-status pill, or nothing at all for 'untracked' products —
+// we only show a badge for a status staff actually verified.
+function stockIndicatorHtml(p){
+  const m = stockMeta(p);
+  if (!m.label) return '';
+  return `<div class="stock-indicator ${m.cls}">
+          <span class="stock-dot"></span>
+          <span class="stock-text">${m.label}</span>
+        </div>`;
 }
 
 function cardActionHtml(p, opts){
@@ -1251,10 +1268,7 @@ function productCardHtml(p){
         <img class="card-img" src="${productImg(p)}" alt="${p.name}" loading="lazy" onerror="this.classList.add('img-missing')">
       </div>
       <div class="card-body">
-        <div class="stock-indicator ${stockMeta(p).cls}">
-          <span class="stock-dot"></span>
-          <span class="stock-text">${stockMeta(p).label}</span>
-        </div>
+        ${stockIndicatorHtml(p)}
         <div class="card-title">${p.name}</div>
         <div class="card-code">${p.id}</div>
         <div class="card-meta">
@@ -1338,10 +1352,7 @@ function renderProductDetail(p){
     </div>
     <div class="pd-info">
       <div>
-        <div class="stock-indicator ${stockMeta(p).cls}">
-          <span class="stock-dot"></span>
-          <span class="stock-text">${stockMeta(p).label}</span>
-        </div>
+        ${stockIndicatorHtml(p)}
         <div class="pd-title">${p.name}</div>
         <div class="pd-code">${p.id}</div>
       </div>
@@ -1484,6 +1495,8 @@ function updateCartUI(){
     el.textContent = count;
     el.style.display = count>0 ? 'flex' : 'none';
   });
+  const cartItemCountEl = $('#cartItemCount');
+  if (cartItemCountEl) cartItemCountEl.textContent = count>0 ? `(${count} ${count===1?'item':'items'})` : '';
 
   const ids = Object.keys(state.cart);
   if (ids.length===0){
@@ -1862,11 +1875,17 @@ function bindOnboardingEvents(){
       return;
     }
     const mobile = `+960${mobileDigits}`;
+    // Onboarding only has one "Your name" box, but Profile Details has
+    // separate First Name / Last Name fields — split here so both are
+    // filled in and saved right away, instead of the whole name landing in
+    // First Name with Last Name blank until the shopper fixes it manually.
+    const { first: firstName, last: lastName } = splitFullName(name);
     const submitBtn = $('#onboardSubmit');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Saving...';
     MaziAPI.updateProfile({
-      name,
+      name: firstName,
+      last_name: lastName,
       mobile,
       atoll,
       city,
@@ -1876,11 +1895,11 @@ function bindOnboardingEvents(){
       onboarded: true
     }).then(()=>{
       const sess = getSession() || {};
-      setSession({ ...sess, name, firstName: name, mobile, atoll, city, accountType: onboardAccountType, businessName: onboardAccountType === 'business' ? businessName : '' });
+      setSession({ ...sess, name: firstName, firstName, lastName, mobile, atoll, city, accountType: onboardAccountType, businessName: onboardAccountType === 'business' ? businessName : '' });
       closeOnboarding();
       showLoginSuccess(name, onboardWasSignup);
     }).catch(err=>{
-      showToast((err && err.message) || 'Could not save your profile. Please try again.', null, 'error');
+      showToast(friendlyProfileError(err), null, 'error');
     }).finally(()=>{
       submitBtn.disabled = false;
       submitBtn.textContent = 'Continue';
@@ -2152,6 +2171,20 @@ function startOrdersLive(){
 }
 function stopOrdersLive(){
   if (ordersUnsub){ try{ ordersUnsub(); } catch(e){} ordersUnsub = null; }
+}
+
+// Live product updates: the moment staff change stock/price/name/image/
+// visibility in admin -> Stock, every shopper's device hears about it and
+// refreshes. No login required. (Falls back to the 60-second poll in
+// init() if realtime is off.)
+let productsUnsub = null;
+function startProductsLive(){
+  stopProductsLive();
+  if (!window.MaziAPI || !MaziAPI.subscribeProducts) return;
+  try{ productsUnsub = MaziAPI.subscribeProducts(()=> syncProductsFromServer()); } catch(e){}
+}
+function stopProductsLive(){
+  if (productsUnsub){ try{ productsUnsub(); } catch(e){} productsUnsub = null; }
 }
 
 function orderStepDotContent(done){
@@ -2613,12 +2646,14 @@ function renderOrdersView(){
             <span class="label">Order Total</span>
             <span class="value">${fmtCur(order.total, order.currency || 'MVR')}</span>
           </div>
-          <div class="order-receipt-row">
-            <button type="button" class="order-receipt-btn" data-receipt-order="${order.id}">
-              <svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-12.5V2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-              View Receipt
-            </button>
-          </div>
+          ${order.status === 'delivered' ? `
+            <div class="order-receipt-row">
+              <button type="button" class="order-receipt-btn" data-receipt-order="${order.id}">
+                <svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-12.5V2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                View Receipt
+              </button>
+            </div>
+          ` : ''}
           ${order.cancelled ? `
             <div class="order-cancelled-note">This order was cancelled.${order.refundStatus === 'pending' ? ' Your refund is being processed by our team.' : (order.refundStatus === 'refunded' ? ' Your refund has been sent.' : '')}</div>
           ` : `
@@ -2909,13 +2944,47 @@ function downloadReceipt(){
   showToast('Receipt downloaded');
 }
 
+// Supabase surfaces raw Postgres errors (e.g. "duplicate key value violates
+// unique constraint \"profiles_mobile_key\"") straight through, which reads
+// as gibberish to a shopper. Translate the ones we know how to explain.
+function friendlyProfileError(err){
+  const raw = (err && err.message) || '';
+  if (/profiles_mobile_key/i.test(raw) || (/duplicate key/i.test(raw) && /mobile/i.test(raw))){
+    return 'That mobile number is already linked to another account. Please use a different number.';
+  }
+  return raw || 'Could not save your profile. Please try again.';
+}
+
+// Splits one typed "Full Name" into { first, last } — last word becomes
+// the last name, everything before it stays the first name. Used wherever
+// we only ever collected a single combined name field (onboarding, old
+// Google sign-ins) so First Name / Last Name end up filled in properly
+// instead of the whole name sitting in First Name with Last Name empty.
+function splitFullName(full){
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { first: parts[0] || '', last: '' };
+  return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
+}
+
 /* ============ Profile page ============ */
 function openProfileView(){
   const session = getSession() || {};
   populateOnboardAtolls();
   populatePvBusinessTypes();
-  $('#pvFirstName').value = session.firstName || session.name || '';
-  $('#pvLastName').value = session.lastName || '';
+  // Onboarding only ever asked for one combined "Full Name" field, so old
+  // sessions have the whole name (e.g. "Monir Ahmed") sitting in firstName
+  // with lastName empty. Split it here so the two fields show correctly —
+  // otherwise a shopper sees an empty Last Name box, fills it in themselves,
+  // and ends up with the last name doubled everywhere ("Monir Ahmed Ahmed").
+  let pvFirst = session.firstName || session.name || '';
+  let pvLast = session.lastName || '';
+  if (!pvLast && pvFirst.trim().includes(' ')){
+    const split = splitFullName(pvFirst);
+    pvFirst = split.first;
+    pvLast = split.last;
+  }
+  $('#pvFirstName').value = pvFirst;
+  $('#pvLastName').value = pvLast;
   $('#pvEmail').value = session.email || '';
   $('#pvMobile').value = (session.mobile || '').replace('+960', '');
   $('#pvDob').value = session.dob || '';
@@ -2940,9 +3009,17 @@ function saveProfileView(){
   const session = getSession() || {};
   const firstName = $('#pvFirstName').value.trim() || session.firstName || 'Account';
   const mobileDigits = $('#pvMobile').value.trim().replace(/[^0-9]/g, '');
-  const mobile = mobileDigits ? `+960${mobileDigits}` : (session.mobile || '');
+  // profiles.mobile is UNIQUE, and Postgres only lets that skip duplicate
+  // checks on NULL — not on ''. Sending '' here for "no number" means the
+  // second account that ever saves with an empty Contact Number collides
+  // with the first ("duplicate key value violates unique constraint
+  // \"profiles_mobile_key\""). null is what the signup trigger already uses
+  // for this same reason (see supabase/01_schema.sql) — match it here.
+  const mobile = mobileDigits ? `+960${mobileDigits}` : (session.mobile || null);
   const lastName = $('#pvLastName').value.trim();
-  const email = $('#pvEmail').value.trim();
+  // Email is read-only on this page (it's the sign-in address) — keep it
+  // exactly as-is instead of resaving whatever sits in the disabled input.
+  const email = session.email || '';
   const dob = $('#pvDob').value;
   const atoll = $('#pvAtoll').value;
   const city = $('#pvCity').value.trim();
@@ -3001,7 +3078,7 @@ function saveProfileView(){
     applyLocally();
     showToast('Profile updated');
   }).catch(err=>{
-    showToast((err && err.message) || 'Could not save your profile. Please try again.', null, 'error');
+    showToast(friendlyProfileError(err), null, 'error');
   }).finally(()=>{
     if (saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Profile'; }
   });
@@ -3360,17 +3437,41 @@ function initNavScroll(){
 }
 
 /* ============ Init / event wiring ============ */
-// Stock labels (In / Low / Out of stock) follow the numbers staff enter in
-// /admin -> Stock. Only the status is read; names and prices stay as-is.
-function syncStockFromServer(){
+// The shop is admin-controlled: everything staff add/edit/hide in
+// /admin -> Stock (name, price, pack, unit, icon, image, new products,
+// hidden products) is pulled from the server here and applied on top of
+// the PRODUCTS list, which only exists for an instant first paint before
+// this runs. Stock-only changes get a cheap price/label refresh; anything
+// structural (add/remove/rename/etc.) triggers a full re-render.
+function syncProductsFromServer(){
   if (!window.MaziAPI || !MaziAPI.listProducts) return;
   MaziAPI.listProducts().then(rows=>{
-    let changed = false;
+    var seen = {}, changedStockOnly = false, structural = false;
     rows.forEach(r=>{
-      const p = PRODUCTS.find(x=> x.id === r.id);
-      if (p && r.stock && p.stock !== r.stock){ p.stock = r.stock; changed = true; }
+      seen[r.id] = true;
+      var p = PRODUCTS.find(x=> x.id === r.id);
+      if (p){
+        if (p.stock !== r.stock){ p.stock = r.stock; changedStockOnly = true; }
+        ['name','cat','icon','pack','unit','price'].forEach(function(k){
+          if (p[k] !== r[k]){ p[k] = r[k]; structural = true; }
+        });
+        if (r.img && p.img !== r.img){ p.img = r.img; structural = true; }
+      } else {
+        PRODUCTS.push({ id:r.id, name:r.name, cat:r.cat, icon:r.icon, pack:r.pack, unit:r.unit, price:r.price, stock:r.stock, img:r.img });
+        structural = true;
+      }
     });
-    if (changed) refreshVisibleCurrency();
+    // hidden/deactivated/deleted in admin -> drop from the shop
+    for (var i = PRODUCTS.length - 1; i >= 0; i--){
+      if (!seen[PRODUCTS[i].id]){ PRODUCTS.splice(i, 1); structural = true; }
+    }
+    if (structural){
+      renderCategoryNav();
+      renderProducts();
+      renderPopularProducts();
+    } else if (changedStockOnly){
+      refreshVisibleCurrency();
+    }
   }).catch(()=>{});
 }
 
@@ -3394,13 +3495,14 @@ function init(){
   // then re-check whenever the tab/app regains focus.
   checkOrderUpdates();
   setInterval(checkOrderUpdates, 5000);
-  syncStockFromServer();
-  setInterval(syncStockFromServer, 60000);
+  syncProductsFromServer();
+  setInterval(syncProductsFromServer, 60000);
+  startProductsLive();
   syncOrders();
   startOrdersLive();
   setInterval(syncOrders, 30000); // safety net if realtime is not enabled
   document.addEventListener('visibilitychange', ()=>{
-    if (!document.hidden){ syncOrders(); checkOrderUpdates(); syncStockFromServer(); }
+    if (!document.hidden){ syncOrders(); checkOrderUpdates(); syncProductsFromServer(); }
   });
 
   // Register the notifications service worker up front (permission is

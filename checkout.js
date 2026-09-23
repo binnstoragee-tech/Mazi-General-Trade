@@ -68,8 +68,9 @@ const PRODUCTS = [
   { id:'101PTLE010102Y2', name:'PINTO DISH WASHING LIQUID 3600 ML. - LEMON (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTLE010102Y2.png' },
   { id:'101PTKL000002', name:'PINTO DISH WASHING LIQUID 3600 ML. - KLEAR (PUMP 1 X 2)', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 2', price:103.62, stock:'in', img:'img/household&cleaning/101PTKL000002.png' },
 
-  /* TEMP — NO PRICE YET (price:0). Shown only while the list is being reviewed.
-     BEFORE GO-LIVE: give each a price (and set price + active = true in Supabase) or comment the line out. */
+  /* FOC (free-of-charge) samples from supplier — no cost basis, so no retail price set yet.
+     Kept out of the shop (price:0, stock:'out') until staff decides a selling price in Supabase.
+     Photos now sourced from the MD2026-001 packing list. */
   { id:'501DW30302', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRAGRANCE RICE , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW30302.png' },
   { id:'501DW00101', name:'DAIWA LIQUID HAND SOAP 3500 ML. - FRUITY , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW00101.png' },
   { id:'501DW40402', name:'DAIWA LIQUID HAND SOAP 3500 ML. - GENTLE SCENT , (1 X 4) CTN', cat:'household', icon:'🧼', pack:'Carton', unit:'1 x 4', price:0, stock:'out', img:'img/household&cleaning/501DW40402.png' },
@@ -138,6 +139,17 @@ function getSession(){
   try{ return JSON.parse(localStorage.getItem('mazi_session') || 'null'); }
   catch(e){ return null; }
 }
+// Old sessions can have the whole name in firstName (e.g. "Monir Ahmed")
+// with lastName typed in separately on top of that ("Ahmed") — join them
+// naively and it shows "Monir Ahmed Ahmed". Skip lastName if it's already
+// one of firstName's words.
+function joinName(first, last){
+  first = (first || '').trim();
+  last = (last || '').trim();
+  if (!last) return first;
+  if (first.toLowerCase().split(/\s+/).includes(last.toLowerCase())) return first;
+  return `${first} ${last}`.trim();
+}
 function accountId(){
   const session = getSession();
   if (!session) return 'guest';
@@ -200,7 +212,7 @@ if (session && window.MaziAPI){
 /* ---------- Contact ---------- */
 function renderContact(){
   const s = getSession() || {};
-  const name = [s.firstName, s.lastName].filter(Boolean).join(' ') || s.name || 'there';
+  const name = joinName(s.firstName, s.lastName) || s.name || 'there';
   $('#coContactName').textContent = `Signed in as ${name}`;
   $('#coContactMobile').textContent = s.mobile ? `+960${String(s.mobile).replace(/^\+?960/,'')}` : '';
   $('#coName').value = name !== 'there' ? name : '';
@@ -773,6 +785,30 @@ function renderNotifToggle(action, toggleId){
 }
 
 /* ---------- Init ---------- */
+// Refreshes the local PRODUCTS copy from the server (admin-edited name,
+// price, pack, unit, icon, image) so checkout shows what's currently in
+// /admin -> Stock rather than the code's own snapshot. The order total is
+// always computed server-side regardless, so this is purely a display fix.
+function syncCheckoutProducts(){
+  if (!window.MaziAPI || !MaziAPI.listProducts) return Promise.resolve();
+  return MaziAPI.listProducts().then(rows=>{
+    var changed = false;
+    rows.forEach(r=>{
+      var p = PRODUCTS.find(x=> x.id === r.id);
+      if (p){
+        ['name','cat','icon','pack','unit','price','stock'].forEach(function(k){
+          if (p[k] !== r[k]){ p[k] = r[k]; changed = true; }
+        });
+        if (r.img && p.img !== r.img){ p.img = r.img; changed = true; }
+      } else {
+        PRODUCTS.push({ id:r.id, name:r.name, cat:r.cat, icon:r.icon, pack:r.pack, unit:r.unit, price:r.price, stock:r.stock, img:r.img });
+        changed = true;
+      }
+    });
+    if (changed){ renderItems(); renderSummary(); }
+  }).catch(()=>{});
+}
+
 function init(){
   if (!session || Object.keys(cart).length === 0) return;
 
@@ -780,6 +816,7 @@ function init(){
   renderItems();
   renderSummary();
   renderBankAccounts();
+  syncCheckoutProducts();
 
   coMethod = 'pickup';
   coPickupDayIndex = 0;
@@ -796,7 +833,7 @@ function init(){
 
   setMethod('pickup');
 
-  const sessionName = [session.firstName, session.lastName].filter(Boolean).join(' ') || session.name || '';
+  const sessionName = joinName(session.firstName, session.lastName) || session.name || '';
   $('#coBoatCustomerName').value = sessionName;
   $('#coBoatCustomerContact').value = session.mobile || '';
 
@@ -942,6 +979,31 @@ function init(){
     }).then(order=>{
       coSubmitting = false;
       document.getElementById('coPage').classList.remove('co-placing');
+      // The name/mobile typed here only ever got attached to this one order —
+      // they were never written back to the account, so a shopper who typed
+      // their mobile for the first time at checkout (e.g. signed up via
+      // email/Google with no mobile on file) saw it vanish again on their
+      // next order. Save it to the session (so the very next checkout picks
+      // it up immediately) and to the profile (so it survives a re-login).
+      // Best-effort — never blocks the success screen.
+      try{
+        const normMobile = (window.MaziAPI && MaziAPI.normalizeMobile) ? MaziAPI.normalizeMobile(mobile) : mobile;
+        const sessionNow = getSession() || {};
+        const nameChanged = name && name !== sessionNow.name;
+        const mobileChanged = normMobile && normMobile !== sessionNow.mobile;
+        if (nameChanged || mobileChanged){
+          const merged = { ...sessionNow };
+          if (nameChanged) merged.name = merged.firstName = name;
+          if (mobileChanged) merged.mobile = normMobile;
+          localStorage.setItem('mazi_session', JSON.stringify(merged));
+          if (window.MaziAPI && MaziAPI.updateProfile){
+            const patch = {};
+            if (nameChanged) patch.name = name;
+            if (mobileChanged) patch.mobile = normMobile;
+            MaziAPI.updateProfile(patch).catch(()=>{});
+          }
+        }
+      } catch(e){}
       showSuccess(order, mobile ? `+960${mobile.replace(/^\+?960/,'').replace(/^0+/,'')}` : '');
     }).catch(err=>{
       resetBtn();

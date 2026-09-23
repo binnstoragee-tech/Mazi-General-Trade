@@ -200,11 +200,7 @@
           Chat Now
         </a>
         <span class="viber-cta-divider" aria-hidden="true"></span>
-        <!-- No community link yet — href stays empty and the click handler
-             in script.js shows a "coming soon" toast instead of a dead
-             navigation. Paste the real invite.viber.com link into href
-             (and drop data-pending) once the group is up. -->
-        <a href="" target="_blank" rel="noopener" class="viber-cta-btn viber-cta-btn-secondary" id="homeViberCommunityBtn" data-pending="true">
+        <a href="https://invite.viber.com/?g2=AQBGtxOKbXnWkVcx7ibZCjKE09D1%2Fx83cTr%2FLGp36CDHemLo2lo6euVx9GSjLWNK" target="_blank" rel="noopener" class="viber-cta-btn viber-cta-btn-secondary" id="homeViberCommunityBtn">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.36M14.5 3.13a3.5 3.5 0 0 1 0 6.74M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Join Community
         </a>
@@ -304,13 +300,13 @@
         <img src="img/logo-white.png" alt="MAZI General Trade" class="footer-logo">
         <p class="footer-tagline">Grocery &amp; convenience wholesale, delivered across Male' and beyond.</p>
         <div class="footer-socials" aria-label="Social links">
-          <a href="#" class="footer-social-link" aria-label="Facebook" title="Facebook">
+          <a href="https://www.facebook.com/share/1CDnWrEqWU/" target="_blank" rel="noopener" class="footer-social-link" aria-label="Facebook" title="Facebook">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.9-5 5v3H6v4h3v4h4v-4h3.2l.8-4H13V9c0-.7.3-1 1-1z" fill="currentColor"/></svg>
           </a>
-          <a href="#" class="footer-social-link" aria-label="Instagram" title="Instagram">
+          <a href="https://www.instagram.com/mazigeneraltrade?stkn=ZDV2M3hqdnM3ZW14" target="_blank" rel="noopener" class="footer-social-link" aria-label="Instagram" title="Instagram">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.7" cy="6.5" r="1.1" fill="currentColor"/></svg>
           </a>
-          <a href="#" class="footer-social-link" aria-label="TikTok" title="TikTok">
+          <a href="https://www.tiktok.com/@mazi.general.trad?_r=1&_t=ZS-99wRrGJlxm4" target="_blank" rel="noopener" class="footer-social-link" aria-label="TikTok" title="TikTok">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 3c.4 2.2 1.8 3.6 4 3.9v2.6c-1.4 0-2.8-.4-4-1.2v6.3c0 3-2.4 5.4-5.4 5.4S5.7 17.6 5.7 14.6c0-2.9 2.3-5.3 5.2-5.4v2.7c-1.4.1-2.5 1.3-2.5 2.7 0 1.5 1.2 2.7 2.7 2.7s2.8-1.2 2.8-2.7V3h2.6z" fill="currentColor"/></svg>
           </a>
           <a href="mailto:mazigeneraltrade@gmail.com" class="footer-social-link" aria-label="Email" title="Email">
@@ -370,7 +366,7 @@
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 <aside class="cart-drawer" id="cartDrawer">
   <div class="drawer-head">
-    <h3>Your Cart</h3>
+    <h3>Your Cart <span class="cart-item-count" id="cartItemCount"></span></h3>
     <button id="closeCart" aria-label="Close">&times;</button>
   </div>
   <div class="drawer-body" id="cartItems"></div>
@@ -929,8 +925,9 @@
           <input type="text" id="pvLastName">
         </label>
         <label class="auth-field">
-          <span>Email (Optional)</span>
-          <input type="email" id="pvEmail">
+          <span>Email</span>
+          <input type="email" id="pvEmail" readonly aria-readonly="true">
+          <small class="field-hint">This is the email you sign in with — it can't be changed here.</small>
         </label>
         <label class="auth-field">
           <span>Contact Number</span>
@@ -1016,7 +1013,7 @@
     <div class="profile-view-card pv-accounts-card" id="pvAccountsCard">
       <div class="ma-head">
         <h2 class="ma-title">My Accounts</h2>
-        <button type="button" class="ma-add-btn" id="maAddBtn">+ Add Account</button>
+        <button type="button" class="ma-add-btn" id="maAddBtn">+ Add Business Account</button>
       </div>
       <p class="ma-sub">Your personal and business accounts. Business accounts are checked and approved by our team.</p>
       <div class="ma-msg" id="maMsg" hidden></div>
@@ -1191,15 +1188,7 @@
 <!-- Add New Account -->
 <div class="ma-modal" id="maModal" hidden>
   <div class="ma-modal-card" role="dialog" aria-modal="true" aria-labelledby="maModalTitle">
-    <h2 id="maModalTitle">Add New Account</h2>
-
-    <label class="ma-field">
-      <span>Account Type</span>
-      <select id="maType">
-        <option value="business">Business</option>
-        <option value="residence">Residence</option>
-      </select>
-    </label>
+    <h2 id="maModalTitle">Add Business Account</h2>
 
     <label class="ma-switch" id="maGstSwitchRow">
       <input type="checkbox" id="maGstExempt">

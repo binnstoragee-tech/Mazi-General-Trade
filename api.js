@@ -19,6 +19,9 @@
   var SLIP_BUCKET = 'payment-slips';
   var SLIP_MAX_BYTES = 5 * 1024 * 1024;
   var SLIP_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' };
+  var PRODUCT_IMAGE_BUCKET = 'product-images';
+  var IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+  var IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
   var ORDER_STATUSES = ['placed', 'processing', 'delivery', 'delivered']; // same order as ORDER_STEPS in script.js
 
   var MESSAGES = {
@@ -31,6 +34,7 @@
     INVALID_ITEMS: 'Some items in your cart are invalid.',
     EMPTY_CART: 'Your cart is empty.',
     SLIP_REQUIRED: 'Please upload your payment slip.',
+    IMAGE_REQUIRED: 'Please choose a photo to upload.',
     RATE_LIMITED: 'Too many orders in a short time. Please try again later.',
     PRODUCT_NOT_FOUND: 'Some products are no longer available.',
     OUT_OF_STOCK: 'Some items are out of stock.',
@@ -40,7 +44,11 @@
     CANNOT_CANCEL: 'This order can no longer be cancelled.',
     FORBIDDEN: 'You do not have permission to do that.',
     INVALID_STATUS: 'Invalid order status.',
-    INVALID_REFUND_STATUS: 'Invalid refund status.'
+    INVALID_REFUND_STATUS: 'Invalid refund status.',
+    NOT_FOUND: 'That account could not be found.',
+    CANNOT_REMOVE_SELF: 'You cannot remove your own staff access.',
+    LAST_SUPER_ADMIN: 'There must always be at least one Super Admin — make another account Super Admin first.',
+    STOREFRONT_ACCOUNT: 'This account signed up on the customer store front and cannot be given staff access.'
   };
 
   // ---------- client ----------
@@ -251,12 +259,12 @@
     return /^https?:$/.test(window.location.protocol) ? window.location.origin + '/' : undefined;
   }
 
-  function signUpWithPassword(email, password, mobile, name) {
+  function signUpWithPassword(email, password, mobile, name, source) {
     return run(function () {
       return getClient().auth.signUp({
         email: String(email).trim(),
         password: String(password),
-        options: { data: { mobile: mobile || null, name: name || null }, emailRedirectTo: redirectUrl() }
+        options: { data: { mobile: mobile || null, name: name || null, source: source || 'storefront' }, emailRedirectTo: redirectUrl() }
       }).then(unwrap).then(function (data) {
         // Supabase hides "already registered" (no error) and returns a user with no identities
         if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
@@ -352,6 +360,17 @@
     });
   }
 
+  // Staff-only dashboard display name (profiles.staff_name). Kept separate from
+  // updateProfile()/PROFILE_FIELDS on purpose: this never touches the customer-
+  // facing "name" (First Name) field, and vice versa — see 22_super_admin.sql.
+  function updateStaffName(name) {
+    return run(function () {
+      return currentUserId().then(function (uid) {
+        return getClient().from('profiles').update({ staff_name: String(name || '').trim() || null }).eq('id', uid).select().single().then(unwrap);
+      });
+    });
+  }
+
   function deleteAccount() {
     return run(function () {
       return getClient().rpc('delete_my_account').then(unwrap).then(function () {
@@ -375,6 +394,32 @@
         return getClient().storage.from(SLIP_BUCKET).upload(path, file, { contentType: file.type, upsert: false })
           .then(unwrap).then(function () { return path; });
       });
+    });
+  }
+
+  // ============================================================
+  // Product photos (staff upload, public bucket — customers see these directly)
+  // ============================================================
+  // Uploads a product photo the staff picked from their device to a PUBLIC
+  // storage bucket and resolves with the public URL to save as image_url.
+  // productId (optional) is used to keep the file name readable; pass '__new__'
+  // or leave it out while adding a brand-new product that has no id yet.
+  function uploadProductImage(file, productId) {
+    return run(function () {
+      if (!file) throw fail('IMAGE_REQUIRED');
+      var ext = IMAGE_TYPES[file.type];
+      if (!ext) throw fail('IMAGE_REQUIRED', 'Photo must be a JPG, PNG or WEBP file.');
+      if (file.size > IMAGE_MAX_BYTES) throw fail('IMAGE_REQUIRED', 'Photo must be 5 MB or smaller.');
+      var safeId = String(productId || 'new').replace(/[^a-zA-Z0-9_-]/g, '') || 'new';
+      var rand = Math.random().toString(36).slice(2, 8);
+      var path = safeId + '-' + Date.now() + '-' + rand + '.' + ext;
+      return getClient().storage.from(PRODUCT_IMAGE_BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+        .then(unwrap).then(function () {
+          var pub = getClient().storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path);
+          var url = pub && pub.data && pub.data.publicUrl;
+          if (!url) throw fail('UNKNOWN', 'Uploaded, but could not get the photo link.');
+          return url;
+        });
     });
   }
 
@@ -446,6 +491,34 @@
   }
   function payloadId(p) { return (p && p.new && p.new.id) || (p && p.old && p.old.id); }
 
+  // Fires whenever ANY product row changes (staff edits stock/price/name/
+  // image/active in admin -> Stock). No login needed: this listens for the
+  // change and hands off to the caller (script.js re-pulls via listProducts,
+  // which is subject to normal RLS so hidden products never leak).
+  function subscribeProducts(cb) {
+    var channel = getClient().channel('products-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, function () { cb(); })
+      .subscribe();
+    return function unsubscribe() {
+      try { getClient().removeChannel(channel); } catch (e) {}
+    };
+  }
+
+  // Fires whenever ANY profile row changes (a shopper edits their First/Last
+  // Name in Personal Details, a Super Admin grants staff access, etc). Used
+  // by admin.js -> Staff Access to stay live instead of waiting for the
+  // 30s poll. Needs supabase/25_profiles_realtime.sql run once. RLS already
+  // lets admins SELECT every profile row (see 01_schema.sql), so this only
+  // ever reaches accounts with is_admin = true.
+  function subscribeProfiles(cb) {
+    var channel = getClient().channel('profiles-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, function (payload) { cb(payload); })
+      .subscribe();
+    return function unsubscribe() {
+      try { getClient().removeChannel(channel); } catch (e) {}
+    };
+  }
+
   // ============================================================
   // Staff / admin (only works for profiles with is_admin = true)
   // ============================================================
@@ -484,11 +557,27 @@
       return getClient().rpc('admin_set_shop_status', { p_shop: id, p_status: status }).then(unwrap);
     });
   }
+  // ---- Staff access / Super Admin (needs supabase/22_super_admin.sql) ----
+  function adminListAccounts() {
+    return run(function () {
+      return getClient().rpc('admin_list_accounts').then(unwrap).then(function (r) { return r || []; });
+    });
+  }
+  function adminSetStaffAccess(userId, isAdmin) {
+    return run(function () {
+      return getClient().rpc('admin_set_staff_access', { p_user: userId, p_is_admin: !!isAdmin }).then(unwrap);
+    });
+  }
+  function adminSetSuperAdmin(userId, isSuper) {
+    return run(function () {
+      return getClient().rpc('admin_set_super_admin', { p_user: userId, p_is_super: !!isSuper }).then(unwrap);
+    });
+  }
   // ---- stock control (needs supabase/08_stock.sql) ----
   function adminListProducts() {
     return run(function () {
       return getClient().from('products')
-        .select('id,name,pack,unit,price,stock,stock_qty,active,category_id,icon')
+        .select('id,name,pack,unit,price,stock,stock_qty,active,category_id,icon,image_url')
         .order('name').then(unwrap);
     });
   }
@@ -507,6 +596,53 @@
     return run(function () {
       return getClient().from('stock_log').select('*, products(name)')
         .order('created_at', { ascending: false }).limit(limit || 40).then(unwrap);
+    });
+  }
+  // ---- product editing (needs supabase/09_product_edits.sql) ----
+  // patch: { name, pack, unit, price, icon, active }
+  function adminUpdateProduct(productId, patch) {
+    patch = patch || {};
+    return run(function () {
+      return getClient().rpc('admin_update_product', {
+        p_product_id: productId,
+        p_name: patch.name == null ? null : String(patch.name).trim(),
+        p_pack: patch.pack == null ? null : String(patch.pack).trim() || null,
+        p_unit: patch.unit == null ? null : String(patch.unit).trim() || null,
+        p_price: patch.price == null ? null : Number(patch.price),
+        p_icon: patch.icon == null ? null : String(patch.icon).trim() || null,
+        p_active: patch.active == null ? null : !!patch.active,
+        p_image_url: patch.image_url == null ? null : String(patch.image_url).trim() || null
+      }).then(unwrap);
+    });
+  }
+  // ---- add a brand-new product (needs supabase/14_admin_add_product.sql) ----
+  // fields: { id, name, category, pack, unit, price, icon, image_url, active }
+  function adminAddProduct(fields) {
+    fields = fields || {};
+    return run(function () {
+      return getClient().rpc('admin_add_product', {
+        p_product_id: String(fields.id || '').trim(),
+        p_name: String(fields.name || '').trim(),
+        p_category_id: fields.category,
+        p_pack: fields.pack == null ? null : String(fields.pack).trim() || null,
+        p_unit: fields.unit == null ? null : String(fields.unit).trim() || null,
+        p_price: Number(fields.price) || 0,
+        p_icon: fields.icon == null ? null : String(fields.icon).trim() || null,
+        p_image_url: fields.image_url == null ? null : String(fields.image_url).trim() || null,
+        p_active: fields.active == null ? true : !!fields.active
+      }).then(unwrap);
+    });
+  }
+  function adminListProductEditLog(limit) {
+    return run(function () {
+      return getClient().from('product_edit_log').select('*, products(name), profiles(name,email)')
+        .order('created_at', { ascending: false }).limit(limit || 40).then(unwrap);
+    });
+  }
+  // ---- permanently remove a product (needs supabase/18_admin_delete_product.sql) ----
+  function adminDeleteProduct(productId) {
+    return run(function () {
+      return getClient().rpc('admin_delete_product', { p_product_id: productId }).then(unwrap);
     });
   }
   // Temporary (5 min) link to view a private payment slip
@@ -551,6 +687,21 @@
       });
     });
   }
+  // Edit an existing business account. The server always resets it to
+  // 'pending' — it needs a Super Admin's approval again after any change.
+  function updateShop(id, f) {
+    return run(function () {
+      return getClient().rpc('update_my_shop', {
+        p_id: id,
+        p_name: String(f.name || '').trim(),
+        p_business_type: f.businessType || null,
+        p_gst_tin: !f.gstExempt ? (f.gstTin || null) : null,
+        p_gst_exempt: !!f.gstExempt,
+        p_atoll: f.atoll || null,
+        p_city: f.city || null
+      }).then(unwrap);
+    });
+  }
 
   window.MaziAPI = {
     get client() { return getClient(); },
@@ -562,13 +713,17 @@
     signUpWithPassword: signUpWithPassword, resendConfirmation: resendConfirmation,
     signInWithGoogle: signInWithGoogle,
     sendPasswordReset: sendPasswordReset, updatePassword: updatePassword, getSession: getSession, onAuthChange: onAuthChange, logout: logout,
-    listShops: listShops, addShop: addShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
-    getProfile: getProfile, updateProfile: updateProfile, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
+    listShops: listShops, addShop: addShop, updateShop: updateShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
+    getProfile: getProfile, updateProfile: updateProfile, updateStaffName: updateStaffName, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
-    cancelOrder: cancelOrder, subscribeOrders: subscribeOrders,
+    cancelOrder: cancelOrder, subscribeOrders: subscribeOrders, subscribeProducts: subscribeProducts, subscribeProfiles: subscribeProfiles,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
     adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus,
+    adminListAccounts: adminListAccounts, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
-    adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog
+    adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,
+    adminUpdateProduct: adminUpdateProduct, adminAddProduct: adminAddProduct, adminListProductEditLog: adminListProductEditLog,
+    adminDeleteProduct: adminDeleteProduct,
+    uploadProductImage: uploadProductImage
   };
 })();
