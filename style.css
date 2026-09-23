@@ -816,7 +816,7 @@ input{font-family:inherit;}
   align-self:center;
   background:var(--glass-dark-bg);color:var(--ink);
   backdrop-filter:var(--glass-dark-blur);-webkit-backdrop-filter:var(--glass-dark-blur);
-  border:1px solid var(--glass-dark-border);border-radius:12px;
+  border:1px solid var(--glass-dark-border);border-radius:0;
   padding:7px;font-size:6.5px;font-weight:700;
   box-shadow:var(--glass-dark-shadow);
   display:flex;align-items:center;justify-content:center;gap:6px;
@@ -895,14 +895,14 @@ input{font-family:inherit;}
   margin-top:10px;width:100%;
   display:flex;align-items:center;justify-content:space-between;
   background:var(--line);
-  border-radius:3px;
+  border-radius:0;
   padding:2px;
 }
 .card-qty .qty-btn{
   width:19px;height:19px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   background:var(--ink);color:#fff;
-  border-radius:2px;
+  border-radius:0;
   font-size:11px;font-weight:700;line-height:1;
   transition:background .15s;
 }
@@ -6245,4 +6245,152 @@ body.ma-modal-open{overflow:hidden;}
     max-height:100%;
     aspect-ratio:1/1;
   }
+}
+
+/* ============================================================
+   PRODUCT DETAIL — Add to Cart / Quantity / Share
+   Flat, line-based, square-cornered — matches the plain catalogue
+   look (BHM-style: thin dividers, quiet type, no filled pills).
+   Scoped to .pd-actions only, so grid/carousel product cards keep
+   their existing compact "glass" look untouched.
+   ============================================================ */
+.pd-action-row{
+  display:flex;
+  align-items:stretch;
+  justify-content:center;
+  gap:0;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  position:relative;
+  min-height:56px;
+}
+.pd-action-row .card-add{
+  flex:1;
+  margin-top:0;
+}
+/* Loading state shrinks to a fixed-size circle. Positioned absolutely and
+   centered against the row itself, so it lands dead-center no matter what
+   else (share button, its own flex sizing) is doing. */
+.pd-action-row .card-add.loading{
+  flex:none;
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  margin:0;
+}
+.pd-action-row .card-remove-link{width:auto;}
+
+/* Quantity stepper — flat row, square corners, thin rule only */
+.pd-qty-select{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding-bottom:12px;
+}
+.pd-qty-label{
+  font-size:11px;font-weight:600;letter-spacing:.06em;
+  color:var(--ink-soft);text-transform:uppercase;margin-bottom:0;
+}
+.pd-actions .card-qty.pd-qty{
+  width:auto;
+  max-width:none;
+  height:auto;
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+  gap:18px;
+  box-sizing:border-box;
+}
+.pd-actions .card-qty.pd-qty .qty-btn{
+  flex:none;
+  width:26px;
+  height:26px;
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--ink);
+  font-size:15px;
+  font-weight:400;
+  border-radius:0;
+  line-height:1;
+}
+.pd-actions .card-qty.pd-qty .qty-val{
+  flex:none;
+  min-width:18px;
+  text-align:center;
+  font-size:14.5px;
+  font-weight:600;
+  color:var(--ink);
+}
+
+/* Add to Cart — flat text/icon row, brand-green accent, no fill or shadow */
+.pd-actions .card-add:not(.card-add-disabled):not(.card-add-done){
+  background:transparent;
+  color:var(--green-800);
+  border:none;
+  border-radius:0;
+  padding:14px 0;
+  font-size:13.5px;
+  font-weight:600;
+  letter-spacing:.01em;
+  box-shadow:none;
+  justify-content:center;
+  gap:8px;
+}
+.pd-actions .card-add:not(.card-add-disabled):not(.card-add-done) svg{
+  color:var(--green-800);
+  width:15px;height:15px;
+}
+.pd-actions .card-add.card-add-disabled{
+  border-radius:0;
+  background:transparent;
+  color:var(--ink-soft);
+  padding:14px 0;
+}
+.pd-actions .card-add.card-add-done{
+  border-radius:0;
+  background:transparent;
+  color:var(--green-800);
+  padding:14px 0;
+  justify-content:center;
+}
+
+/* Share button — plain icon, same quiet line language, no filled box */
+.pd-share-btn{
+  flex:0 0 auto;
+  width:auto;
+  padding-left:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  border:none;
+  border-left:1px solid var(--line);
+  border-radius:0;
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:color .15s ease, transform .12s ease;
+}
+.pd-share-btn svg{width:17px;height:17px;}
+.pd-share-btn:active{transform:scale(.92);}
+
+@media (min-width:721px){
+  .pd-action-row{max-width:460px;}
+  .pd-actions .card-add:not(.card-add-disabled):not(.card-add-done){
+    padding:16px 0;font-size:14.5px;
+  }
+  .pd-actions .card-add.card-add-disabled,
+  .pd-actions .card-add.card-add-done{padding:16px 0;}
+  .pd-share-btn{padding-left:18px;}
+  .pd-share-btn svg{width:18px;height:18px;}
+}
+
+@media (hover:hover){
+  .pd-actions .card-add:not(.card-add-disabled):not(.success):not(.loading):not(.card-add-done):hover{
+    color:var(--green-900);
+  }
+  .pd-actions .card-qty.pd-qty .qty-btn:hover{background:var(--line);}
+  .pd-share-btn:hover{color:var(--ink);}
 }

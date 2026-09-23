@@ -6,7 +6,7 @@
 -- What it adds
 --   * products.stock_qty   real number of units left (NULL = "not tracked yet")
 --   * the shop's In stock / Low / Out label follows stock_qty automatically
---       0 = Out of stock · 1-5 = Low stock · 6+ = In stock
+--       0 = Out of stock · 1-10 = Low stock · 11+ = In stock
 --   * every order takes its quantity OFF the stock; cancelling gives it back
 --   * an order for more than what is left is refused ("not enough stock")
 --   * stock_log  history of every change (restock, sale, cancel)
@@ -45,7 +45,7 @@ returns trigger language plpgsql as $$
 begin
   if new.stock_qty is not null then
     new.stock := case when new.stock_qty <= 0 then 'out'
-                      when new.stock_qty <= 5 then 'low'
+                      when new.stock_qty <= 10 then 'low'
                       else 'in' end;
   end if;
   return new;
@@ -54,6 +54,10 @@ drop trigger if exists sync_stock_status on public.products;
 create trigger sync_stock_status
   before insert or update of stock_qty on public.products
   for each row execute function public.trg_sync_stock_status();
+
+-- Backfill the status for products whose stock_qty was entered before this
+-- threshold was changed. The trigger recalculates stock from the quantity.
+update public.products set stock_qty = stock_qty where stock_qty is not null;
 
 -- ---------- an order takes stock off ----------
 create or replace function public.trg_order_item_stock()

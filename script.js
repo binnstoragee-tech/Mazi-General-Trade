@@ -1158,23 +1158,35 @@ function stockIndicatorHtml(p){
         </div>`;
 }
 
+// Share icon button — only rendered on the product detail page (detailed:true),
+// never on grid/carousel cards. Sits beside the primary action button.
+function shareButtonHtml(id){
+  return `<button class="pd-share-btn" type="button" data-share-id="${id}" aria-label="Share product" title="Share product">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.4" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="2.4" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="2.4" stroke="currentColor" stroke-width="1.8"/><path d="M8.1 10.6 15.9 6.4M8.1 13.4l7.8 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>`;
+}
+
 function cardActionHtml(p, opts){
   opts = opts || {};
   const detailed = !!opts.detailed;
   const qty = state.cart[p.id] || 0;
+  const shareBtn = detailed ? shareButtonHtml(p.id) : '';
+  const rowOpen = detailed ? '<div class="pd-action-row">' : '';
+  const rowClose = detailed ? '</div>' : '';
+
   if (qty > 0){
-    return `<button class="card-add card-add-done" data-id="${p.id}">
+    return `${rowOpen}<button class="card-add card-add-done" data-id="${p.id}">
       <span class="card-add-success">
         <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         Added to cart
       </span>
-    </button>
+    </button>${shareBtn}${rowClose}
     <button class="card-remove-link" data-id="${p.id}">Click to remove</button>`;
   }
   if (p.stock === 'out'){
-    return `<button class="card-add card-add-disabled" disabled>
+    return `${rowOpen}<button class="card-add card-add-disabled" disabled>
       <span class="card-add-label">Out of Stock</span>
-    </button>`;
+    </button>${shareBtn}${rowClose}`;
   }
   const pendingQty = detailed ? (state.pendingQty[p.id] || 1) : 1;
   const qtySelector = detailed ? `
@@ -1187,7 +1199,7 @@ function cardActionHtml(p, opts){
       </div>
     </div>` : '';
   return `${qtySelector}
-  <button class="card-add" data-id="${p.id}" data-qty="${pendingQty}">
+  ${rowOpen}<button class="card-add" data-id="${p.id}" data-qty="${pendingQty}">
     <svg class="card-add-icon" viewBox="0 0 24 24"><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="21" r="1.4" fill="currentColor"/><circle cx="19" cy="21" r="1.4" fill="currentColor"/></svg>
     <span class="card-add-label">Add to Cart</span>
     <span class="card-add-dots"><span></span><span></span><span></span></span>
@@ -1195,7 +1207,45 @@ function cardActionHtml(p, opts){
       <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       Added to cart
     </span>
-  </button>`;
+  </button>${shareBtn}${rowClose}`;
+}
+
+// Shareable deep link for one product — opened via handleOpenParam() on load
+// (?open=product&id=...), same convention as the existing ?open=cart / ?open=login links.
+function productShareUrl(id){
+  return `${window.location.origin}${window.location.pathname}?open=product&id=${encodeURIComponent(id)}`;
+}
+
+async function shareProduct(id){
+  const p = PRODUCTS.find(x => x.id === id);
+  if (!p) return;
+  const url = productShareUrl(id);
+
+  if (navigator.share){
+    try { await navigator.share({ title: p.name, text: `${p.name} — ${fmt(p.price)}`, url }); }
+    catch(e){ /* user backed out of the native share sheet — nothing to do */ }
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied', 'Paste it anywhere to share this product', 'success');
+  } catch(e){
+    // Clipboard API unavailable (old browser / insecure context) — fall back to a hidden textarea.
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('Link copied', 'Paste it anywhere to share this product', 'success');
+    } catch(e2){
+      showToast('Could not copy link', null, 'error');
+    }
+    document.body.removeChild(ta);
+  }
 }
 
 function bindCardSlot(slot){
@@ -1224,6 +1274,11 @@ function bindCardSlot(slot){
   const removeLink = slot.classList && slot.classList.contains('card-remove-link') ? slot : slot.querySelector && slot.querySelector('.card-remove-link');
   if (removeLink){
     removeLink.addEventListener('click', (e)=>{ e.stopPropagation(); removeFromCart(removeLink.dataset.id); });
+  }
+
+  const shareBtn = slot.classList && slot.classList.contains('pd-share-btn') ? slot : slot.querySelector && slot.querySelector('.pd-share-btn');
+  if (shareBtn){
+    shareBtn.addEventListener('click', (e)=>{ e.stopPropagation(); shareProduct(shareBtn.dataset.shareId); });
   }
 
   const pdQty = slot.classList && slot.classList.contains('card-qty') ? slot : slot.querySelector && slot.querySelector('.card-qty');
@@ -3955,6 +4010,9 @@ function handleOpenParam(){
     }
   } else if (open === 'orders'){
     openOrdersView();
+  } else if (open === 'product'){
+    const pid = params.get('id');
+    if (pid) openProductView(pid);
   }
 
   history.replaceState(null, '', window.location.pathname + window.location.hash);

@@ -47,6 +47,7 @@
     INVALID_REFUND_STATUS: 'Invalid refund status.',
     NOT_FOUND: 'That account could not be found.',
     CANNOT_REMOVE_SELF: 'You cannot remove your own staff access.',
+    CANNOT_REMOVE_PRIMARY_SUPER_ADMIN: 'The primary Super Admin account cannot be removed.',
     LAST_SUPER_ADMIN: 'There must always be at least one Super Admin — make another account Super Admin first.',
     STOREFRONT_ACCOUNT: 'This account signed up on the customer store front and cannot be given staff access.'
   };
@@ -231,7 +232,14 @@
 
   function authResult(data) {
     return getProfile().then(function (profile) {
-      return { user: data.user, profile: profile, isNewUser: !profile || !profile.onboarded };
+      // Auth is the source of truth for the signed-in email. Older profile rows
+      // can retain a previous email because ensure_profile() does not overwrite
+      // an existing profiles.email value.
+      var authEmail = data && data.user && data.user.email;
+      var effectiveProfile = profile && authEmail && profile.email !== authEmail
+        ? Object.assign({}, profile, { email: authEmail })
+        : profile;
+      return { user: data.user, profile: effectiveProfile, isNewUser: !effectiveProfile || !effectiveProfile.onboarded };
     });
   }
 
@@ -245,12 +253,21 @@
   // "Continue with Google" — redirects the shopper to Google's sign-in
   // page, then back here already signed in. Google verifies the email
   // itself, so no confirmation email step is needed for this path.
-  function signInWithGoogle() {
+  function signInWithGoogle(redirectPath) {
     return run(function () {
+      var redirectTo = redirectPath
+        ? new URL(String(redirectPath).replace(/^\/+/, ''), window.location.href).href
+        : redirectUrl();
       return getClient().auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: redirectUrl() }
-      }).then(unwrap);
+        options: { redirectTo: redirectTo }
+      }).then(unwrap).then(function (data) {
+        // Supabase normally redirects automatically. Explicitly navigating to
+        // the returned URL also covers deployments/browser modes where the
+        // client returns the OAuth URL without performing the navigation.
+        if (data && data.url && window.location.href !== data.url) window.location.assign(data.url);
+        return data;
+      });
     });
   }
 
@@ -332,6 +349,14 @@
           });
         });
       });
+    });
+  }
+
+  // A Google user who starts from admin.html is marked as an admin-signup
+  // candidate, but is still denied entry until a Super Admin grants is_admin.
+  function claimAdminSignup() {
+    return run(function () {
+      return getClient().rpc('claim_admin_signup').then(unwrap);
     });
   }
 
@@ -557,6 +582,16 @@
       return getClient().rpc('admin_set_shop_status', { p_shop: id, p_status: status }).then(unwrap);
     });
   }
+  function adminListProfileChanges(limit) {
+    return run(function () {
+      return getClient().rpc('admin_list_profile_changes', { p_limit: limit || 200 }).then(unwrap).then(function (r) { return r || []; }).catch(function (rpcErr) {
+        // Older deployments may have the audit table but not the RPC yet.
+        // The RLS policy in 26_profile_change_audit.sql permits this fallback
+        // only to the authenticated Super Admin.
+        return getClient().from('profile_change_audit').select('*').order('changed_at', { ascending: false }).limit(limit || 200).then(unwrap).catch(function () { throw rpcErr; });
+      });
+    });
+  }
   // ---- Staff access / Super Admin (needs supabase/22_super_admin.sql) ----
   function adminListAccounts() {
     return run(function () {
@@ -714,11 +749,11 @@
     signInWithGoogle: signInWithGoogle,
     sendPasswordReset: sendPasswordReset, updatePassword: updatePassword, getSession: getSession, onAuthChange: onAuthChange, logout: logout,
     listShops: listShops, addShop: addShop, updateShop: updateShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
-    getProfile: getProfile, updateProfile: updateProfile, updateStaffName: updateStaffName, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
+    getProfile: getProfile, claimAdminSignup: claimAdminSignup, updateProfile: updateProfile, updateStaffName: updateStaffName, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
     cancelOrder: cancelOrder, subscribeOrders: subscribeOrders, subscribeProducts: subscribeProducts, subscribeProfiles: subscribeProfiles,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
-    adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus,
+    adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus, adminListProfileChanges: adminListProfileChanges,
     adminListAccounts: adminListAccounts, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
     adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,

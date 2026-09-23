@@ -14,6 +14,9 @@
   var TYPE_LABEL = { pickup: 'Pickup', delivery: 'Delivery', boat: 'Boat' };
   var MVR_PER_USD = 15.42;
   var POLL_MS = 30000;
+  var PRIMARY_SUPER_ADMIN_EMAIL = 'mazigeneraltrade@gmail.com';
+  var PRIMARY_SUPER_ADMIN_NAME = 'MAZI General Trade';
+  var PRIMARY_SUPER_ADMIN_MOBILE = '9291600';
   // Keep this in sync with CATEGORIES in script.js / the categories table.
   var CATEGORIES = [
     { id: 'dairy', name: 'Dairy' }, { id: 'tea', name: 'Tea' }, { id: 'coffee', name: 'Coffee & Instants' },
@@ -29,8 +32,9 @@
     tab: { live: 'all', history: 'all', stock: 'all', accounts: 'pending', accountsGroup: 'business', staffaccess: 'all' },
     q: '',
     orders: [], products: [], log: [], editLog: [], shops: [], shopsError: null,
-    accounts: [], accountsError: null,
-    productsError: null, drawerId: null, profile: null, editingId: null
+    accounts: [], accountsError: null, profileChanges: [], profileChangesError: null, showChangesErrorDetail: false,
+    productsError: null, drawerId: null, profile: null, editingId: null,
+    expMonths: {}, showAllMonths: false, salesYear: 'all'
   };
   var knownIds = null, pollTimer = null, busy = false, menuEl = null, notifEl = null, pendingImageFile = null, lastPanelView = null;
 
@@ -106,7 +110,8 @@
     edit: '<svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16l-1 4z"/><path d="M14 6l3 3"/></svg>',
     image: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>',
     upload: '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>',
-    trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>'
+    trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>'
   };
 
   /* ============ staff device notifications ============ */
@@ -145,9 +150,23 @@
 
   /* ============ sign in ============ */
   function setMsg(text, ok, id) { var m = $(id || 'loginErr'); m.textContent = text || ''; m.className = 'msg' + (ok ? ' ok' : ''); }
+  var AUTH_WAIT_MS = 3000;
+  function showAuthLoading(text) {
+    $('authLoadingText').textContent = text;
+    $('authLoading').classList.remove('hidden');
+    return Date.now();
+  }
+  function finishAuthLoading(started) {
+    var wait = Math.max(0, AUTH_WAIT_MS - (Date.now() - started));
+    return new Promise(function (resolve) { setTimeout(function () { $('authLoading').classList.add('hidden'); resolve(); }, wait); });
+  }
   function showLogin(msg) {
     $('appView').classList.add('hidden');
     $('loginView').classList.remove('hidden');
+    $('forgotPane').classList.add('hidden');
+    $('signinPane').classList.remove('hidden');
+    $('forgotSent').classList.add('hidden');
+    $('forgotRequest').style.display = '';
     setMsg(msg || '');
     stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
   }
@@ -155,8 +174,9 @@
     S.profile = profile;
     $('loginView').classList.add('hidden');
     $('appView').classList.remove('hidden');
-    var who = profile.email || profile.name || 'Staff';
+    var who = isPrimarySuperAdmin(profile) ? PRIMARY_SUPER_ADMIN_EMAIL : (profile.email || profile.name || 'Staff');
     $('who').textContent = who;
+    $('whoRole').textContent = isSuperAdmin(profile) ? 'Super Admin' : 'Staff account';
     $('meName').textContent = displayName(profile);
     $('meAv').textContent = initials(displayName(profile));
     loadAll(true);
@@ -174,11 +194,22 @@
     stopProfilesRealtimeFn = MaziAPI.subscribeProfiles(function (payload) {
       var changed = (payload && (payload.new || payload.old)) || null;
       if (changed && S.profile && changed.id === S.profile.id && payload.new) {
-        S.profile = Object.assign({}, S.profile, payload.new);
+        // Keep the Auth email as the identity source. Realtime profile rows
+        // may contain an older/missing email and must not hide Super Admin
+        // navigation after a profile edit.
+        S.profile = Object.assign({}, S.profile, payload.new, { email: S.profile.email });
         $('meName').textContent = displayName(S.profile);
         $('meAv').textContent = initials(displayName(S.profile));
       }
-      if (S.view === 'staffaccess' || S.view === 'accounts') loadAccounts().then(render);
+      var becameAdminRequest = changed && changed.signup_source === 'admin' && !changed.is_admin &&
+        (payload.eventType === 'INSERT' || (payload.old && payload.old.signup_source !== 'admin'));
+      if (becameAdminRequest) {
+        toast('New staff-access request: ' + (changed.name || changed.email || 'An admin account') + ' is waiting for approval.');
+        beep();
+      }
+      if (S.view === 'staffaccess' || S.view === 'accounts') {
+        Promise.all([loadAccounts(), loadProfileChanges()]).then(render);
+      }
     });
   }
   function stopProfilesRealtime() {
@@ -196,34 +227,100 @@
     }).catch(function () {});
   }
   function isStaff(p) { return !!(p && p.is_admin); }
-  function isSuperAdmin(p) { return !!(p && p.is_super_admin); }
+  function isSuperAdmin(p) {
+    // Super-admin access is controlled by the database flag, not by one
+    // hard-coded UI label. MAZI has one primary Super Admin account.
+    return !!(p && p.is_super_admin && String(p.email || '').trim().toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL);
+  }
+  function isPrimarySuperAdmin(p) {
+    return !!(p && p.is_super_admin && String(p.email || '').trim().toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL);
+  }
+  function isPrimaryAdminAccount(p) {
+    return !!(p && String(p.email || '').trim().toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL);
+  }
   // Dashboard-only name: staff_name if the staff member set one, else falls back
   // to the shared profile name / email. Kept separate from the customer-facing
   // "name" (First Name) field so editing Personal Details on the shop side never
   // changes what shows here — see 22_super_admin.sql.
-  function displayName(p) { return (p && (p.staff_name || p.name)) || ((p && p.email) || '').split('@')[0] || 'Staff'; }
+  function displayName(p) {
+    if (isPrimarySuperAdmin(p)) return PRIMARY_SUPER_ADMIN_NAME;
+    return (p && (p.staff_name || p.name)) || ((p && p.email) || '').split('@')[0] || 'Staff';
+  }
+  function accountDisplayName(p) {
+    return isPrimaryAdminAccount(p) ? PRIMARY_SUPER_ADMIN_NAME : ((p && p.name) || ((p && p.email) || '').split('@')[0] || 'Unnamed');
+  }
+  function accountMobile(p) {
+    return isPrimaryAdminAccount(p) ? PRIMARY_SUPER_ADMIN_MOBILE : (p && p.mobile) || '';
+  }
 
   function login() {
     var email = $('email').value.trim(), pw = $('password').value;
     if (!email || !pw) { setMsg('Enter your email and password.'); return; }
     if (email.indexOf('@') < 0) { setMsg('Sign in with your e-mail address (like name@example.com), not a username.'); $('email').focus(); return; }
-    var btn = $('loginBtn');
+    var btn = $('loginBtn'), loadingStarted = showAuthLoading('Signing in…');
     btn.disabled = true; $('goLabel').textContent = '…'; setMsg('');
-    MaziAPI.signInWithPassword(email, pw).then(function (res) {
+    // Clear any persisted Supabase session first so a previous staff account
+    // cannot remain active while the user is signing in with another email.
+    MaziAPI.logout().catch(function () {}).then(function () { return MaziAPI.signInWithPassword(email, pw); }).then(function (res) {
       if (!isStaff(res.profile)) {
         return MaziAPI.logout().catch(function () {}).then(function () { showLogin('This account is not a staff account.'); });
       }
       showApp(res.profile);
     }).catch(function (e) {
       setMsg(e.message || 'Could not sign in.');
-    }).then(function () { btn.disabled = false; $('goLabel').textContent = 'Sign In'; });
+    }).then(function () { return finishAuthLoading(loadingStarted); }).then(function () { btn.disabled = false; $('goLabel').textContent = 'Sign In'; });
+  }
+  function loginWithGoogle() {
+    if (!window.MaziAPI || !MaziAPI.signInWithGoogle) {
+      setMsg('Google sign-in is not available. Refresh the page.'); return;
+    }
+    var btn = $('googleBtn'), loadingStarted = showAuthLoading('Opening Google sign-in…');
+    if (btn) btn.disabled = true;
+    setMsg('');
+    MaziAPI.signInWithGoogle('admin.html').catch(function (e) {
+      setMsg(e.message || 'Could not start Google sign-in.');
+      if (btn) btn.disabled = false;
+      return finishAuthLoading(loadingStarted);
+    });
   }
   function restore() {
     if (!window.MaziAPI) { showLogin('Could not load the app. Refresh the page.'); return; }
+    var oauthParams = new URLSearchParams(window.location.search || window.location.hash.replace(/^#/, '?'));
+    var oauthError = oauthParams.get('error_description') || oauthParams.get('error');
+    if (oauthError) {
+      showLogin('Google sign-in failed: ' + oauthError.replace(/\+/g, ' '));
+      if (window.history && window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
     MaziAPI.getSession().then(function (s) {
       if (!s) return showLogin();
-      return MaziAPI.getProfile().then(function (p) { if (isStaff(p)) showApp(p); else showLogin(); });
-    }).catch(function () { showLogin(); });
+      var provider = s.user && s.user.app_metadata && s.user.app_metadata.provider;
+      var profilePromise = MaziAPI.getProfile();
+      // Google sign-in from admin.html registers the account as an admin
+      // candidate. It still cannot enter until a Super Admin grants is_admin.
+      if (provider === 'google' && MaziAPI.claimAdminSignup) {
+        profilePromise = profilePromise.then(function () {
+          return MaziAPI.claimAdminSignup().then(function () { return MaziAPI.getProfile(); });
+        });
+      }
+      return profilePromise.then(function (p) {
+        var authEmail = s.user && s.user.email;
+        if (p && authEmail) p = Object.assign({}, p, { email: authEmail });
+        if (isStaff(p)) showApp(p);
+        else {
+          var msg = provider === 'google'
+            ? 'Request received. Please wait for Super Admin approval before opening the Staff Dashboard.'
+            : '';
+          MaziAPI.logout().catch(function () {}).then(function () { showLogin(msg); });
+        }
+      });
+    }).catch(function (e) {
+      var msg = e && e.message ? String(e.message) : '';
+      if (/claim_admin_signup|function .*does not exist|schema cache/i.test(msg)) {
+        msg = 'Google request setup is incomplete. Ask the developer to run 23_admin_signup_source.sql in Supabase SQL Editor.';
+      }
+      showLogin(msg);
+    });
   }
 
 
@@ -298,12 +395,17 @@
     return MaziAPI.adminListAccounts().then(function (rows) { S.accounts = rows || []; S.accountsError = null; })
       .catch(function (e) { S.accountsError = e; });
   }
+  function loadProfileChanges() {
+    if (!isSuperAdmin(S.profile)) { S.profileChanges = []; S.profileChangesError = null; return Promise.resolve(); }
+    return MaziAPI.adminListProfileChanges(200).then(function (rows) { S.profileChanges = rows || []; S.profileChangesError = null; })
+      .catch(function (e) { S.profileChangesError = e; });
+  }
   function loadAll(initial) {
     if (busy) return Promise.resolve();
     busy = true;
     var jobs = [loadOrders(initial)];
     if (S.view === 'stock' || S.view === 'dashboard' || initial) jobs.push(loadStock());
-    if (isSuperAdmin(S.profile) && (S.view === 'accounts' || initial)) jobs.push(loadShops());
+    if (isSuperAdmin(S.profile) && (S.view === 'accounts' || initial)) jobs.push(loadShops(), loadProfileChanges());
     if (isSuperAdmin(S.profile) && (S.view === 'accounts' || S.view === 'staffaccess' || initial)) jobs.push(loadAccounts());
     return Promise.all(jobs).catch(function (e) {
       if (e && e.code === 'NOT_AUTHENTICATED') {
@@ -368,6 +470,8 @@
     var bn = $('bellN'); bn.textContent = badgeText(fresh); bn.classList.toggle('hidden', !fresh);
     var acBtn = $('navAccountsBtn'); if (acBtn) acBtn.classList.toggle('hidden', !isSuperAdmin(S.profile));
     var saBtn = $('navStaffAccessBtn'); if (saBtn) saBtn.classList.toggle('hidden', !isSuperAdmin(S.profile));
+    var staffRequests = isSuperAdmin(S.profile) ? S.accounts.filter(function (x) { return x.signup_source === 'admin' && !x.is_admin; }).length : 0;
+    var sr = $('navStaffReqCnt'); if (sr) { sr.textContent = badgeText(staffRequests); sr.classList.toggle('hidden', !staffRequests); }
     $('search').placeholder = S.view === 'stock' ? 'Search products' : (S.view === 'accounts' ?
       (S.tab.accountsGroup === 'customer' ? 'Search name or email' : 'Search account, owner or mobile') :
       (S.view === 'staffaccess' ? 'Search name or email' : 'Search order, name or mobile'));
@@ -388,7 +492,20 @@
     else if (S.view === 'accounts') renderAccounts();
     else if (S.view === 'staffaccess') renderStaffAccess();
     else renderOrders();
+    // Same rise-up entrance as the dashboard, applied to whatever landed in the
+    // panel — works for every view (Orders, Order History, Stock, Accounts,
+    // Staff Access) without needing to know each view's markup. Only runs on
+    // an actual category switch (freshMount); background polling never
+    // replays it, so it stays smooth and never feels laggy.
+    if (freshMount) animatePanelEntrance();
     if (S.drawerId) refreshDrawer();
+  }
+  function animatePanelEntrance() {
+    var kids = $('panel').children;
+    for (var i = 0; i < kids.length; i++) {
+      kids[i].classList.add('rise-item');
+      kids[i].style.animationDelay = (Math.min(i, 4) * 0.045) + 's';
+    }
   }
 
   /* ---------- dashboard ---------- */
@@ -413,14 +530,15 @@
     var pendingRefunds = orders.filter(function (o) { return o.status === 'cancelled' && o.refundStatus === 'pending'; }).length;
     var lowStock = 0, outStock = 0;
     (S.products || []).forEach(function (p) { var k = stockStatus(p).key; if (k === 'low') lowStock++; if (k === 'out') outStock++; });
-    var lowTotal = lowStock + outStock;
+    var lowTotal = lowStock + outStock; // combined, used only for the "needs attention" notification badge
 
     var cards = [
-      { ico: ICON.clock, cls: 'blue', label: 'Active Orders', val: num(activeCount), delta: '<span class="dstat-delta flat">' + num(todayOrders.length) + ' placed today</span>' },
-      { ico: ICON.cash, cls: '', label: "Today's Revenue", val: esc(mvr(todayRev)), delta: pctDelta(todayRev, yestRev) },
-      { ico: ICON.bag, cls: 'purple', label: 'New Orders Today', val: num(todayOrders.length), delta: pctDelta(todayOrders.length, yestOrders.length) },
-      { ico: ICON.alert, cls: 'amber', label: 'Low Stock Items', val: num(lowTotal), delta: '<span class="dstat-delta ' + (lowTotal ? 'down' : 'flat') + '">' + (lowTotal ? 'Needs restock' : 'All good') + '</span>' },
-      { ico: ICON.undo, cls: 'red', label: 'Pending Refunds', val: num(pendingRefunds), delta: '<span class="dstat-delta ' + (pendingRefunds ? 'down' : 'flat') + '">' + (pendingRefunds ? 'Awaiting refund' : 'None pending') + '</span>' }
+      { ico: ICON.clock, cls: 'blue', label: 'Active Orders', val: num(activeCount), g: 'live:all', delta: '<span class="dstat-delta flat">' + num(todayOrders.length) + ' placed today</span>' },
+      { ico: ICON.cash, cls: '', label: "Today's Revenue", val: esc(mvr(todayRev)), g: 'history:all', delta: pctDelta(todayRev, yestRev) },
+      { ico: ICON.bag, cls: 'purple', label: 'New Orders Today', val: num(todayOrders.length), g: 'history:all', delta: pctDelta(todayOrders.length, yestOrders.length) },
+      { ico: ICON.alert, cls: 'amber', label: 'Low Stock Items', val: num(lowStock), g: 'stock:low', delta: '<span class="dstat-delta ' + (lowStock ? 'down' : 'flat') + '">' + (lowStock ? 'Needs restock' : 'All good') + '</span>' },
+      { ico: ICON.alert, cls: 'red', label: 'Out of Stock', val: num(outStock), g: 'stock:out', delta: '<span class="dstat-delta ' + (outStock ? 'down' : 'flat') + '">' + (outStock ? 'Restock now' : 'All good') + '</span>' },
+      { ico: ICON.undo, cls: 'red', label: 'Pending Refunds', val: num(pendingRefunds), g: 'history:refund_pending', delta: '<span class="dstat-delta ' + (pendingRefunds ? 'down' : 'flat') + '">' + (pendingRefunds ? 'Awaiting refund' : 'None pending') + '</span>' }
     ];
     var hr = new Date().getHours();
     var greetWord = hr < 12 ? 'morning' : hr < 18 ? 'afternoon' : 'evening';
@@ -429,7 +547,7 @@
     var h = '<h1>Good ' + greetWord + (firstName ? ', ' + esc(firstName) : '') + '</h1>' +
       '<p class="lead">' + esc(dateStr) + ' · Store overview &amp; today\'s activity.</p>';
     h += '<div class="dstats">' + cards.map(function (c) {
-      return '<div class="dstat"><div class="dstat-top"><small>' + c.label + '</small><span class="dstat-ico ' + c.cls + '">' + c.ico + '</span></div><b>' + c.val + '</b>' + c.delta + '</div>';
+      return '<div class="dstat" role="button" tabindex="0" data-goto="' + c.g + '"><div class="dstat-top"><small>' + c.label + '</small><span class="dstat-ico ' + c.cls + '">' + c.ico + '</span></div><b>' + c.val + '</b>' + c.delta + '</div>';
     }).join('') + '</div>';
 
     h += '<div class="dgrid"><div>';
@@ -438,16 +556,17 @@
       { g: 'live:all', ico: ICON.bolt, t: 'Orders', s: num(activeCount) + ' need action' },
       { g: 'history:all', ico: ICON.receipt, t: 'Order History', s: num(orders.length) + ' total orders' },
       { g: 'stock:all', ico: ICON.box, t: 'Manage Stock', s: num((S.products || []).length) + ' products' },
-      { g: 'stock:low', ico: ICON.alert, t: 'Low Stock', s: num(lowTotal) + ' need restock' }
+      { g: 'stock:low', ico: ICON.alert, t: 'Low Stock', s: num(lowStock) + ' need restock' }
     ];
     h += '<div class="box"><h3>Quick Actions</h3><div class="qa-grid">' + qa.map(function (a) {
       return '<button type="button" class="qa-card" data-goto="' + a.g + '"><span class="qa-ico">' + a.ico + '</span><b>' + a.t + '</b><span>' + a.s + '</span></button>';
     }).join('') + '</div></div>';
 
     h += weeklyChartHtml(live);
+    h += monthlySalesHtml(orders);
     h += '</div><div>';
     h += activityFeedHtml();
-    h += notifPanelHtml(lowTotal, pendingRefunds, freshCount);
+    h += notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount);
     h += '</div></div>';
 
     $('panel').innerHTML = h;
@@ -499,40 +618,66 @@
     }
     return d;
   }
-  function weeklyChartHtml(live) {
-    var days = [], i;
-    for (i = 6; i >= 0; i--) days.push(ymd(Date.now() - i * 86400000));
-    var revByDay = {}; days.forEach(function (d) { revByDay[d] = 0; });
-    live.forEach(function (o) { var d = ymd(o.placedAt); if (revByDay[d] != null) revByDay[d] += o.total; });
-    var vals = days.map(function (d) { return revByDay[d]; });
+  // Shared wave/sparkline renderer used by the Weekly Performance chart and
+  // by each expanded month's mini daily-sales chart. Draws a smoothed line +
+  // area over `vals`, with edge-to-edge hover columns (a guide line + tooltip
+  // per point, using `fullLabels`/`ordVals` for the tooltip text) and a
+  // permanent dot on the last point.
+  function waveChartHtml(vals, fullLabels, ordVals, H) {
+    var W = 620, pad = 8, padTop = Math.max(12, Math.round(H * 0.16));
     var max = Math.max.apply(null, vals.concat([1]));
-    var W = 620, H = 150, pad = 8, padTop = 24;
     var P = vals.map(function (v, idx) {
-      return { x: pad + idx * ((W - pad * 2) / (vals.length - 1)), y: H - pad - (v / max) * (H - pad - padTop) };
+      return { x: pad + idx * ((W - pad * 2) / Math.max(1, vals.length - 1)), y: H - pad - (v / max) * (H - pad - padTop) };
     });
     var line = smoothPath(P);
     var area = line + ' L' + (W - pad) + ',' + (H - pad) + ' L' + pad + ',' + (H - pad) + ' Z';
     var last = P[P.length - 1];
+    var gradId = 'g' + Math.random().toString(36).slice(2, 9);
+    var hits = P.map(function (pt, idx) {
+      var leftBound = idx === 0 ? 0 : (P[idx - 1].x + pt.x) / 2;
+      var rightBound = idx === P.length - 1 ? W : (pt.x + P[idx + 1].x) / 2;
+      var colLeftPct = (leftBound / W * 100).toFixed(2);
+      var colWidthPct = ((rightBound - leftBound) / W * 100).toFixed(2);
+      var offPct = (((pt.x - leftBound) / (rightBound - leftBound)) * 100).toFixed(2);
+      var topPct = (pt.y / H * 100).toFixed(2);
+      var n = ordVals[idx];
+      return '<div class="chart-hit" style="left:' + colLeftPct + '%;width:' + colWidthPct + '%">' +
+        '<div class="chart-guide" style="left:' + offPct + '%"></div>' +
+        '<div class="chart-hit-dot" style="left:' + offPct + '%;top:' + topPct + '%"></div>' +
+        '<div class="chart-tip" style="left:' + offPct + '%;top:' + topPct + '%"><b>' + esc(mvr(vals[idx])) + '</b><span>' + esc(fullLabels[idx]) + '</span><span>' + num(n) + ' order' + (n === 1 ? '' : 's') + '</span></div>' +
+        '</div>';
+    }).join('');
+    return '<div class="chart-plot" style="height:' + H + 'px">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:' + H + 'px;display:block;overflow:visible">' +
+        '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="var(--green-500)" stop-opacity=".28"></stop>' +
+          '<stop offset="100%" stop-color="var(--green-500)" stop-opacity="0"></stop>' +
+        '</linearGradient></defs>' +
+        '<path d="' + area + '" fill="url(#' + gradId + ')" stroke="none"></path>' +
+        '<path class="chart-line" d="' + line + '" fill="none" stroke="var(--green-600)" stroke-width="2.4" stroke-linecap="round"></path>' +
+      '</svg>' +
+      '<span class="chart-dot" style="left:' + (last.x / W * 100).toFixed(2) + '%;top:' + (last.y / H * 100).toFixed(2) + '%"></span>' +
+      hits +
+      '</div>';
+  }
+  function weeklyChartHtml(live) {
+    var days = [], i;
+    for (i = 6; i >= 0; i--) days.push(ymd(Date.now() - i * 86400000));
+    var revByDay = {}, ordByDay = {}; days.forEach(function (d) { revByDay[d] = 0; ordByDay[d] = 0; });
+    live.forEach(function (o) { var d = ymd(o.placedAt); if (revByDay[d] != null) { revByDay[d] += o.total; ordByDay[d]++; } });
+    var vals = days.map(function (d) { return revByDay[d]; });
+    var ordVals = days.map(function (d) { return ordByDay[d]; });
     var thisWeek = vals.reduce(function (s, v) { return s + v; }, 0);
     var thisWeekOrders = live.filter(function (o) { return days.indexOf(ymd(o.placedAt)) >= 0; }).length;
     var prevDays = []; for (i = 13; i >= 7; i--) prevDays.push(ymd(Date.now() - i * 86400000));
     var prevWeek = 0; live.forEach(function (o) { var d = ymd(o.placedAt); if (prevDays.indexOf(d) >= 0) prevWeek += o.total; });
     var wchg = prevWeek ? Math.round(((thisWeek - prevWeek) / prevWeek) * 100) : null;
     var dLabels = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' }); });
+    var dFull = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); });
 
     return '<div class="box chart-wrap"><h3>Weekly Performance</h3>' +
       '<div class="chart-legend"><span><i style="background:var(--green-600)"></i>Revenue · last 7 days</span></div>' +
-      '<div class="chart-plot">' +
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:150px;display:block;overflow:visible">' +
-        '<defs><linearGradient id="dChartFill" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0%" stop-color="var(--green-500)" stop-opacity=".28"></stop>' +
-          '<stop offset="100%" stop-color="var(--green-500)" stop-opacity="0"></stop>' +
-        '</linearGradient></defs>' +
-        '<path d="' + area + '" fill="url(#dChartFill)" stroke="none"></path>' +
-        '<path class="chart-line" d="' + line + '" fill="none" stroke="var(--green-600)" stroke-width="2.6" stroke-linecap="round"></path>' +
-      '</svg>' +
-      '<span class="chart-dot" style="left:' + (last.x / W * 100).toFixed(2) + '%;top:' + (last.y / H * 100).toFixed(2) + '%"></span>' +
-      '</div>' +
+      waveChartHtml(vals, dFull, ordVals, 150) +
       '<div class="chart-days">' + dLabels.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>' +
       '<div class="snap"><div><small>This Week Revenue</small><b>' + esc(mvr(thisWeek)) + '</b></div>' +
       '<div><small>This Week Orders</small><b>' + num(thisWeekOrders) + '</b></div>' +
@@ -540,30 +685,116 @@
       '</div></div>';
   }
 
+  function monthlySalesHtml(orders) {
+    // Same "live" definition used across the dashboard: cancelled and
+    // not-yet-accepted ('placed') orders don't count as sales.
+    var live = orders.filter(function (o) { return o.status !== 'cancelled' && o.status !== 'placed'; });
+    if (!live.length) {
+      return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month</h3><div class="empty" style="padding:16px">No sales yet.</div></div>';
+    }
+    var byMonth = {};
+    live.forEach(function (o) {
+      var d = new Date(o.placedAt);
+      var key = d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+      if (!byMonth[key]) byMonth[key] = { rev: 0, cnt: 0, year: d.getFullYear(), label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), ts: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), orders: [] };
+      byMonth[key].rev += o.total; byMonth[key].cnt++; byMonth[key].orders.push(o);
+    });
+    // allMonths stays the full, unfiltered, newest-first list — the year tabs
+    // below only change what's *shown*, so "vs prev." can keep comparing
+    // against the true previous month (e.g. Jan 2026 vs Dec 2025) even while
+    // a single year is selected.
+    var allMonths = Object.keys(byMonth).map(function (k) { return { key: k, m: byMonth[k] }; }).sort(function (a, b) { return b.m.ts - a.m.ts; });
+    var indexByKey = {}; allMonths.forEach(function (x, i) { indexByKey[x.key] = i; });
+
+    // Once sales span more than one calendar year, show a year filter so the
+    // list doesn't just keep growing forever.
+    var years = []; allMonths.forEach(function (x) { if (years.indexOf(x.m.year) < 0) years.push(x.m.year); });
+    years.sort(function (a, b) { return b - a; });
+    var yearFilterOn = years.length > 1;
+    if (yearFilterOn && S.salesYear !== 'all' && years.indexOf(Number(S.salesYear)) < 0) S.salesYear = 'all';
+    var activeYear = yearFilterOn ? S.salesYear : 'all';
+    var yearTabs = !yearFilterOn ? '' : '<div class="myear-tabs"><button type="button" class="myear-tab' + (activeYear === 'all' ? ' active' : '') + '" data-sales-year="all">All</button>' +
+      years.map(function (y) { return '<button type="button" class="myear-tab' + (String(activeYear) === String(y) ? ' active' : '') + '" data-sales-year="' + y + '">' + y + '</button>'; }).join('') + '</div>';
+
+    var monthsInView = activeYear === 'all' ? allMonths : allMonths.filter(function (x) { return x.m.year === Number(activeYear); });
+    var grandRev = monthsInView.reduce(function (s, x) { return s + x.m.rev; }, 0);
+    var grandCnt = monthsInView.reduce(function (s, x) { return s + x.m.cnt; }, 0);
+
+    // Once the list grows past a handful of months, collapse it down to the
+    // most recent ones with a "Show all" toggle (arrow) at the bottom, so the
+    // dashboard doesn't turn into an endless scroll as history piles up.
+    var LIMIT = 6;
+    var showAll = !!S.showAllMonths || monthsInView.length <= LIMIT;
+    var shown = showAll ? monthsInView : monthsInView.slice(0, LIMIT);
+
+    var rows = shown.map(function (x) {
+      var m = x.m, prevEntry = allMonths[indexByKey[x.key] + 1], prev = prevEntry && prevEntry.m;
+      var deltaHtml = '';
+      if (prev && prev.rev) {
+        var d = Math.round(((m.rev - prev.rev) / prev.rev) * 100);
+        deltaHtml = '<span class="dstat-delta ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '▲' : '▼') + ' ' + Math.abs(d) + '%</span>';
+      }
+      var expanded = !!S.expMonths[x.key];
+      var row = '<div class="month-row" role="button" tabindex="0" data-month-toggle="' + x.key + '">' +
+        '<span class="month-name"><span class="chevron-ico' + (expanded ? ' open' : '') + '">' + ICON.chevron + '</span>' + esc(m.label) + '</span>' +
+        '<span>' + num(m.cnt) + '</span><span class="month-rev">' + esc(mvr(m.rev)) + '</span><span>' + deltaHtml + '</span></div>';
+      if (!expanded) return '<div class="month-item">' + row + '</div>';
+      // Expanded: a small day-by-day wave for this exact month, same hover
+      // tooltip behaviour as the main Weekly Performance chart above.
+      var monthDate = new Date(m.ts), year = monthDate.getFullYear(), monIdx = monthDate.getMonth();
+      var now = new Date(), isCurrent = year === now.getFullYear() && monIdx === now.getMonth();
+      var dayCount = isCurrent ? now.getDate() : new Date(year, monIdx + 1, 0).getDate();
+      var dayRev = new Array(dayCount).fill(0), dayOrd = new Array(dayCount).fill(0);
+      m.orders.forEach(function (o) { var dd = new Date(o.placedAt).getDate(); if (dd >= 1 && dd <= dayCount) { dayRev[dd - 1] += o.total; dayOrd[dd - 1]++; } });
+      var dayFull = []; for (var di = 1; di <= dayCount; di++) dayFull.push(new Date(year, monIdx, di).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }));
+      var wave = '<div class="month-wave"><div class="chart-legend"><span><i style="background:var(--green-600)"></i>Daily sales · ' + esc(m.label) + '</span></div>' + waveChartHtml(dayRev, dayFull, dayOrd, 72) + '</div>';
+      return '<div class="month-item">' + row + wave + '</div>';
+    }).join('');
+
+    var moreBtn = monthsInView.length > LIMIT
+      ? '<button type="button" class="month-more" data-months-toggle>' + (showAll ? 'Show less' : 'Show all ' + monthsInView.length + ' months') + '<span class="chevron-ico' + (showAll ? ' open' : '') + '">' + ICON.chevron + '</span></button>'
+      : '';
+    var totalLabel = 'Total' + (activeYear !== 'all' ? ' · ' + activeYear : '') + ' · ' + num(monthsInView.length) + ' month' + (monthsInView.length === 1 ? '' : 's');
+
+    return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month</h3>' +
+      yearTabs +
+      '<div class="month-head"><span>Month</span><span>Orders</span><span>Revenue</span><span>vs prev.</span></div>' +
+      (rows || '<div class="empty" style="padding:16px">No sales in ' + esc(activeYear) + '.</div>') + moreBtn +
+      '<div class="month-total"><span>' + totalLabel + '</span><span>' + num(grandCnt) + '</span><span>' + esc(mvr(grandRev)) + '</span><span></span></div>' +
+      '</div>';
+  }
+
   function activityFeedHtml() {
     var items = [];
     S.orders.filter(function (o) { return o.status !== 'placed'; }).slice().sort(function (a, b) { return b.placedAt - a.placedAt; }).slice(0, 5).forEach(function (o) {
       var c = o.customer || {};
-      items.push({ t: o.placedAt, ico: ICON.bag, cls: 'amber', text: '<b>' + esc(c.name || 'Customer') + '</b> placed order #' + esc(o.id), sub: esc(mvr(o.total)) + ' · ' + LABEL[o.status] });
+      // clicking a "placed order" activity opens that exact order's drawer
+      items.push({ t: o.placedAt, ico: ICON.bag, cls: 'amber', text: '<b>' + esc(c.name || 'Customer') + '</b> placed order #' + esc(o.id), sub: esc(mvr(o.total)) + ' · ' + LABEL[o.status], attrs: 'data-open="' + esc(o.id) + '"' });
     });
     var REASON = { restock: 'Restocked', set: 'Stock set', order: 'Sold', cancel: 'Returned' };
     var REASON_CLS = { restock: 'blue', set: 'purple', order: 'green', cancel: 'red' };
     (S.log || []).slice(0, 5).forEach(function (l) {
       var name = (l.products && l.products.name) || l.product_id;
-      items.push({ t: new Date(l.created_at).getTime(), ico: ICON.box, cls: REASON_CLS[l.reason] || '', text: esc(REASON[l.reason] || l.reason) + ' <b>' + esc(name) + '</b>', sub: (l.change >= 0 ? '+' : '') + l.change + ' → ' + num(l.qty_after) });
+      // clicking a stock activity jumps to the Stock page, already filtered to
+      // this exact product and the tab matching its current stock level
+      var afterQty = l.qty_after;
+      var stockTab = afterQty == null ? 'all' : (afterQty <= 0 ? 'out' : (afterQty <= 10 ? 'low' : 'in'));
+      var attrs = 'data-goto="stock:' + stockTab + '" data-goto-q="' + esc(name) + '"';
+      items.push({ t: new Date(l.created_at).getTime(), ico: ICON.box, cls: REASON_CLS[l.reason] || '', text: esc(REASON[l.reason] || l.reason) + ' <b>' + esc(name) + '</b>', sub: (l.change >= 0 ? '+' : '') + l.change + ' → ' + num(l.qty_after), attrs: attrs });
     });
     items.sort(function (a, b) { return b.t - a.t; });
     items = items.slice(0, 6);
     return '<div class="box"><h3>Activity Feed</h3><div class="feed">' + (items.length ? items.map(function (it) {
-      return '<div class="feed-row"><span class="feed-ico ' + (it.cls || '') + '">' + it.ico + '</span><div><p>' + it.text + '</p><small>' + it.sub + ' · ' + esc(ago(it.t)) + '</small></div></div>';
+      return '<div class="feed-row" role="button" tabindex="0" ' + it.attrs + '><span class="feed-ico ' + (it.cls || '') + '">' + it.ico + '</span><div><p>' + it.text + '</p><small>' + it.sub + ' · ' + esc(ago(it.t)) + '</small></div></div>';
     }).join('') : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div></div>';
   }
 
-  function notifPanelHtml(lowTotal, pendingRefunds, freshCount) {
+  function notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount) {
     var alerts = [];
     if (freshCount) alerts.push({ cls: '', ico: ICON.bag, t: freshCount + ' new order' + (freshCount > 1 ? 's' : '') + ' need action', d: 'Waiting to be started.', g: 'live:placed' });
-    if (lowTotal) alerts.push({ cls: 'amber', ico: ICON.alert, t: lowTotal + ' product' + (lowTotal > 1 ? 's are' : ' is') + ' low on stock', d: 'Restock soon to avoid running out.', g: 'stock:low' });
-    if (pendingRefunds) alerts.push({ cls: 'red', ico: ICON.undo, t: pendingRefunds + ' refund' + (pendingRefunds > 1 ? 's' : '') + ' pending', d: 'Customers are waiting to be refunded.', g: 'history:cancelled' });
+    if (outStock) alerts.push({ cls: 'red', ico: ICON.alert, t: outStock + ' product' + (outStock > 1 ? 's are' : ' is') + ' out of stock', d: 'Restock now — these can\'t be sold.', g: 'stock:out' });
+    if (lowStock) alerts.push({ cls: 'amber', ico: ICON.alert, t: lowStock + ' product' + (lowStock > 1 ? 's are' : ' is') + ' low on stock', d: 'Restock soon to avoid running out.', g: 'stock:low' });
+    if (pendingRefunds) alerts.push({ cls: 'red', ico: ICON.undo, t: pendingRefunds + ' refund' + (pendingRefunds > 1 ? 's' : '') + ' pending', d: 'Customers are waiting to be refunded.', g: 'history:refund_pending' });
     var body = alerts.length ? alerts.map(function (a) {
       return '<div class="alert-card ' + a.cls + '">' + a.ico + '<div><p class="at">' + esc(a.t) + '</p><p class="ad">' + esc(a.d) + '</p><button type="button" class="btn ghost sm" data-goto="' + a.g + '">View</button></div></div>';
     }).join('') : '<div class="alert-card ok">' + ICON.check + '<div><p class="at">All caught up</p><p class="ad">No alerts right now.</p></div></div>';
@@ -577,7 +808,7 @@
       var on = getStaffNotifPref() !== 'off';
       notifBit = '<span>' + (on ? 'Order alerts are on' : 'Order alerts are off') + '</span><button type="button" class="btn ghost sm" ' + (on ? 'data-notif-off' : 'data-notif-on') + '>' + (on ? 'Turn off' : 'Turn on') + '</button>';
     } else {
-      notifBit = '<span>Get notified here when a new order comes in.</span><button type="button" class="btn sm" data-notif-enable>Enable alerts</button>';
+      notifBit = '<span>Get notified here when a new order comes in.</span><button type="button" class="btn primary sm" data-notif-enable>Enable alerts</button>';
     }
     return '<div class="box" style="margin-top:16px"><h3>Notifications</h3><div class="alerts">' + body + '</div><div class="notif-card">' + notifBit + '</div></div>';
   }
@@ -598,10 +829,13 @@
     if (S.view === 'live') return tab === 'all' ? list : list.filter(function (o) { return o.status === tab; });
     if (tab === 'completed') return list.filter(function (o) { return o.status === 'delivered'; });
     if (tab === 'cancelled') return list.filter(function (o) { return o.status === 'cancelled'; });
+    if (tab === 'refund_pending') return list.filter(function (o) { return o.status === 'cancelled' && o.refundStatus === 'pending'; });
+    if (tab === 'refund_done') return list.filter(function (o) { return o.status === 'cancelled' && o.refundStatus === 'refunded'; });
     if (tab === 'placed' || tab === 'processing' || tab === 'delivery') return list.filter(function (o) { return o.status === tab; });
     return list;
   }
   function cnt(list, st) { return list.filter(function (o) { return o.status === st; }).length; }
+  function cntRefund(list, rs) { return list.filter(function (o) { return o.status === 'cancelled' && o.refundStatus === rs; }).length; }
 
   function renderOrders() {
     var base = baseOrders(), tab = S.tab[S.view], h = '';
@@ -611,7 +845,7 @@
       defs = [['all', 'All', base.length], ['placed', 'New', cnt(base, 'placed')], ['processing', 'Processing', cnt(base, 'processing')], ['delivery', 'Out for delivery', cnt(base, 'delivery')]];
     } else {
       title = 'Order History'; lead = 'Every order, newest first.';
-      defs = [['all', 'All Order', base.length], ['placed', 'New', cnt(base, 'placed')], ['processing', 'Processing', cnt(base, 'processing')], ['delivery', 'Out for delivery', cnt(base, 'delivery')], ['completed', 'Completed', cnt(base, 'delivered')], ['cancelled', 'Cancelled', cnt(base, 'cancelled')], ['summary', 'Summary', null]];
+      defs = [['all', 'All Order', base.length], ['placed', 'New', cnt(base, 'placed')], ['processing', 'Processing', cnt(base, 'processing')], ['delivery', 'Out for delivery', cnt(base, 'delivery')], ['completed', 'Completed', cnt(base, 'delivered')], ['cancelled', 'Cancelled', cnt(base, 'cancelled')], ['refund_pending', 'Needs Refund', cntRefund(base, 'pending')], ['refund_done', 'Refunded', cntRefund(base, 'refunded')], ['summary', 'Summary', null]];
     }
     h += '<h1>' + title + '</h1><p class="lead">' + lead + '</p><div class="bar"><div class="tabs">' +
       defs.map(function (d) {
@@ -677,12 +911,12 @@
   function stockStatus(p) {
     if (p.stock_qty == null) return { key: 'untracked', label: 'Not tracked', cls: 'gray' };
     if (p.stock_qty <= 0) return { key: 'out', label: 'Out of stock', cls: 'red' };
-    if (p.stock_qty <= 5) return { key: 'low', label: 'Low stock', cls: 'amber' };
+    if (p.stock_qty <= 10) return { key: 'low', label: 'Low stock', cls: 'amber' };
     return { key: 'in', label: 'In stock', cls: '' };
   }
   function renderStock() {
-    var h = '<div class="bar" style="align-items:flex-start"><div><h1>Stock</h1><p class="lead">Type the current count for a product and hit Update — that becomes its stock. Orders take units off automatically, and the shop shows In / Low / Out of stock by itself (Low = 5 or fewer).</p></div>' +
-      '<button type="button" class="btn sm" data-add-product>+ Add product</button></div>';
+    var h = '<div class="bar" style="align-items:flex-start"><div><h1>Stock</h1><p class="lead">Type the current count for a product and hit Update — that becomes its stock. Orders take units off automatically: <b>Low stock = 1–10 units</b>, while <b>Out of stock = 0 units</b>.</p></div>' +
+      '<button type="button" class="btn primary sm" data-add-product>+ Add product</button></div>';
     if (S.productsError) {
       var msg = String(S.productsError.message || '');
       if (/stock_qty|stock_log|admin_adjust_stock/i.test(msg)) {
@@ -749,7 +983,7 @@
           '<div class="s-price">' + (p.price > 0 ? esc(mvr(p.price)) : '<span class="pill gray">No price</span>') + '</div>' +
           '<div class="s-add">' +
             '<input type="number" inputmode="numeric" min="0" step="1" placeholder="' + (p.stock_qty == null ? 'Qty' : p.stock_qty) + '" id="qty-' + pid + '">' +
-            '<button class="btn sm" data-add="' + pid + '" title="Sets stock to whatever you type here">Update</button>' +
+            '<button class="btn primary sm" data-add="' + pid + '" title="Sets stock to whatever you type here">Update</button>' +
             '<button class="kebab" data-stock-menu="' + pid + '" aria-label="More stock actions">' + ICON.kebab + '</button>' +
           '</div>' +
         '</div>';
@@ -788,13 +1022,88 @@
       $('panel').innerHTML = h; return;
     }
     var group = S.tab.accountsGroup || 'business';
-    var groupDefs = [['business', 'Business Account'], ['customer', 'Customer Account']];
+    var groupDefs = [['business', 'Business Account'], ['customer', 'Customer Account'], ['changes', 'Change History'], ['deleted', 'Deleted Accounts']];
     h += '<div class="bar"><div class="tabs">' + groupDefs.map(function (d) {
       return '<button class="tab' + (group === d[0] ? ' active' : '') + '" data-agroup="' + d[0] + '">' + d[1] + '</button>';
     }).join('') + '</div></div>';
 
-    h += group === 'customer' ? renderCustomerAccountsBody() : renderBusinessAccountsBody();
+    h += group === 'customer' ? renderCustomerAccountsBody() : (group === 'changes' ? renderProfileChangesBody(false) : (group === 'deleted' ? renderProfileChangesBody(true) : renderBusinessAccountsBody()));
     $('panel').innerHTML = h;
+  }
+  function auditValue(v) {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+  function auditLabel(k) {
+    return String(k).replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+  function auditAccountSnapshot(r) {
+    var c = r && r.changes || {};
+    var saved = c._account_snapshot && c._account_snapshot.new;
+    var d = c.deleted_account && c.deleted_account.new;
+    var b = c.deleted_business_account && c.deleted_business_account.new;
+    return saved || d || b || {};
+  }
+  function renderProfileChangesBody(deletedOnly) {
+    if (S.profileChangesError) {
+      var msg = String(S.profileChangesError.message || '');
+      var code = S.profileChangesError.code ? ' [' + S.profileChangesError.code + ']' : '';
+      var detail = S.profileChangesError.detail ? String(S.profileChangesError.detail) : '';
+      var showDetail = !!S.showChangesErrorDetail;
+      return '<div class="note-banner">' +
+        '<b>History isn\'t available right now.</b>' +
+        '<p style="margin:4px 0 10px">This needs a one-time setup on the database — something a developer sets up once, not something you did wrong. Try again, or ask your developer to check it.</p>' +
+        '<button type="button" class="btn ghost sm" data-retry-changes>Try again</button> ' +
+        '<button type="button" class="btn ghost sm" data-toggle-error-detail>' + (showDetail ? 'Hide' : 'Show') + ' technical details</button>' +
+        (showDetail ? ('<div style="margin-top:10px;font-size:12px;opacity:.8">Supabase says' + esc(code) + ': ' + esc(msg || 'Unknown error') + (detail ? '<br>Details: ' + esc(detail) : '') + '<br><br>For the developer: confirm <code>26_profile_change_audit.sql</code> and then <code>27_deleted_account_history.sql</code> completed successfully in SQL Editor, then press Try again.</div>') : '') +
+        '</div>';
+    }
+    var rows = (S.profileChanges || []).filter(function (r) { return deletedOnly ? r.action === 'deleted' : r.action !== 'deleted'; });
+    if (deletedOnly) {
+      if (!rows.length) return '<p class="lead" style="margin-top:-4px">Deleted customer and business accounts stay here for Super Admin reference.</p><div class="empty">No deleted accounts recorded yet.</div>';
+      return auditSummary(rows, true) + '<p class="lead" style="margin-top:12px">These accounts no longer appear in active Customer or Business Account lists. Their saved details remain available here for Super Admin reference.</p>' + rows.map(renderAuditRow).join('');
+    }
+    if (!rows.length) return '<p class="lead" style="margin-top:-4px">Customer and business changes will appear here after the audit migration is installed.</p><div class="empty">No profile changes recorded yet.</div>';
+    return auditSummary(rows, false) + '<p class="lead" style="margin-top:12px">Every customer or business edit is recorded with the previous value, new value, editor, and exact time.</p>' + rows.map(renderAuditRow).join('');
+  }
+  function auditSummary(rows, deletedOnly) {
+    var nameChanges = rows.filter(function (r) { var c = r.changes || {}; return !!(c.name || c.business_name); }).length;
+    var businessChanges = rows.filter(function (r) { return r.entity_type === 'business'; }).length;
+    var label = deletedOnly ? 'Deleted accounts' : 'Recorded changes';
+    var third = deletedOnly ? 'Permanent' : 'Name changes';
+    var thirdValue = deletedOnly ? 'REMOVED' : nameChanges;
+    return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px"><div class="box" style="padding:12px 14px;min-width:150px;flex:1"><div style="font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + label + '</div><strong style="display:block;font-size:22px;margin-top:3px">' + rows.length + '</strong></div><div class="box" style="padding:12px 14px;min-width:150px;flex:1"><div style="font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Business records</div><strong style="display:block;font-size:22px;margin-top:3px">' + businessChanges + '</strong></div><div class="box" style="padding:12px 14px;min-width:150px;flex:1"><div style="font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + third + '</div><strong style="display:block;font-size:17px;margin-top:6px;color:' + (deletedOnly ? 'var(--red)' : 'var(--ink)') + '">' + thirdValue + '</strong></div></div>';
+  }
+  function renderAuditRow(r) {
+      var changes = r.changes || {};
+      var snapshot = auditAccountSnapshot(r);
+      var accountName = r.customer_name || snapshot.name || snapshot.business_name || r.customer_email || 'Unknown account';
+      var accountEmail = r.customer_email || snapshot.email || '';
+      var accountMobile = snapshot.mobile || '';
+      var accountType = snapshot.account_type || (r.entity_type === 'business' ? 'business' : 'customer');
+      var nameChange = changes.name || changes.business_name;
+      var nameTrail = nameChange && nameChange.old !== nameChange.new
+        ? '<div style="margin-top:4px;color:var(--ink-soft);font-size:12px"><b>Name changed:</b> ' + esc(auditValue(nameChange.old)) + ' → ' + esc(auditValue(nameChange.new)) + '</div>' : '';
+      var detailSource = Object.keys(snapshot).filter(function (k) { return !/^id$|^user_id$|^created_at$/.test(k); });
+      var fields = detailSource.map(function (k) {
+        return '<div style="padding:6px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px"><b>' + esc(auditLabel(k)) + '</b><span style="text-align:right;word-break:break-word">' + esc(auditValue(snapshot[k])) + '</span></div>';
+      }).join('');
+      var changedFields = Object.keys(changes).filter(function (k) { return k !== '_account_snapshot' && k !== 'deleted_account' && k !== 'deleted_business_account'; }).map(function (k) {
+        var d = changes[k] || {};
+        return '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + esc(auditLabel(k)) + '</b><br><span style="color:var(--ink-soft)">Before:</span> ' + esc(auditValue(d.old)) + '<br><span style="color:var(--ink-soft)">After:</span> ' + esc(auditValue(d.new)) + '</div>';
+      }).join('');
+      var detailHeading = Object.keys(snapshot).length ? '<div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--green-800)">FULL ACCOUNT DETAILS AT TIME OF RECORD</div>' + fields : '';
+      var changeHeading = changedFields ? '<div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--green-800)">CHANGED FIELDS</div>' + changedFields : '';
+      var title = r.action === 'deleted' ? 'Deleted ' + (r.entity_type === 'business' ? 'business account' : 'customer account') : (r.entity_type === 'business' ? 'Business account change' : 'Customer profile change');
+      var deletedBadge = r.action === 'deleted' ? ' <span class="pill red">DELETED</span>' : '';
+      var summaryHead = '<div><b>' + esc(title) + '</b>' + deletedBadge + '<div style="margin-top:4px;font-size:13px"><b>Account:</b> ' + esc(accountName) + '</div>' + nameTrail + '<div style="margin-top:3px;color:var(--ink-soft);font-size:12.5px">' + esc(accountEmail || 'Email unavailable') + (accountMobile ? ' · ' + esc(accountMobile) : '') + ' · ' + esc(accountType) + '</div><div style="margin-top:3px;color:var(--ink-soft);font-size:11.5px">Recorded by: ' + esc(r.actor_email || 'Account owner before deletion') + '</div></div>';
+      var dateBit = '<span style="color:var(--ink-soft);font-size:12px;white-space:nowrap">' + esc(fmtDate(new Date(r.changed_at).getTime())) + '</span>';
+      var body = detailHeading + changeHeading;
+      if (!body) {
+        return '<div class="box" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">' + summaryHead + dateBit + '</div></div>';
+      }
+      return '<div class="box audit-row" style="margin-bottom:12px;padding:0"><details><summary style="padding:18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;list-style:none;cursor:pointer">' + summaryHead + '<div style="display:flex;align-items:center;gap:8px">' + dateBit + '<span class="chev" style="color:var(--ink-soft);width:18px;height:18px">' + ICON.chevron + '</span></div></summary><div style="padding:0 18px 18px">' + body + '</div></details></div>';
   }
   function renderBusinessAccountsBody() {
     if (S.shopsError) {
@@ -831,7 +1140,7 @@
           'Added ' + ago(new Date(x.created_at).getTime())
         ].filter(Boolean);
         var btns = '';
-        if (x.status !== 'approved') btns += '<button class="btn sm" data-shop-approve="' + esc(x.id) + '">Approve</button> ';
+        if (x.status !== 'approved') btns += '<button class="btn primary sm" data-shop-approve="' + esc(x.id) + '">Approve</button> ';
         if (x.status !== 'rejected') btns += '<button class="btn danger-soft sm" data-shop-reject="' + esc(x.id) + '">Reject</button>';
         return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
           '<div><b>' + esc(x.name) + '</b> <span class="pill ' + cls + '">' + esc(x.status) + '</span>' +
@@ -853,7 +1162,7 @@
       }
       return '<div class="note-banner">Could not load accounts: ' + esc(msg) + '</div>';
     }
-    var h = '<p class="lead" style="margin-top:-4px">Everyone who registered on the customer store front. Reference only — these can never be given dashboard access.</p>';
+    var h = '<p class="lead" style="margin-top:-4px">Everyone who registered on the customer storefront. Reference only — these accounts cannot be given dashboard access.</p>';
     var q = S.q.trim().toLowerCase();
     var list = (S.accounts || []).filter(function (x) { return x.signup_source !== 'admin'; }).filter(function (x) {
       return !q || [x.name, x.email, x.mobile].join(' ').toLowerCase().indexOf(q) >= 0;
@@ -864,7 +1173,7 @@
       return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
         '<div><b>' + esc(x.name || (x.email || '').split('@')[0] || 'Unnamed') + '</b>' +
         '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
-        '<span class="pill" title="Registered on the customer store front — cannot be given staff access">Store front account</span></div>';
+        '<span class="pill" title="Registered on the customer storefront — cannot be given staff access">Store front account</span></div>';
     }).join('');
     return h;
   }
@@ -877,7 +1186,7 @@
 
   /* ---------- staff access (Super Admin only) ---------- */
   function renderStaffAccess() {
-    var h = '<h1>Staff Access</h1><p class="lead">Give or remove dashboard access. Only a Super Admin can change this — new admins go through here instead of the SQL Editor. Only accounts created through the admin Sign Up form appear here; customer store front accounts are managed separately under Accounts → Customer Account.</p>';
+    var h = '<h1>Staff Access</h1><p class="lead">Give or remove dashboard access for accounts registered through this Admin Sign Up form. Only a Super Admin can change this. Customer storefront accounts are listed separately under Accounts → Customer Account.</p>';
     if (S.accountsError) {
       var msg = String(S.accountsError.message || '');
       if (/admin_list_accounts|does not exist|schema cache/i.test(msg)) {
@@ -887,13 +1196,13 @@
       }
       $('panel').innerHTML = h; return;
     }
-    // Staff Access only ever deals with accounts created through the admin
-    // Sign Up form — storefront shoppers live under Accounts -> Customer
-    // Account instead, so they never get mixed in here.
-    var L = (S.accounts || []).filter(function (x) { return x.signup_source === 'admin'; }), c = { staff: 0, admin: 0 };
-    L.forEach(function (x) { if (x.is_admin) c.staff++; else c.admin++; });
+    // Staff Access only shows accounts created through the admin signup form.
+    // Customer storefront accounts stay under Accounts -> Customer Account.
+    var L = (S.accounts || []).filter(function (x) { return x.signup_source === 'admin'; }), c = { staff: 0, available: 0 };
+    L.forEach(function (x) { if (x.is_admin) c.staff++; else c.available++; });
+    if (c.available) h += '<div class="note-banner"><b>' + c.available + ' staff-access request' + (c.available === 1 ? '' : 's') + ' waiting for approval.</b> Review the Admin sign-up account' + (c.available === 1 ? '' : 's') + ' below and grant access when approved.</div>';
     var tab = S.tab.staffaccess;
-    var defs = [['all', 'All', L.length], ['staff', 'Staff', c.staff], ['admin', 'Admin sign-ups', c.admin]];
+    var defs = [['all', 'All', L.length], ['staff', 'Staff', c.staff], ['available', 'Admin sign-ups', c.available]];
     h += '<div class="bar"><div class="tabs">' + defs.map(function (d) {
       return '<button class="tab' + (tab === d[0] ? ' active' : '') + '" data-tab="' + d[0] + '">' + d[1] + '<span class="n">' + d[2] + '</span></button>';
     }).join('') + '</div></div>';
@@ -901,7 +1210,7 @@
     var q = S.q.trim().toLowerCase();
     var list = L.filter(function (x) {
       if (tab === 'staff' && !x.is_admin) return false;
-      if (tab === 'admin' && x.is_admin) return false;
+      if (tab === 'available' && x.is_admin) return false;
       return !q || [x.name, x.staff_name, x.email, x.mobile].join(' ').toLowerCase().indexOf(q) >= 0;
     });
     if (!list.length) { h += '<div class="empty">No accounts match.</div>'; }
@@ -909,17 +1218,16 @@
       h += list.map(function (x) {
         var self = x.id === (S.profile && S.profile.id);
         var lines = [
-          x.email || '', x.mobile || '',
+          x.email || '', accountMobile(x),
           'Added ' + ago(new Date(x.created_at).getTime())
         ].filter(Boolean);
         var btns = '';
-        if (x.is_admin) { if (!self) btns += '<button class="btn danger-soft sm" data-staff-off="' + esc(x.id) + '">Remove staff access</button> '; }
-        else btns += '<button class="btn sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> ';
-        if (x.is_super_admin) { if (!self) btns += '<button class="btn danger-soft sm" data-sa-off="' + esc(x.id) + '">Remove Super Admin</button>'; }
-        else if (x.is_admin) btns += '<button class="btn ghost sm" data-sa-on="' + esc(x.id) + '">Make Super Admin</button>';
+        if (x.is_admin || x.is_super_admin) {
+          if (!isPrimaryAdminAccount(x)) btns += '<button class="kebab" data-staff-menu="' + esc(x.id) + '" aria-label="Staff actions" title="Staff actions">' + ICON.kebab + '</button>';
+        } else btns += '<button class="btn primary sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> ';
         return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
-          '<div><b>' + esc(x.staff_name || x.name || (x.email || '').split('@')[0] || 'Unnamed') + '</b> ' +
-          (x.is_super_admin ? '<span class="pill">Super Admin</span>' : (x.is_admin ? '<span class="pill">Staff</span>' : '')) +
+          '<div><b>' + esc(accountDisplayName(x)) + '</b> ' +
+          (isPrimaryAdminAccount(x) ? '<span class="pill">Super Admin</span>' : (x.is_admin ? '<span class="pill">Staff</span>' : '')) +
           (self ? ' <span class="pill amber">You</span>' : '') +
           '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' + btns + '</div></div>';
@@ -942,12 +1250,15 @@
 
   /* ---------- staff display name (dashboard-only, not the shop profile name) ---------- */
   function openStaffNameModal() {
-    $('staffNameInput').value = (S.profile && S.profile.staff_name) || '';
+    var primary = isPrimarySuperAdmin(S.profile);
+    $('staffNameInput').value = primary ? PRIMARY_SUPER_ADMIN_NAME : ((S.profile && S.profile.staff_name) || '');
+    $('staffNameInput').readOnly = primary;
     $('staffNameModal').classList.remove('hidden');
     setTimeout(function () { $('staffNameInput').focus(); }, 50);
   }
   function closeStaffNameModal() { $('staffNameModal').classList.add('hidden'); }
   function saveStaffName() {
+    if (isPrimarySuperAdmin(S.profile)) { closeStaffNameModal(); toast('MAZI General Trade profile is fixed for the dashboard'); return; }
     var v = $('staffNameInput').value.trim();
     MaziAPI.updateStaffName(v).then(function (p) {
       S.profile = p;
@@ -984,7 +1295,7 @@
       '<div class="field"><label>Icon (emoji)</label><input class="inp" id="editIcon" value="' + esc(p.icon || '') + '"></div>' +
       '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editActive"' + (p.active ? ' checked' : '') + '> Visible to customers</label>' +
       '<div class="err" id="editErr"></div>' +
-      '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-edit>Cancel</button><button type="button" class="btn" id="editSaveBtn" data-save-product="' + esc(p.id) + '">Save changes</button></div>';
+      '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-edit>Cancel</button><button type="button" class="btn primary" id="editSaveBtn" data-save-product="' + esc(p.id) + '">Save changes</button></div>';
   }
   function imageUploadFieldHtml(url) {
     var has = !!url;
@@ -1017,7 +1328,7 @@
       imageUploadFieldHtml('') +
       '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editActive" checked> Visible to customers</label>' +
       '<div class="err" id="editErr"></div>' +
-      '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-edit>Cancel</button><button type="button" class="btn" id="editSaveBtn" data-save-product="__new__">Add product</button></div>';
+      '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-edit>Cancel</button><button type="button" class="btn primary" id="editSaveBtn" data-save-product="__new__">Add product</button></div>';
   }
   function editFormHtml(p) {
     return '<div class="field"><label>Product code</label><input class="inp" value="' + esc(p.id) + '" disabled style="background:var(--bg,#f3f4f2);color:var(--ink-soft)"></div>' +
@@ -1032,7 +1343,7 @@
         '<button type="button" class="btn danger" style="flex:0 0 auto" data-delete-product="' + esc(p.id) + '">Delete product</button>' +
         '<div style="display:flex;gap:10px">' +
           '<button type="button" class="btn ghost" style="flex:0 0 auto" data-close-edit>Cancel</button>' +
-          '<button type="button" class="btn" style="flex:0 0 auto" id="editSaveBtn" data-save-product="' + esc(p.id) + '">Save changes</button>' +
+          '<button type="button" class="btn primary" style="flex:0 0 auto" id="editSaveBtn" data-save-product="' + esc(p.id) + '">Save changes</button>' +
         '</div>' +
       '</div>';
   }
@@ -1074,11 +1385,27 @@
     else { msg.textContent = ''; msg.style.display = 'none'; }
     var btn = $('confirmOkBtn');
     btn.textContent = opts.confirmLabel || 'OK';
-    btn.className = 'btn' + (opts.danger ? ' danger' : '');
+    btn.className = 'btn ' + (opts.danger ? 'confirm-danger' : 'primary');
     btn.onclick = function () { closeConfirm(); if (opts.onConfirm) opts.onConfirm(); };
     $('confirmModal').classList.remove('hidden');
   }
   function closeConfirm() { $('confirmModal').classList.add('hidden'); }
+  function requestLogout() {
+    showConfirm({
+      title: 'Log out?',
+      message: 'Are you sure you want to log out of the staff dashboard?',
+      confirmLabel: 'Yes',
+      danger: true,
+      onConfirm: function () {
+        var btn = $('logoutBtn'), loadingStarted = showAuthLoading('Logging out…');
+        btn.disabled = true;
+        Promise.resolve().then(function () { return MaziAPI.logout(); }).catch(function () {}).then(function () {
+          showLogin();
+          return finishAuthLoading(loadingStarted);
+        }).then(function () { btn.disabled = false; });
+      }
+    });
+  }
 
   /* ============ image quick view ============ */
   function openImgView(pid) {
@@ -1221,18 +1548,18 @@
     h += '<div class="sec dc-actions"><h4>Actions</h4><div class="acts">';
     if (o.status !== 'cancelled') {
       var i = FLOW.indexOf(o.status);
-      if (i < FLOW.length - 1) h += '<button class="btn" data-next="' + esc(o.id) + '">' + NEXT_LABEL[o.status] + '</button>';
+      if (i < FLOW.length - 1) h += '<button class="btn primary" data-next="' + esc(o.id) + '">' + NEXT_LABEL[o.status] + '</button>';
       if (o.status !== 'delivered') h += '<button class="btn danger" data-cancel="' + esc(o.id) + '">Cancel order</button>';
       if (o.status === 'delivered') h += '<span class="pill">Completed</span>';
     } else {
-      h += '<span class="pill ' + (o.refundStatus === 'refunded' ? '' : 'amber') + '">Refund: ' + esc(o.refundStatus) + '</span>';
-      if (o.refundStatus === 'pending') h += '<button class="btn" data-refunded="' + esc(o.id) + '">Mark refunded</button>';
+      h += '<span class="refund-chip' + (o.refundStatus === 'refunded' ? ' done' : '') + '"><span class="dot"></span>' + (o.refundStatus === 'refunded' ? 'Refunded' : 'Refund pending') + '</span>';
+      if (o.refundStatus === 'pending') h += '<button class="btn primary" data-refunded="' + esc(o.id) + '">Mark refunded</button>';
     }
     h += '</div>';
     if (feeTbc && o.status !== 'cancelled') {
-      h += '<div class="rowin"><input type="number" min="0" step="1" placeholder="Delivery fee (MVR)" id="fee-' + esc(o.id) + '"><button class="btn sm" data-fee="' + esc(o.id) + '">Set fee</button></div>';
+      h += '<div class="rowin"><input type="number" min="0" step="1" placeholder="Delivery fee (MVR)" id="fee-' + esc(o.id) + '"><button class="btn primary sm" data-fee="' + esc(o.id) + '">Set fee</button></div>';
     }
-    h += '<div class="rowin"><input type="text" maxlength="500" placeholder="Internal note (customers can\'t see this)" id="note-' + esc(o.id) + '" value="' + esc(o.adminNote || '') + '"><button class="btn ghost sm" data-note="' + esc(o.id) + '">Save note</button></div></div>';
+    h += '<div class="rowin"><input type="text" maxlength="500" placeholder="Internal note (customers can\'t see this)" id="note-' + esc(o.id) + '" value="' + esc(o.adminNote || '') + '"><button class="btn primary sm" data-note="' + esc(o.id) + '">Save note</button></div></div>';
     return h + '</div>';
   }
 
@@ -1257,6 +1584,19 @@
       '<button data-edit="' + esc(pid) + '">Edit product details</button>'
     ];
     placeMenu(items, btn);
+  }
+  function openStaffMenu(id, btn) {
+    closeMenu();
+    var account = (S.accounts || []).filter(function (x) { return x.id === id; })[0];
+    if (!account) return;
+    var items = [];
+    if ((account.is_admin || account.is_super_admin) && !isPrimaryAdminAccount(account)) {
+      items.push('<button data-sa-on="' + esc(id) + '">Make Super Admin</button>');
+    }
+    if ((account.is_admin || account.is_super_admin) && !isPrimaryAdminAccount(account)) {
+      items.push('<button class="dng" data-staff-off="' + esc(id) + '">Remove access</button>');
+    }
+    if (items.length) placeMenu(items, btn);
   }
   function placeMenu(items, btn) {
     menuEl = document.createElement('div');
@@ -1304,19 +1644,24 @@
 
   /* ============ events ============ */
   function onClick(e) {
-    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname]');
+    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail]');
     if (!t) return;
     var d = t.dataset, o;
     if (d.view) { S.view = d.view; S.q = ''; if (d.view === 'live') markPlacedSeen(); closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard') { loadStock().then(render); } render(); return; }
     if (d.goto) {
-      var parts = d.goto.split(':'); S.view = parts[0]; S.q = '';
+      var parts = d.goto.split(':'); S.view = parts[0]; S.q = d.gotoQ || '';
       if (parts[1]) S.tab[S.view] = parts[1];
       if (S.view === 'live') markPlacedSeen();
       closeDrawer(); closeMenu();
       if (S.view === 'stock') { loadStock().then(render); } else render();
       return;
     }
+    if (d.monthToggle) { S.expMonths[d.monthToggle] = !S.expMonths[d.monthToggle]; render(); return; }
+    if (d.monthsToggle !== undefined) { S.showAllMonths = !S.showAllMonths; render(); return; }
+    if (d.salesYear) { S.salesYear = d.salesYear; S.showAllMonths = false; render(); return; }
     if (d.notifItem) { closeNotif(); markOneSeen(d.notifItem); openDrawer(d.notifItem); render(); return; }
+    if (d.retryChanges !== undefined) { t.classList.add('spin'); loadProfileChanges().then(render); return; }
+    if (d.toggleErrorDetail !== undefined) { S.showChangesErrorDetail = !S.showChangesErrorDetail; render(); return; }
     if (d.notifViewall !== undefined) { closeNotif(); S.view = 'live'; S.tab.live = 'placed'; markPlacedSeen(); closeDrawer(); render(); return; }
     if (d.notifEnable !== undefined) { requestDeviceNotifPermission(function (perm) { if (perm === 'granted') setStaffNotifPref('on'); render(); }); return; }
     if (d.notifOff !== undefined) { setStaffNotifPref('off'); render(); return; }
@@ -1339,6 +1684,7 @@
     if (d.agroup) { S.tab.accountsGroup = d.agroup; S.q = ''; render(); return; }
     if (d.menu) { e.stopPropagation(); openMenu(d.menu, t); return; }
     if (d.stockMenu) { e.stopPropagation(); openStockMenu(d.stockMenu, t); return; }
+    if (d.staffMenu) { e.stopPropagation(); openStaffMenu(d.staffMenu, t); return; }
     if (d.open) { openDrawer(d.open); return; }
     if (d.shopApprove) { setShopStatus(d.shopApprove, 'approved'); return; }
     if (d.shopReject) {
@@ -1352,8 +1698,11 @@
     }
     if (d.staffOn) { setStaffAccess(d.staffOn, true); return; }
     if (d.staffOff) {
+      closeMenu();
+      var staffToRemove = (S.accounts || []).filter(function (x) { return x.id === d.staffOff; })[0];
       showConfirm({
         title: 'Remove staff access?',
+        message: 'Remove Admin Dashboard access from ' + ((staffToRemove && (staffToRemove.name || staffToRemove.email)) || 'this staff account') + '? They will no longer be able to sign in as staff.',
         confirmLabel: 'Remove access',
         danger: true,
         onConfirm: function () { setStaffAccess(d.staffOff, false); }
@@ -1417,21 +1766,54 @@
 
   function boot() {
     $('loginBtn').addEventListener('click', login);
-    $('forgotBtn').addEventListener('click', function () {
-      var email = $('email').value.trim(), btn = this;
-      if (!email) { setMsg('Type your email above first, then press Forgot Password.'); $('email').focus(); return; }
-      btn.disabled = true; setMsg('');
+    $('googleBtn').addEventListener('click', loginWithGoogle);
+    function resetForgotPane() {
+      $('forgotSent').classList.add('hidden');
+      $('forgotRequest').style.display = '';
+      $('sendResetBtn').disabled = false;
+      $('resetLabel').textContent = 'Send Reset Link';
+      setMsg('', false, 'forgotErr');
+    }
+    function goToSignin() {
+      $('forgotPane').classList.add('hidden');
+      $('signinPane').classList.remove('hidden');
+      resetForgotPane();
+    }
+    function startResendCooldown(btn, label) {
+      var n = 60; btn.disabled = true; label.textContent = 'Try again in ' + n + 's';
+      var t = setInterval(function () {
+        n--; if (n <= 0) { clearInterval(t); btn.disabled = false; label.textContent = 'Resend link'; }
+        else label.textContent = 'Try again in ' + n + 's';
+      }, 1000);
+    }
+    function doSendReset(email, btn, label, onDone) {
       MaziAPI.sendPasswordReset(email).then(function () {
-        setMsg('If this email has an account, we sent a reset link. Open it, set a new password, then come back here.', true);
+        $('forgotRequest').style.display = 'none';
+        $('forgotSent').classList.remove('hidden');
+        startResendCooldown($('resendBtn'), $('resendLabel'));
       }).catch(function (e) {
-        setMsg(e.message || 'Could not send the reset link.');
-      }).then(function () {
-        var n = 60; btn.textContent = 'Try again in ' + n + 's';
-        var t = setInterval(function () {
-          n--; if (n <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = 'Forgot Password'; }
-          else btn.textContent = 'Try again in ' + n + 's';
-        }, 1000);
-      });
+        setMsg(e.message || 'Could not send the reset link.', false, 'forgotErr');
+      }).then(function () { if (onDone) onDone(); });
+    }
+    $('forgotBtn').addEventListener('click', function () {
+      resetForgotPane();
+      $('forgotEmail').value = $('email').value.trim();
+      $('signinPane').classList.add('hidden');
+      $('forgotPane').classList.remove('hidden');
+      setTimeout(function () { $('forgotEmail').focus(); }, 50);
+    });
+    $('backToSigninBtn1').addEventListener('click', goToSignin);
+    $('backToSigninBtn2').addEventListener('click', goToSignin);
+    $('forgotEmail').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('sendResetBtn').click(); });
+    $('sendResetBtn').addEventListener('click', function () {
+      var email = $('forgotEmail').value.trim(), btn = this;
+      if (!/^\S+@\S+\.\S+$/.test(email)) { setMsg('Please enter a valid email address.', false, 'forgotErr'); $('forgotEmail').focus(); return; }
+      btn.disabled = true; setMsg('', false, 'forgotErr');
+      doSendReset(email, btn, $('resetLabel'), function () { btn.disabled = false; });
+    });
+    $('resendBtn').addEventListener('click', function () {
+      var email = $('forgotEmail').value.trim();
+      doSendReset(email, this, $('resendLabel'));
     });
 
     /* ---- Sign In <-> Create Account (sliding panel) ---- */
@@ -1456,7 +1838,7 @@
     });
     $('imgViewModal').addEventListener('click', function (e) { if (e.target === this) closeImgView(); });
     ['email', 'password'].forEach(function (id) { $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); }); });
-    $('logoutBtn').addEventListener('click', function () { MaziAPI.logout().catch(function () {}).then(function () { showLogin(); }); });
+    $('logoutBtn').addEventListener('click', requestLogout);
     (function () {
       var side = $('sideNav'), logoBtn = $('sideLogoBtn'), expandBtn = $('sideExpandBtn');
       if (!side || !logoBtn || !expandBtn) return;
@@ -1474,12 +1856,13 @@
     $('bell').addEventListener('click', function (e) { e.stopPropagation(); toggleNotif(this); });
     $('search').addEventListener('input', function (e) { S.q = e.target.value; render(); });
     $('panel').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && e.target.id && e.target.id.indexOf('qty-') === 0) adjustStock(e.target.id.slice(4), 'set');
+      if (e.key === 'Enter' && e.target.id && e.target.id.indexOf('qty-') === 0) { adjustStock(e.target.id.slice(4), 'set'); return; }
+      // keyboard activation for the clickable dashboard stat cards / feed rows
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[role="button"]')) { e.preventDefault(); onClick(e); }
     });
-    document.addEventListener('click', function (e) { if (menuEl && !e.target.closest('.menu') && !e.target.closest('[data-menu]') && !e.target.closest('[data-stock-menu]')) closeMenu(); });
+    document.addEventListener('click', function (e) { if (menuEl && !e.target.closest('.menu') && !e.target.closest('[data-menu]') && !e.target.closest('[data-stock-menu]') && !e.target.closest('[data-staff-menu]')) closeMenu(); });
     document.addEventListener('click', function (e) { if (notifEl && !e.target.closest('.notif-dd') && !e.target.closest('#bell')) closeNotif(); });
     ['nav', 'panel', 'drawer', 'editModal', 'confirmModal', 'imgViewModal', 'staffNameModal'].forEach(function (id) { $(id).addEventListener('click', onClick); });
-    var meBtn = $('meBtn'); if (meBtn) meBtn.addEventListener('click', openStaffNameModal);
     $('staffNameModal').addEventListener('click', function (e) { if (e.target === this) closeStaffNameModal(); });
     var sni = $('staffNameInput'); if (sni) sni.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveStaffName(); });
     document.addEventListener('click', function (e) { if (menuEl && menuEl.contains(e.target)) onClick(e); }, true);
