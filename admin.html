@@ -151,6 +151,60 @@ input[type=number]{-moz-appearance:textfield}
   .m-switch{display:block;align-self:center;margin-top:16px;border:0;background:none;color:var(--green-700);font-weight:600;font-size:13px;cursor:pointer}
 }
 
+/* ---------- waiting for Super Admin approval / approved ---------- */
+.ov-c{opacity:0;pointer-events:none}
+.card.status .ov-a{opacity:0;pointer-events:none}
+.card.status .ov-c{opacity:1;pointer-events:auto;transition-delay:.2s}
+.st{display:flex;flex-direction:column;animation:st-in .45s var(--ease) backwards}
+@keyframes st-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.st-icon{position:relative;width:64px;height:64px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:var(--amber-bg);color:#B45309;flex:none}
+.st-icon svg{width:26px;height:26px;position:relative;z-index:1;stroke-width:1.8}
+.st-icon .hg{animation:st-flip 3.2s var(--ease) infinite}
+@keyframes st-flip{0%,55%{transform:rotate(0)}85%,100%{transform:rotate(180deg)}}
+.st-icon .ck{display:none;stroke-width:2.6}
+.st-ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(201,138,20,.5);animation:st-ring 2.4s ease-out infinite}
+.st-ring.r2{animation-delay:1.2s}
+@keyframes st-ring{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.75);opacity:0}}
+.st.is-done .st-icon{background:var(--green-800);color:#fff;animation:st-pop .55s var(--ease)}
+.st.is-done .st-icon .hg{display:none}
+.st.is-done .st-icon .ck{display:block}
+.st.is-done .st-ring{border-color:rgba(46,140,108,.55);animation:st-ring 1.3s ease-out 2}
+.st.is-done .st-ring.r2{animation-delay:.35s}
+.st .ck path{stroke-dasharray:26;stroke-dashoffset:26;animation:st-draw .5s .25s ease forwards}
+@keyframes st-draw{to{stroke-dashoffset:0}}
+@keyframes st-pop{0%{transform:scale(.6)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+.st .cap{margin-bottom:14px}
+.st-who{align-self:center;display:flex;align-items:center;gap:6px;max-width:100%;padding:6px 12px;margin:0 0 16px;background:var(--gray-50);border:1px solid var(--line);font-size:12px;color:var(--gray-700)}
+.st-who span{color:#7C8798;flex:none}
+.st-who b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--ink)}
+.st-steps{list-style:none;display:flex;margin:0 0 16px;padding:0;text-align:center}
+.st-steps li{flex:1;position:relative;padding-top:21px;font-size:10.5px;font-weight:600;line-height:1.25;color:#94A3B8;transition:color .3s}
+.st-steps li::before{content:"";position:absolute;top:6px;left:-50%;width:100%;height:2px;background:#E2E8F0;transition:background .4s}
+.st-steps li:first-child::before{display:none}
+.st-steps li i{position:absolute;top:0;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#fff;border:2px solid #CBD5E1;z-index:1;transition:background .3s,border-color .3s}
+.st-steps li.done{color:var(--green-800)}
+.st-steps li.done::before,.st-steps li.now::before{background:var(--green-800)}
+.st-steps li.done i{background:var(--green-800);border-color:var(--green-800)}
+.st-steps li.now{color:#B45309}
+.st-steps li.now i{background:var(--amber-bg);border-color:#D97706;animation:st-pulse 1.7s ease-in-out infinite}
+@keyframes st-pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,.45)}50%{box-shadow:0 0 0 6px rgba(217,119,6,0)}}
+.st-live{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;font-size:12px;color:#64748B;min-height:18px}
+.st-dot{width:8px;height:8px;border-radius:50%;background:#D97706;flex:none;animation:st-blink 1.3s ease-in-out infinite}
+@keyframes st-blink{0%,100%{opacity:1}50%{opacity:.25}}
+.st-bar{display:none;height:3px;margin:0 0 16px;background:var(--green-100);overflow:hidden}
+.st-bar i{display:block;height:100%;width:0;background:var(--green-800)}
+.st.is-done .st-bar{display:block}
+.st.is-done .st-bar i{animation:st-fill 3s linear forwards}
+@keyframes st-fill{to{width:100%}}
+.st.is-done .st-dot{background:var(--green-700);animation:none}
+.st.is-done .st-live{color:var(--green-700);font-weight:600}
+.st.is-done .st-out{display:none}
+.st-btn-ghost{background:#fff;color:var(--green-800);border:1.5px solid var(--green-800);padding:11px 36px}
+.st-btn-ghost:hover{background:var(--green-50)}
+.st.is-done .st-btn-ghost{background:var(--green-800);color:#fff}
+.st.is-done .st-btn-ghost:hover{background:var(--green-700)}
+@media (prefers-reduced-motion:reduce){.st,.st *{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
 /* ---------- shell ---------- */
 .shell{display:flex;min-height:100vh}
 .side{width:216px;flex:none;background:#fff;border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;transition:width .25s var(--ease)}
@@ -541,6 +595,29 @@ a{color:var(--green-700)}
       </div>
     </div>
 
+    <!-- Waiting for Super Admin approval / approved -->
+    <div class="pane pane-in hidden" id="statusPane">
+      <div class="st" id="statusBox" role="status" aria-live="polite">
+        <div class="st-icon" aria-hidden="true">
+          <span class="st-ring"></span><span class="st-ring r2"></span>
+          <svg class="hg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10M7 21h10"/><path d="M8 3v3.6a4 4 0 0 0 1.6 3.2L12 12l-2.4 2.2A4 4 0 0 0 8 17.4V21"/><path d="M16 3v3.6a4 4 0 0 1-1.6 3.2L12 12l2.4 2.2A4 4 0 0 1 16 17.4V21"/></svg>
+          <svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <h1 id="stTitle">Waiting for approval</h1>
+        <p class="cap" id="stCap">Your account is registered. A Super Admin needs to give it staff access before you can open the dashboard.</p>
+        <div class="st-who"><span>Signed in as</span><b id="stWho"></b></div>
+        <ol class="st-steps" aria-label="Approval progress">
+          <li class="done"><i></i>Account created</li>
+          <li class="now" id="stStep2"><i></i>Super Admin review</li>
+          <li id="stStep3"><i></i>Dashboard access</li>
+        </ol>
+        <p class="st-live"><span class="st-dot"></span><span id="stNote">Checking automatically…</span></p>
+        <div class="st-bar" aria-hidden="true"><i></i></div>
+        <button type="button" class="solid st-btn-ghost" id="stMainBtn"><span id="stMainLabel">Check status</span></button>
+        <button type="button" class="plain-link st-out" id="stOutBtn">Sign out</button>
+      </div>
+    </div>
+
     <!-- Create account -->
     <div class="pane pane-up" id="signupPane">
       <h1>Create Account</h1>
@@ -567,6 +644,11 @@ a{color:var(--green-700)}
         <h2>Welcome to MAZI</h2>
         <p>Already have an account? Sign in to manage orders and stock.</p>
         <button type="button" class="ghost" data-mode="signin">Sign In</button>
+      </div>
+      <div class="ov ov-c">
+        <img src="img/logo-white.png" alt="MAZI General Trade">
+        <h2 id="ovCTitle">Almost there!</h2>
+        <p id="ovCText">Once a Super Admin approves your account, the staff dashboard opens automatically.</p>
       </div>
     </div>
   </div>
@@ -663,7 +745,7 @@ a{color:var(--green-700)}
 /* Loads the scripts from /js (or, if you keep everything in one folder, from next to this page),
    and says on the login card what is wrong if something cannot load. */
 (function () {
-  var V = '20260923a', files = ['supabase', 'supabase-config', 'api', 'admin'], missing = [];
+  var V = '20260924a', files = ['supabase', 'supabase-config', 'api', 'admin'], missing = [];
   function say(t) { var m = document.getElementById('loginErr'); if (m && !m.textContent) { m.className = 'msg'; m.textContent = t; } }
   function tryLoad(urls, cb) {
     var u = urls.shift(); if (!u) return cb(false);

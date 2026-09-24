@@ -164,11 +164,99 @@
     $('appView').classList.add('hidden');
     $('loginView').classList.remove('hidden');
     $('forgotPane').classList.add('hidden');
+    $('statusPane').classList.add('hidden');
+    $('authCard').classList.remove('status');
     $('signinPane').classList.remove('hidden');
     $('forgotSent').classList.add('hidden');
     $('forgotRequest').style.display = '';
     setMsg(msg || '');
-    stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
+    stopWaiting(); stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
+  }
+
+  /* ============ waiting for Super Admin approval ============
+     A staff-signup account (profiles.signup_source = 'admin') that has not
+     been granted is_admin yet may sign in, but only sees this status screen.
+     It never loads the dashboard or any staff data — the database (RLS +
+     is_admin()) still blocks that. The screen re-checks the profile every few
+     seconds; the moment a Super Admin turns on staff access it switches to the
+     "approved" state and opens the dashboard. */
+  var WAIT_POLL_MS = 6000, WAIT_AUTO_OPEN_MS = 3000;
+  var W = { profile: null, done: false, timer: null, auto: null, busy: false };
+  function isPendingStaff(p) { return !!(p && !p.is_admin && p.signup_source === 'admin'); }
+  function stopWaiting() {
+    if (W.timer) { clearInterval(W.timer); W.timer = null; }
+    if (W.auto) { clearTimeout(W.auto); W.auto = null; }
+    W.busy = false;
+  }
+  function setWaitNote(t) { $('stNote').textContent = t; }
+  function clockNow() { try { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  function showWaiting(profile) {
+    stopWaiting(); stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
+    W.profile = profile; W.done = false;
+    $('appView').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+    $('forgotPane').classList.add('hidden');
+    $('signinPane').classList.add('hidden');
+    $('authCard').classList.remove('signup');
+    $('authCard').classList.add('status');
+    var box = $('statusBox');
+    box.classList.remove('is-done');
+    // restart the entrance animation
+    box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+    $('statusPane').classList.remove('hidden');
+    $('stTitle').textContent = 'Waiting for approval';
+    $('stCap').textContent = 'Your account is registered. A Super Admin needs to give it staff access before you can open the dashboard.';
+    $('stWho').textContent = profile.email || profile.name || 'your account';
+    $('stStep2').className = 'now'; $('stStep3').className = '';
+    $('stMainLabel').textContent = 'Check status';
+    $('stMainBtn').disabled = false;
+    $('ovCTitle').textContent = 'Almost there!';
+    $('ovCText').textContent = 'Once a Super Admin approves your account, the staff dashboard opens automatically.';
+    setWaitNote('Checking automatically…');
+    setMsg('');
+    W.timer = setInterval(function () { if (!document.hidden) checkWaiting(false); }, WAIT_POLL_MS);
+  }
+  function checkWaiting(manual) {
+    if (W.busy || W.done) return;
+    W.busy = true;
+    var btn = $('stMainBtn'), started = Date.now();
+    if (manual) { btn.disabled = true; $('stMainLabel').textContent = 'Checking…'; }
+    MaziAPI.getProfile().then(function (p) {
+      if (p && W.profile && W.profile.email) p = Object.assign({}, p, { email: W.profile.email });
+      if (isStaff(p)) { W.busy = false; showApproved(p); return; }
+      var wait = manual ? Math.max(0, 700 - (Date.now() - started)) : 0;
+      return new Promise(function (r) { setTimeout(r, wait); }).then(function () {
+        setWaitNote((manual ? 'Not approved yet. ' : '') + 'Last checked ' + clockNow());
+      });
+    }).catch(function (e) {
+      if (e && e.code === 'NOT_AUTHENTICATED') { stopWaiting(); showLogin('Session expired. Please sign in again.'); return; }
+      setWaitNote('Could not check right now. Trying again…');
+    }).then(function () {
+      W.busy = false;
+      if (!W.done) { btn.disabled = false; $('stMainLabel').textContent = 'Check status'; }
+    });
+  }
+  function showApproved(profile) {
+    if (W.timer) { clearInterval(W.timer); W.timer = null; }
+    W.done = true; W.profile = profile;
+    $('statusBox').classList.add('is-done');
+    $('stTitle').textContent = "You're approved!";
+    $('stCap').textContent = 'A Super Admin gave your account staff access. Welcome to the MAZI team.';
+    $('stStep2').className = 'done'; $('stStep3').className = 'done';
+    setWaitNote('Opening the dashboard…');
+    $('stMainLabel').textContent = 'Open Dashboard';
+    $('stMainBtn').disabled = false;
+    $('ovCTitle').textContent = 'Welcome aboard!';
+    $('ovCText').textContent = 'Your staff access is approved.';
+    W.auto = setTimeout(openApprovedDashboard, WAIT_AUTO_OPEN_MS);
+  }
+  function openApprovedDashboard() {
+    if (!W.done || !W.profile) return;
+    var p = W.profile;
+    stopWaiting(); W.done = false;
+    $('statusPane').classList.add('hidden');
+    $('authCard').classList.remove('status');
+    showApp(p);
   }
   function showApp(profile) {
     S.profile = profile;
@@ -262,10 +350,10 @@
     // Clear any persisted Supabase session first so a previous staff account
     // cannot remain active while the user is signing in with another email.
     MaziAPI.logout().catch(function () {}).then(function () { return MaziAPI.signInWithPassword(email, pw); }).then(function (res) {
-      if (!isStaff(res.profile)) {
-        return MaziAPI.logout().catch(function () {}).then(function () { showLogin('This account is not a staff account.'); });
-      }
-      showApp(res.profile);
+      if (isStaff(res.profile)) return showApp(res.profile);
+      // Registered from admin.html but not approved yet: show the waiting screen.
+      if (isPendingStaff(res.profile)) return showWaiting(res.profile);
+      return MaziAPI.logout().catch(function () {}).then(function () { showLogin('This account is not a staff account.'); });
     }).catch(function (e) {
       setMsg(e.message || 'Could not sign in.');
     }).then(function () { return finishAuthLoading(loadingStarted); }).then(function () { btn.disabled = false; $('goLabel').textContent = 'Sign In'; });
@@ -297,7 +385,7 @@
       var provider = s.user && s.user.app_metadata && s.user.app_metadata.provider;
       var profilePromise = MaziAPI.getProfile();
       // Google sign-in from admin.html registers the account as an admin
-      // candidate. It still cannot enter until a Super Admin grants is_admin.
+      // candidate. It only sees the waiting screen until a Super Admin grants is_admin.
       if (provider === 'google' && MaziAPI.claimAdminSignup) {
         profilePromise = profilePromise.then(function () {
           return MaziAPI.claimAdminSignup().then(function () { return MaziAPI.getProfile(); });
@@ -307,12 +395,8 @@
         var authEmail = s.user && s.user.email;
         if (p && authEmail) p = Object.assign({}, p, { email: authEmail });
         if (isStaff(p)) showApp(p);
-        else {
-          var msg = provider === 'google'
-            ? 'Request received. Please wait for Super Admin approval before opening the Staff Dashboard.'
-            : '';
-          MaziAPI.logout().catch(function () {}).then(function () { showLogin(msg); });
-        }
+        else if (isPendingStaff(p)) showWaiting(p);   // waiting for Super Admin approval
+        else MaziAPI.logout().catch(function () {}).then(function () { showLogin(''); });
       });
     }).catch(function (e) {
       var msg = e && e.message ? String(e.message) : '';
@@ -339,7 +423,7 @@
     if (pw.length < 6) return err('Password must be at least 6 characters.');
     if (!window.MaziAPI) return err('The service is not available. Refresh the page.');
     btn.disabled = true; $('suLabel').textContent = '…'; err('');
-    var after = 'Your account can open this dashboard only after a Super Admin gives it staff access.';
+    var after = 'After you sign in, you will see your approval status until a Super Admin gives your account staff access.';
     MaziAPI.signUpWithPassword(email, pw, '', name, 'admin').then(function (res) {
       var done = function (msg) {
         $('suName').value = ''; $('suPassword').value = '';
@@ -1767,6 +1851,16 @@
   function boot() {
     $('loginBtn').addEventListener('click', login);
     $('googleBtn').addEventListener('click', loginWithGoogle);
+    $('stMainBtn').addEventListener('click', function () {
+      if (W.done) { if (W.auto) { clearTimeout(W.auto); W.auto = null; } openApprovedDashboard(); }
+      else checkWaiting(true);
+    });
+    $('stOutBtn').addEventListener('click', function () {
+      stopWaiting();
+      MaziAPI.logout().catch(function () {}).then(function () { showLogin(); });
+    });
+    // coming back to the tab: check right away instead of waiting for the next tick
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && W.timer) checkWaiting(false); });
     function resetForgotPane() {
       $('forgotSent').classList.add('hidden');
       $('forgotRequest').style.display = '';
