@@ -155,7 +155,8 @@
     <div class="hero-search-sticky" id="heroSearchSticky">
       <div class="hero-search-bar" id="heroSearchBar" role="button" tabindex="0">
         <svg viewBox="0 0 24 24" class="search-icon"><path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-        <span>Search for products, brands, or categories&hellip;</span>
+        <span id="heroSearchBarText">Search for products, brands, or categories&hellip;</span>
+        <button type="button" class="hero-search-clear" id="heroSearchClear" aria-label="Clear search" hidden>&times;</button>
       </div>
     </div>
 
@@ -192,7 +193,7 @@
       </div>
       <div class="viber-cta-text">
         <strong>Chat with us on Viber</strong>
-        <span>Get product info, stock updates, quick support — or join our Viber Community.</span>
+        <span>Get product info, stock updates, quick support<br class="viber-cta-break"> or join our Viber Community.</span>
       </div>
       <div class="viber-cta-actions">
         <a href="viber://chat?number=%2B9609291600" target="_blank" rel="noopener" class="viber-cta-btn" id="homeViberCtaBtn">
@@ -1182,6 +1183,24 @@
       <h3 class="similar-products-title">Other Products</h3>
       <div class="product-grid" id="otherProductsGrid"></div>
     </div>
+  </div>
+</div>
+
+<!-- ============ IMAGE QUICK VIEW ============ -->
+<div class="profile-view image-view" id="imageView">
+  <div class="profile-view-topbar">
+    <button class="profile-view-close" id="imageViewClose" aria-label="Back">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="nav-actions">
+      <button class="icon-btn js-cart-btn" aria-label="Cart">
+        <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 1.7h2l5.6 16.1h13.4"/><path d="M4.3 4.4h18.2l-1.4 10.2H7.9"/><path class="cart-grid" d="M6.1 9.5h15.4M10 4.4l1.2 10.2M14.8 4.4v10.2M19.3 4.4l-.9 10.2"/><circle cx="10.7" cy="21.4" r="1.5"/><circle cx="19.6" cy="21.4" r="1.5"/></svg>
+        <span class="cart-count js-cart-count" hidden>0</span>
+      </button>
+    </div>
+  </div>
+  <div class="image-view-wrap">
+    <img id="imageViewImg" src="" alt="">
   </div>
 </div>
 

@@ -188,6 +188,12 @@ function productImg(p){
   if (p.img) return p.img;
   return `img/products/${p.id}.png`;
 }
+// Same Title Case treatment as script.js/admin.js — product names are
+// stored ALL CAPS in Supabase; this only affects the display label.
+function toDisplayName(name){
+  if (!name) return '';
+  return String(name).toLowerCase().replace(/(^|[\s\-(\/])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
 
 /* ---------- Guard: needs a logged-in user with items in cart ---------- */
 let cart = getCart();
@@ -284,7 +290,7 @@ function renderItems(){
       <div class="co-item-row" data-id="${p.id}">
         <div class="co-item-media"><img src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')"></div>
         <div class="co-item-info">
-          <div class="co-item-name">${p.name}</div>
+          <div class="co-item-name">${toDisplayName(p.name)}</div>
           <div class="co-item-meta">${p.pack}</div>
           <div class="co-item-qty">
             <button type="button" data-minus="${p.id}">&minus;</button>
@@ -1017,7 +1023,7 @@ function init(){
       if (err && (err.code === 'OUT_OF_STOCK' || err.code === 'INSUFFICIENT_STOCK' || err.code === 'PRODUCT_NOT_FOUND') && err.detail){
         const names = String(err.detail).split(',').map(id=>{
           const p = PRODUCTS.find(p=>p.id===id);
-          return p ? p.name : id;
+          return p ? toDisplayName(p.name) : id;
         });
         msg += ' (' + names.join('; ') + ')';
       }

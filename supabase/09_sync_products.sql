@@ -100,13 +100,13 @@ insert into _sync_products (id, name, category_id, icon, pack, unit, price, stoc
     ('606SZ000501', 'SANZOFT SENSATION SPRAY 270 ML. - PINK (1 X 12) CTN', 'household', '🌸', 'Carton', '1 x 12', 427.44, 'low', true),  -- #13 5 ctn
     ('606SZ000301', 'SANZOFT SENSATION SPRAY 270 ML. - VIOLET, (1 X 12) CTN', 'household', '🌸', 'Carton', '1 x 12', 427.44, 'low', true),  -- #14 5 ctn
     ('606SZ000401', 'SANZOFT SENSATION SPRAY 270 ML. - BLUE, (1 X 12) CTN', 'household', '🌸', 'Carton', '1 x 12', 427.44, 'low', true),  -- #15 5 ctn
-    ('101PTCL101001', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - LEMON', 'household', '🧴', 'Carton', '', 126.75, 'in', true),  -- #16 100 ctn
-    ('101PTCLK40101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - KIWI', 'household', '🧴', 'Carton', '', 126.75, 'in', true),  -- #17 30 ctn
-    ('101PTCLP20101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - PURE&CARE', 'household', '🧴', 'Carton', '', 126.75, 'in', true),  -- #18 80 ctn
-    ('101PTCLP30101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - POMELO&PASSION FRUIT', 'household', '🧴', 'Carton', '', 126.75, 'in', true),  -- #19 30 ctn
-    ('101PTLE010101', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - LEMON', 'household', '🧴', 'Carton', '', 188.43, 'in', true),  -- #20 100 ctn
-    ('101PTMA050501', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - MANGO', 'household', '🧴', 'Carton', '', 188.43, 'in', true),  -- #21 38 ctn
-    ('101PTBI010101', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - BIO', 'household', '🧴', 'Carton', '', 188.43, 'in', true),  -- #22 42 ctn
+    ('101PTCL101001', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - LEMON', 'household', '🧴', 'Carton', '1 x 12', 126.75, 'in', true),  -- #16 100 ctn
+    ('101PTCLK40101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - KIWI', 'household', '🧴', 'Carton', '1 x 12', 126.75, 'in', true),  -- #17 30 ctn
+    ('101PTCLP20101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - PURE&CARE', 'household', '🧴', 'Carton', '1 x 12', 126.75, 'in', true),  -- #18 80 ctn
+    ('101PTCLP30101', 'PINTO CLICK DISH WASHING LIQUID 750 ML. - POMELO&PASSION FRUIT', 'household', '🧴', 'Carton', '1 x 12', 126.75, 'in', true),  -- #19 30 ctn
+    ('101PTLE010101', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - LEMON', 'household', '🧴', 'Carton', '1 x 12', 188.43, 'in', true),  -- #20 100 ctn
+    ('101PTMA050501', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - MANGO', 'household', '🧴', 'Carton', '1 x 12', 188.43, 'in', true),  -- #21 38 ctn
+    ('101PTBI010101', 'PINTO CLICK DISH WASHING LIQUID 800 ML. - BIO', 'household', '🧴', 'Carton', '1 x 12', 188.43, 'in', true),  -- #22 42 ctn
     ('101PTLE010102Y2', 'PINTO DISH WASHING LIQUID 3600 ML. - LEMON (PUMP 1 X 2)', 'household', '🧴', 'Carton', '1 x 2', 103.62, 'in', true),  -- #23 80 ctn
     ('101PTKL000002', 'PINTO DISH WASHING LIQUID 3600 ML. - KLEAR (PUMP 1 X 2)', 'household', '🧴', 'Carton', '1 x 2', 103.62, 'in', true),  -- #24 80 ctn
     ('607CF01001', 'CAREFOR AIR FRESHENER GEL 180 GRAM.- AGARWOOD, (1 X 24) CTN', 'household', '🌸', 'Carton', '1 x 24', 381.18, 'in', true),  -- #25 10 ctn
@@ -117,8 +117,8 @@ insert into _sync_products (id, name, category_id, icon, pack, unit, price, stoc
     ('607RF02001', 'R-FRESH AIR FRESHENER GEL 180 GRAM.-LAVENDER, (1 X 24) CTN', 'household', '🌸', 'Carton', '1 x 24', 381.18, 'in', true),  -- #30 10 ctn
     ('607RF04001', 'R-FRESH AIR FRESHENER GEL 180 GRAM.-LEMON, (1 X 24) CTN', 'household', '🌸', 'Carton', '1 x 24', 381.18, 'in', true),  -- #31 10 ctn
     ('607RF05001', 'R-FRESH AIR FRESHENER GEL 180 GRAM.-LILY, (1 X 24) CTN', 'household', '🌸', 'Carton', '1 x 24', 381.18, 'in', true),  -- #32 10 ctn
-    ('607CR00101', 'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', 'household', '🌸', 'Carton', '', 0.00, 'low', false),  -- #33 2 ctn  FOC (free of charge) -> hidden, no price
-    ('607BN00201', 'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', 'household', '🌸', 'Carton', '', 0.00, 'low', false),  -- #34 2 ctn  FOC (free of charge) -> hidden, no price
+    ('607CR00101', 'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', 'household', '🌸', 'Carton', '1 x 24', 0.00, 'low', false),  -- #33 2 ctn  FOC (free of charge) -> hidden, no price
+    ('607BN00201', 'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', 'household', '🌸', 'Carton', '1 x 24', 0.00, 'low', false),  -- #34 2 ctn  FOC (free of charge) -> hidden, no price
     ('501DW50501', 'DAIWA LIQUID HAND SOAP 500 ML. - FRUITY , (1 X 12) CTN', 'household', '🧼', 'Carton', '1 x 12', 211.56, 'in', true),  -- #35 40 ctn
     ('501DW20201', 'DAIWA LIQUID HAND SOAP 500 ML. - LAVENDER , (1 X 12) CTN', 'household', '🧼', 'Carton', '1 x 12', 211.56, 'in', true),  -- #36 40 ctn
     ('501DW30301', 'DAIWA LIQUID HAND SOAP 500 ML. - MELON , (1 X 12) CTN', 'household', '🧼', 'Carton', '1 x 12', 211.56, 'in', true),  -- #37 40 ctn
@@ -144,7 +144,7 @@ insert into _sync_products (id, name, category_id, icon, pack, unit, price, stoc
     ('103DW10101', 'DAIWA GLOSS DAILY CLEANER 500 ML. , (1 X 12) CTN', 'household', '✨', 'Carton', '1 x 12', 211.56, 'in', true),  -- #57 50 ctn
     ('108DW10103', 'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', 'household', '🧴', 'Carton', '1 x 4', 237.53, 'in', true),  -- #58 10 ctn
     ('107DW10102', 'DAIWA DISINFECTANT DEODORIZER 500 ML. , (1 X 12) CTN', 'household', '🧴', 'Carton', '1 x 12', 211.56, 'in', true),  -- #59 100 ctn
-    ('503ZS00101', 'ZENSI NATURAL CLEANSING SHOWER 450 ML.', 'personal-care', '🚿', 'Carton', '', 0.00, 'low', false);  -- #60 5 ctn  FOC (free of charge) -> hidden, no price
+    ('503ZS00101', 'ZENSI NATURAL CLEANSING SHOWER 450 ML.', 'personal-care', '🚿', 'Carton', '1 x 12', 0.00, 'low', false);  -- #60 5 ctn  FOC (free of charge) -> hidden, no price
 
 update _sync_products t
    set is_new = not exists (select 1 from public.products p where p.id = t.id);

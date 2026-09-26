@@ -56,6 +56,15 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Product names are stored ALL CAPS in Supabase (supplier convention).
+  // Read-only displays show Title Case instead — same treatment as the
+  // customer-facing site — so it reads calmer. The Edit form's input
+  // keeps the raw value, since that's the actual DB text being edited.
+  function productDisplayName(v) {
+    return String(v == null ? '' : v).toLowerCase().replace(/(^|[\s\-(\/])([a-z])/g, function (m, sep, ch) {
+      return sep + ch.toUpperCase();
+    });
+  }
   function mvr(n) { return 'MVR ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function num(n) { return Number(n || 0).toLocaleString('en-US'); }
   function fmtDate(ts) { return new Date(ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
@@ -170,7 +179,7 @@
     $('forgotSent').classList.add('hidden');
     $('forgotRequest').style.display = '';
     setMsg(msg || '');
-    stopWaiting(); stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
+    stopWaiting(); stopPolling(); stopProfilesRealtime(); stopOrdersRealtime(); closeDrawer(); closeMenu();
   }
 
   /* ============ waiting for Super Admin approval ============
@@ -191,7 +200,7 @@
   function setWaitNote(t) { $('stNote').textContent = t; }
   function clockNow() { try { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
   function showWaiting(profile) {
-    stopWaiting(); stopPolling(); stopProfilesRealtime(); closeDrawer(); closeMenu();
+    stopWaiting(); stopPolling(); stopProfilesRealtime(); stopOrdersRealtime(); closeDrawer(); closeMenu();
     W.profile = profile; W.done = false;
     $('appView').classList.add('hidden');
     $('loginView').classList.remove('hidden');
@@ -269,6 +278,7 @@
     $('meAv').textContent = initials(displayName(profile));
     loadAll(true);
     startPolling();
+    startOrdersRealtime();
     if (isSuperAdmin(profile)) startProfilesRealtime();
     syncNameFromSignup(profile);
   }
@@ -302,6 +312,23 @@
   }
   function stopProfilesRealtime() {
     if (stopProfilesRealtimeFn) { stopProfilesRealtimeFn(); stopProfilesRealtimeFn = null; }
+  }
+  // ---- Orders, live: a new order (or a status/refund change from another
+  // staff device) reaches this dashboard immediately instead of waiting for
+  // the next 30s poll. loadOrders() already knows how to toast + beep +
+  // fire a browser notification for anything new — this just makes it run
+  // right away instead of on a timer. Falls back to the existing 30s
+  // polling automatically if the realtime socket drops for any reason.
+  var stopOrdersRealtimeFn = null;
+  function startOrdersRealtime() {
+    if (stopOrdersRealtimeFn || !window.MaziAPI || !MaziAPI.subscribeAdminOrders) return;
+    stopOrdersRealtimeFn = MaziAPI.subscribeAdminOrders(function () {
+      if (busy) return; // a load is already in flight — it'll pick this up
+      loadOrders(false).then(render);
+    });
+  }
+  function stopOrdersRealtime() {
+    if (stopOrdersRealtimeFn) { stopOrdersRealtimeFn(); stopOrdersRealtimeFn = null; }
   }
   // The name typed on the Create Account form travels in the auth metadata; copy it to the profile once.
   function syncNameFromSignup(profile) {
@@ -365,7 +392,15 @@
     var btn = $('googleBtn'), loadingStarted = showAuthLoading('Opening Google sign-in…');
     if (btn) btn.disabled = true;
     setMsg('');
+    // Mark that THIS click, right here on admin.html, is what should be
+    // treated as an admin sign-up request. Without this flag, restore()
+    // has no way to tell a deliberate admin.html Google sign-in apart from
+    // a customer who is already Google-signed-in on the storefront and
+    // simply opens admin.html - both look identical (an active session with
+    // provider "google") once the page reloads.
+    try { sessionStorage.setItem('mazi_admin_google_claim', '1'); } catch (e0) {}
     MaziAPI.signInWithGoogle('admin.html').catch(function (e) {
+      try { sessionStorage.removeItem('mazi_admin_google_claim'); } catch (e2) {}
       setMsg(e.message || 'Could not start Google sign-in.');
       if (btn) btn.disabled = false;
       return finishAuthLoading(loadingStarted);
@@ -380,13 +415,24 @@
       if (window.history && window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
+    // Consumed once: true only on the page load right after the user pressed
+    // "Continue with Google" here on admin.html (see loginWithGoogle()).
+    // Any later restore() of admin.html - a plain reload, or a customer who
+    // was already Google-signed-in on the storefront opening admin.html -
+    // must NOT re-trigger this, or every such visit quietly turns a
+    // customer's account into a pending staff request.
+    var claimGoogleAdmin = false;
+    try {
+      claimGoogleAdmin = sessionStorage.getItem('mazi_admin_google_claim') === '1';
+      sessionStorage.removeItem('mazi_admin_google_claim');
+    } catch (e1) {}
     MaziAPI.getSession().then(function (s) {
       if (!s) return showLogin();
       var provider = s.user && s.user.app_metadata && s.user.app_metadata.provider;
       var profilePromise = MaziAPI.getProfile();
       // Google sign-in from admin.html registers the account as an admin
       // candidate. It only sees the waiting screen until a Super Admin grants is_admin.
-      if (provider === 'google' && MaziAPI.claimAdminSignup) {
+      if (provider === 'google' && claimGoogleAdmin && MaziAPI.claimAdminSignup) {
         profilePromise = profilePromise.then(function () {
           return MaziAPI.claimAdminSignup().then(function () { return MaziAPI.getProfile(); });
         });
@@ -1061,7 +1107,7 @@
           ? '<img class="ico thumb" src="' + esc(p.image_url) + '" alt="" loading="lazy" data-img-view="' + pid + '" style="cursor:zoom-in" title="Click to view" onerror="this.outerHTML=\'<span class=&quot;ico&quot;>' + esc(p.icon || '📦') + '</span>\'">'
           : '<span class="ico">' + esc(p.icon || '📦') + '</span>';
         return '<div class="srow" data-pid="' + pid + '">' +
-          '<div class="s-name">' + thumb + '<span><b>' + esc(p.name) + '</b><small>' + pid + ' · ' + esc(p.pack || '') + ' ' + esc(p.unit || '') + '</small></span></div>' +
+          '<div class="s-name">' + thumb + '<span><span class="s-name-text">' + esc(productDisplayName(p.name)) + '</span><small>' + pid + ' · ' + esc(p.pack || '') + ' ' + esc(p.unit || '') + '</small></span></div>' +
           '<div class="s-status"><span class="pill ' + st.cls + '">' + st.label + '</span>' + (p.active ? '' : ' <span class="pill gray">Hidden</span>') + '</div>' +
           '<div class="s-qty">' + (p.stock_qty == null ? '—' : num(p.stock_qty) + ' <small>units</small>') + '</div>' +
           '<div class="s-price">' + (p.price > 0 ? esc(mvr(p.price)) : '<span class="pill gray">No price</span>') + '</div>' +
@@ -1308,10 +1354,10 @@
         var btns = '';
         if (x.is_admin || x.is_super_admin) {
           if (!isPrimaryAdminAccount(x)) btns += '<button class="kebab" data-staff-menu="' + esc(x.id) + '" aria-label="Staff actions" title="Staff actions">' + ICON.kebab + '</button>';
-        } else btns += '<button class="btn primary sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> ';
+        } else btns += '<button class="btn staff-grant sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> <button class="btn staff-remove sm" data-staff-reject="' + esc(x.id) + '">Remove</button>';
         return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
           '<div><b>' + esc(accountDisplayName(x)) + '</b> ' +
-          (isPrimaryAdminAccount(x) ? '<span class="pill">Super Admin</span>' : (x.is_admin ? '<span class="pill">Staff</span>' : '')) +
+          (isPrimaryAdminAccount(x) ? '<span class="pill staff-pill">Super Admin</span>' : (x.is_admin ? '<span class="pill staff-pill">Staff</span>' : '')) +
           (self ? ' <span class="pill amber">You</span>' : '') +
           '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' + btns + '</div></div>';
@@ -1324,6 +1370,12 @@
       toast(on ? 'Staff access granted' : 'Staff access removed');
       return loadAccounts().then(render);
     }).catch(function (e) { toast(e.message || 'Could not update this account.', true); });
+  }
+  function deleteSignupRequest(id) {
+    MaziAPI.adminDeleteSignupRequest(id).then(function () {
+      toast('Sign-up request removed');
+      return loadAccounts().then(render);
+    }).catch(function (e) { toast(e.message || 'Could not remove this request.', true); });
   }
   function setSuperAdmin(id, on) {
     MaziAPI.adminSetSuperAdmin(id, on).then(function () {
@@ -1360,7 +1412,7 @@
     var opts = mode === 'set' ? { set: n } : { add: mode === 'subtract' ? -n : n };
     function run() {
       MaziAPI.adminAdjustStock(pid, opts).then(function (r) {
-        toast((p ? p.name.slice(0, 40) : pid) + ' → ' + num(r.stock_qty) + ' in stock');
+        toast((p ? productDisplayName(p.name).slice(0, 40) : pid) + ' → ' + num(r.stock_qty) + ' in stock');
         return loadStock().then(render);
       }).catch(function (e) {
         if (/adjust_stock|stock_qty/i.test(String(e.message))) { S.productsError = e; render(); }
@@ -1435,7 +1487,7 @@
     var p = findProduct(pid); if (!p) return;
     S.editingId = pid;
     pendingImageFile = null;
-    $('editTitle').textContent = 'Edit — ' + p.name;
+    $('editTitle').textContent = 'Edit — ' + productDisplayName(p.name);
     $('editBody').innerHTML = editFormHtml(p);
     $('editModal').classList.remove('hidden');
     setTimeout(function () { var i = $('editName'); if (i) i.focus(); }, 0);
@@ -1495,7 +1547,7 @@
   function openImgView(pid) {
     var p = findProduct(pid); if (!p || !p.image_url) return;
     $('imgViewPic').src = p.image_url;
-    $('imgViewName').textContent = p.name;
+    $('imgViewName').textContent = productDisplayName(p.name);
     $('imgViewMeta').textContent = pid + (p.pack ? ' · ' + p.pack : '') + (p.unit ? ' ' + p.unit : '');
     $('imgViewModal').classList.remove('hidden');
   }
@@ -1580,12 +1632,12 @@
     var p = findProduct(pid); if (!p) return;
     showConfirm({
       title: 'Delete this product?',
-      message: (p.name ? p.name.slice(0, 60) : pid) + ' (' + pid + ') will be permanently removed — this can\'t be undone. Past orders keep their own record, so this won\'t change order history.',
+      message: (p.name ? productDisplayName(p.name).slice(0, 60) : pid) + ' (' + pid + ') will be permanently removed — this can\'t be undone. Past orders keep their own record, so this won\'t change order history.',
       confirmLabel: 'Delete',
       danger: true,
       onConfirm: function () {
         MaziAPI.adminDeleteProduct(pid).then(function () {
-          toast((p.name ? p.name.slice(0, 40) : pid) + ' deleted');
+          toast((p.name ? productDisplayName(p.name).slice(0, 40) : pid) + ' deleted');
           closeEditProduct();
           return loadStock().then(render);
         }).catch(function (e) {
@@ -1613,7 +1665,7 @@
     var c = o.customer || {}, feeTbc = o.deliveryFee == null;
     var mobile = String(c.mobile || '').replace(/[^0-9+]/g, '');
     var items = o.items.map(function (it) {
-      return '<li><span>' + esc(it.name) + '<small>' + esc(it.pack || '') + ' · ' + esc(mvr(it.price)) + ' × ' + it.qty + '</small></span><span>' + esc(mvr(it.price * it.qty)) + '</span></li>';
+      return '<li><span>' + esc(productDisplayName(it.name)) + '<small>' + esc(it.pack || '') + ' · ' + esc(mvr(it.price)) + ' × ' + it.qty + '</small></span><span>' + esc(mvr(it.price * it.qty)) + '</span></li>';
     }).join('');
     var h = '<div class="dh"><div><h2>#' + esc(o.id) + '</h2><small>' + esc(fmtDate(o.placedAt)) + '</small><div class="c-status" style="margin-top:6px">' + statusHtml(o) + '</div></div>' +
       '<button class="kebab" data-close aria-label="Close">' + ICON.close + '</button></div><div class="dc"><div class="dc-cols"><div class="dc-col">';
@@ -1678,7 +1730,7 @@
       items.push('<button data-sa-on="' + esc(id) + '">Make Super Admin</button>');
     }
     if ((account.is_admin || account.is_super_admin) && !isPrimaryAdminAccount(account)) {
-      items.push('<button class="dng" data-staff-off="' + esc(id) + '">Remove access</button>');
+      items.push('<button data-staff-off="' + esc(id) + '">Remove access</button>');
     }
     if (items.length) placeMenu(items, btn);
   }
@@ -1728,7 +1780,7 @@
 
   /* ============ events ============ */
   function onClick(e) {
-    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail]');
+    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-staff-reject],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail]');
     if (!t) return;
     var d = t.dataset, o;
     if (d.view) { S.view = d.view; S.q = ''; if (d.view === 'live') markPlacedSeen(); closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard') { loadStock().then(render); } render(); return; }
@@ -1781,6 +1833,17 @@
       return;
     }
     if (d.staffOn) { setStaffAccess(d.staffOn, true); return; }
+    if (d.staffReject) {
+      var reqToRemove = (S.accounts || []).filter(function (x) { return x.id === d.staffReject; })[0];
+      showConfirm({
+        title: 'Remove this sign-up request?',
+        message: 'Remove the Admin sign-up request from ' + ((reqToRemove && (reqToRemove.name || reqToRemove.email)) || 'this account') + '? This deletes the request — they will not be given staff access, and they will need to sign up again if they want to request it later.',
+        confirmLabel: 'Remove',
+        danger: true,
+        onConfirm: function () { deleteSignupRequest(d.staffReject); }
+      });
+      return;
+    }
     if (d.staffOff) {
       closeMenu();
       var staffToRemove = (S.accounts || []).filter(function (x) { return x.id === d.staffOff; })[0];

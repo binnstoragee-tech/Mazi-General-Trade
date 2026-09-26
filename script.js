@@ -470,12 +470,36 @@ function applyAuthenticatedSession(result, opts){
   const wasSignup = authMode === 'signup'; // closeLogin() resets the mode, so grab it first
   const profile = result.profile || {};
   const user = result.user || {};
-  const name = profile.name || user.user_metadata?.full_name || user.user_metadata?.name || 'Account';
+  const rawName = profile.name || user.user_metadata?.full_name || user.user_metadata?.name || 'Account';
+  // profile.name is meant to hold the first name only (onboarding splits
+  // "Full Name" before saving). But when profile.name is still empty this
+  // falls back to Google's full_name, which IS a combined "First Last"
+  // string. If profile.last_name already has a value at the same time
+  // (e.g. set separately, or from an earlier onboarding), using rawName
+  // as-is for firstName duplicates the last name ("Monir Ahmed" first +
+  // "Ahmed" last). Split defensively so firstName never carries more than
+  // the first name.
+  let firstName = rawName;
+  let lastName = profile.last_name || '';
+  const trimmedRaw = rawName.trim();
+  if (!lastName && trimmedRaw.includes(' ')){
+    const split = splitFullName(trimmedRaw);
+    firstName = split.first;
+    lastName = split.last;
+  } else if (lastName && trimmedRaw.includes(' ')){
+    const trimmedLast = lastName.trim();
+    if (trimmedRaw === trimmedLast){
+      firstName = '';
+    } else if (trimmedRaw.endsWith(' ' + trimmedLast)){
+      firstName = trimmedRaw.slice(0, trimmedRaw.length - trimmedLast.length).trim();
+    }
+  }
+  const name = [firstName, lastName].filter(Boolean).join(' ') || 'Account';
   const mobile = profile.mobile || user.user_metadata?.mobile || '';
   setSession({
     name,
-    firstName: name,
-    lastName: profile.last_name || '',
+    firstName,
+    lastName,
     // user.email is the real Supabase Auth sign-in address; prefer it over
     // profiles.email so the Personal Details page (and admin Staff Access,
     // which reads straight from profiles.email) can never drift from what
@@ -844,6 +868,26 @@ function showToast(msg, sub, type){
 // Switching category always clears any active search — otherwise the
 // heading/results stay stuck on "Results for ..." (and filtered by the old
 // keyword) instead of reflecting the category the person just tapped.
+/* The sticky "hero" search pill is just a trigger that opens the full-screen
+   mobile search panel — but once a search is active, it should show what's
+   currently being searched (not the generic placeholder) and offer an easy
+   way to clear it and go back to browsing every item. Called from
+   renderProducts() so it always matches state.query. */
+function updateHeroSearchBar(){
+  const textEl = $('#heroSearchBarText');
+  const clearBtn = $('#heroSearchClear');
+  if (!textEl) return;
+  if (state.query){
+    textEl.textContent = state.query;
+    textEl.classList.add('has-query');
+    if (clearBtn) clearBtn.hidden = false;
+  } else {
+    textEl.textContent = 'Search for products, brands, or categories\u2026';
+    textEl.classList.remove('has-query');
+    if (clearBtn) clearBtn.hidden = true;
+  }
+}
+
 function setCategory(catId){
   state.category = catId;
   state.query = '';
@@ -1180,8 +1224,7 @@ function cardActionHtml(p, opts){
         <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         Added to cart
       </span>
-    </button>${shareBtn}${rowClose}
-    <button class="card-remove-link" data-id="${p.id}">Click to remove</button>`;
+    </button>${shareBtn}${rowClose}`;
   }
   if (p.stock === 'out'){
     return `${rowOpen}<button class="card-add card-add-disabled" disabled>
@@ -1222,7 +1265,7 @@ async function shareProduct(id){
   const url = productShareUrl(id);
 
   if (navigator.share){
-    try { await navigator.share({ title: p.name, text: `${p.name} — ${fmt(p.price)}`, url }); }
+    try { await navigator.share({ title: toDisplayName(p.name), text: `${toDisplayName(p.name)} — ${fmt(p.price)}`, url }); }
     catch(e){ /* user backed out of the native share sheet — nothing to do */ }
     return;
   }
@@ -1254,7 +1297,7 @@ function bindCardSlot(slot){
   const id = slot.dataset.id || (addBtn && addBtn.dataset.id);
 
   if (addBtn && addBtn.classList.contains('card-add-done')){
-    addBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openCart(); });
+    addBtn.addEventListener('click', (e)=>{ e.stopPropagation(); removeFromCart(addBtn.dataset.id); });
   } else if (addBtn && addBtn.classList.contains('card-add-disabled')){
     // Out of stock — no action.
   } else if (addBtn){
@@ -1324,10 +1367,10 @@ function productCardHtml(p){
       </div>
       <div class="card-body">
         ${stockIndicatorHtml(p)}
-        <div class="card-title">${p.name}</div>
+        <div class="card-title">${titleDisplayName(p)}</div>
         <div class="card-code">${p.id}</div>
         <div class="card-meta">
-          <div class="card-unit"><small>${p.pack}</small><strong>${p.unit}</strong></div>
+          ${packingMetaHtml(p, 'card-unit')}
           <div class="card-price">${fmt(p.price)}</div>
         </div>
         <div class="card-action-slot" data-id="${p.id}">${cardActionHtml(p)}</div>
@@ -1343,6 +1386,82 @@ function bindProductCardClicks(container){
       openProductView(card.dataset.id);
     });
   });
+}
+
+/* ============ Customer-facing "Packing" display ============
+   Admin still sees the raw Pack/Unit fields (Carton / 1 x 4) in the
+   dashboard — see admin.js. Customers see a simplified line instead:
+   a small box icon + "Packing: 4 x 5000ml", derived from the product's
+   `unit` field ("1 x 4" -> 4 pcs/carton) and the size embedded in the
+   product name ("...5000 ML...").                                    */
+const PACKING_ICON_SVG = '<svg class="packing-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8.5 12 4 3 8.5"/><path d="M21 8.5v7L12 20l-9-4.5v-7"/><path d="M12 20v-7.5"/><path d="M21 8.5 12 12.5 3 8.5"/></svg>';
+
+/* ============ Customer-facing product name casing ============
+   Product names are stored ALL CAPS in Supabase (supplier convention).
+   Displaying them Title Case instead reads calmer and less "shouty" —
+   used everywhere the name is shown to a shopper. The raw ALL CAPS
+   value is left untouched in state/DB; this only affects the label. */
+function toDisplayName(name){
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/(^|[\s\-\(\/])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+function parsePackingInfo(p){
+  // Pieces per carton from unit strings like "1 x 4"
+  let pcs = null;
+  if (p.unit) {
+    const m = String(p.unit).match(/(\d+)\s*[x×]\s*(\d+)/i);
+    if (m) pcs = parseInt(m[2], 10);
+  }
+  // Size embedded in the product name, e.g. "5000 ML", "180 GRAM", "3.6 L"
+  let size = null;
+  if (p.name) {
+    const m = String(p.name).match(/(\d+(?:\.\d+)?)\s*(ML|MILLILITERS?|GRAMS?|G|KG|LITERS?|L)\b\.?/i);
+    if (m) {
+      let unit = m[2].toUpperCase();
+      if (unit.startsWith('ML') || unit.startsWith('MILLI')) unit = 'ml';
+      else if (unit.startsWith('GRAM') || unit === 'G') unit = 'g';
+      else if (unit === 'KG') unit = 'kg';
+      else if (unit.startsWith('L')) unit = 'l';
+      size = `${m[1]}${unit}`;
+    }
+  }
+  if (pcs && size) return `${pcs} x ${size}`;
+  if (size) return size;
+  return null;
+}
+
+function packingMetaHtml(p, unitClass){
+  const packing = parsePackingInfo(p);
+  if (packing) {
+    return `<div class="${unitClass} packing"><small class="packing-label">${PACKING_ICON_SVG}<span>Packing</span></small><strong>${packing}</strong></div>`;
+  }
+  // Fallback for the rare product where neither a pack size nor a unit
+  // count could be parsed — show the raw fields rather than nothing.
+  return `<div class="${unitClass}"><small>${p.pack || ''}</small><strong>${p.unit || ''}</strong></div>`;
+}
+
+// Strips the size (e.g. "3800 ML.") and the "(1 X 4) CTN" / "(PUMP 1 X 2)"
+// packing annotation out of the raw name — only used for the card/detail
+// title, where that same info is already shown right below in the
+// Packing badge, so keeping it in the title too is just clutter.
+function cleanProductName(name){
+  if (!name) return '';
+  let s = String(name);
+  // Trailing "(1 X 4) CTN" / ", (1 X 24) CTN" / "(PUMP 1 X 2)"
+  s = s.replace(/\s*,?\s*\(?\s*(?:pump\s*)?\d+\s*[x×]\s*\d+\s*\)?\s*(?:ctn\b\.?)?\s*$/i, '');
+  // Embedded size, e.g. "3800 ML.", "180 GRAM." — plus a trailing dash/comma
+  // separator so words on either side don't collide.
+  s = s.replace(/\s*\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|GRAMS?|G|KG|LITERS?|L)\b\.?\s*[-,]?\s*/i, ' ');
+  return s.replace(/\s{2,}/g, ' ').replace(/^[\s,-]+|[\s,-]+$/g, '').trim();
+}
+
+// Title-cased name for spots where the Packing badge is also shown
+// (product card, product detail) — everywhere else keeps the full name.
+function titleDisplayName(p){
+  return toDisplayName(cleanProductName(p.name));
 }
 
 function productImg(p){
@@ -1385,6 +1504,7 @@ function renderSkeletons(count = 6){
 }
 
 function renderProducts(){
+  updateHeroSearchBar();
   const list = getFilteredProducts();
   const catName = state.category==='all' ? 'All Products' : CATEGORIES.find(c=>c.id===state.category)?.name || 'All Products';
   $('#sectionTitle').textContent = state.query ? `Results for "${state.query}"` : catName;
@@ -1403,17 +1523,17 @@ function renderProducts(){
 function renderProductDetail(p){
   $('#productDetailCard').innerHTML = `
     <div class="pd-media">
-      <img src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')">
+      <img src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')" onclick="openImageQuickView('${productImg(p)}','${p.name.replace(/'/g,"\\'")}')">
     </div>
     <div class="pd-info">
       <div>
         ${stockIndicatorHtml(p)}
-        <div class="pd-title">${p.name}</div>
+        <div class="pd-title">${titleDisplayName(p)}</div>
         <div class="pd-code">${p.id}</div>
       </div>
       <div class="pd-divider"></div>
       <div class="pd-meta">
-        <div class="pd-unit"><small>${p.pack}</small><strong>${p.unit}</strong></div>
+        ${packingMetaHtml(p, 'pd-unit')}
         <div class="pd-price">${fmt(p.price)}</div>
       </div>
       <div class="pd-divider"></div>
@@ -1504,6 +1624,123 @@ function closeProductView(){
   document.body.style.overflow = '';
 }
 
+// Full, uncropped image — opened by tapping the product photo, since
+// .pd-media/.card-media use object-fit:cover and can crop tall/wide shots.
+// Supports pinch-to-zoom, mouse wheel zoom, double-tap/double-click zoom,
+// and drag-to-pan once zoomed in.
+const ivState = { zoom:1, panX:0, panY:0, pinchStartDist:0, pinchStartZoom:1, pointers:new Map(), dragging:false, dragStartX:0, dragStartY:0, panStartX:0, panStartY:0 };
+const IV_MAX_ZOOM = 4, IV_MIN_ZOOM = 1;
+
+function openImageQuickView(src, alt){
+  // Opens on top of the product detail page, which already locks body
+  // scroll — leave that alone so closing this doesn't unlock it early.
+  const img = $('#imageViewImg');
+  img.src = src;
+  img.alt = alt || '';
+  ivResetZoom(false);
+  $('#imageView').classList.add('open');
+}
+function closeImageQuickView(){
+  $('#imageView').classList.remove('open');
+  ivResetZoom(false);
+}
+function ivResetZoom(animate){
+  const img = $('#imageViewImg');
+  ivState.zoom = 1; ivState.panX = 0; ivState.panY = 0;
+  img.classList.toggle('iv-animate', animate !== false);
+  ivApplyTransform();
+}
+function ivApplyTransform(){
+  const img = $('#imageViewImg');
+  img.style.transform = `translate(${ivState.panX}px, ${ivState.panY}px) scale(${ivState.zoom})`;
+  $('#imageView').classList.toggle('is-zoomed', ivState.zoom > 1.01);
+}
+function ivClampZoom(z){ return Math.min(IV_MAX_ZOOM, Math.max(IV_MIN_ZOOM, z)); }
+function ivClampPan(){
+  // Keep the image from being dragged completely off-screen once zoomed.
+  const wrap = $('.image-view-wrap');
+  const img = $('#imageViewImg');
+  const maxX = Math.max(0, (img.clientWidth * ivState.zoom - wrap.clientWidth) / 2);
+  const maxY = Math.max(0, (img.clientHeight * ivState.zoom - wrap.clientHeight) / 2);
+  ivState.panX = Math.min(maxX, Math.max(-maxX, ivState.panX));
+  ivState.panY = Math.min(maxY, Math.max(-maxY, ivState.panY));
+}
+
+function bindImageQuickViewZoom(){
+  const wrap = $('.image-view-wrap');
+  const img = $('#imageViewImg');
+  if (!wrap || !img) return;
+
+  // Mouse wheel / trackpad zoom (desktop)
+  wrap.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    img.classList.remove('iv-animate');
+    ivState.zoom = ivClampZoom(ivState.zoom + (e.deltaY < 0 ? 0.25 : -0.25));
+    if (ivState.zoom <= 1) { ivState.panX = 0; ivState.panY = 0; }
+    ivClampPan();
+    ivApplyTransform();
+  }, { passive:false });
+
+  // Double-click / double-tap to toggle zoom
+  let lastTap = 0;
+  function toggleZoomAt(){
+    img.classList.add('iv-animate');
+    if (ivState.zoom > 1) { ivState.zoom = 1; ivState.panX = 0; ivState.panY = 0; }
+    else { ivState.zoom = 2.5; }
+    ivApplyTransform();
+  }
+  wrap.addEventListener('dblclick', toggleZoomAt);
+  wrap.addEventListener('touchend', ()=>{
+    const now = Date.now();
+    if (now - lastTap < 300) toggleZoomAt();
+    lastTap = now;
+  });
+
+  // Pinch-to-zoom + drag-to-pan via Pointer Events (covers touch and mouse)
+  wrap.addEventListener('pointerdown', (e)=>{
+    ivState.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (ivState.pointers.size === 1 && ivState.zoom > 1){
+      ivState.dragging = true;
+      ivState.dragStartX = e.clientX; ivState.dragStartY = e.clientY;
+      ivState.panStartX = ivState.panX; ivState.panStartY = ivState.panY;
+      img.classList.remove('iv-animate');
+    } else if (ivState.pointers.size === 2){
+      ivState.dragging = false;
+      const pts = [...ivState.pointers.values()];
+      ivState.pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      ivState.pinchStartZoom = ivState.zoom;
+      img.classList.remove('iv-animate');
+    }
+  });
+  wrap.addEventListener('pointermove', (e)=>{
+    if (!ivState.pointers.has(e.pointerId)) return;
+    ivState.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (ivState.pointers.size === 2){
+      const pts = [...ivState.pointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (ivState.pinchStartDist > 0){
+        ivState.zoom = ivClampZoom(ivState.pinchStartZoom * (dist / ivState.pinchStartDist));
+        ivClampPan();
+        ivApplyTransform();
+      }
+    } else if (ivState.dragging){
+      ivState.panX = ivState.panStartX + (e.clientX - ivState.dragStartX);
+      ivState.panY = ivState.panStartY + (e.clientY - ivState.dragStartY);
+      ivClampPan();
+      ivApplyTransform();
+    }
+  });
+  function endPointer(e){
+    ivState.pointers.delete(e.pointerId);
+    ivState.dragging = false;
+    ivState.pinchStartDist = 0;
+    if (ivState.zoom <= 1){ ivState.zoom = 1; ivState.panX = 0; ivState.panY = 0; ivApplyTransform(); }
+  }
+  wrap.addEventListener('pointerup', endPointer);
+  wrap.addEventListener('pointercancel', endPointer);
+  wrap.addEventListener('pointerleave', endPointer);
+}
+
 // Only one full-screen .profile-view panel (Profile / My Orders / Product
 // detail) should be open at a time — they all share the same z-index, and
 // #productView sits later in the DOM, so if it's left open it silently
@@ -1570,7 +1807,7 @@ function updateCartUI(){
       <div class="cart-row">
         <div class="cart-row-media"><img class="cart-row-img" decoding="async" src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')"></div>
         <div class="cart-row-info">
-          <div class="cart-row-title">${p.name}</div>
+          <div class="cart-row-title">${toDisplayName(p.name)}</div>
           <div class="cart-row-price">${fmt(lineTotal)}</div>
           <div class="cart-row-qty">
             <button data-qty-minus="${id}">&minus;</button>
@@ -2661,7 +2898,7 @@ function renderOrdersView(){
     <div class="order-item-row">
       <div class="order-item-media"><img src="${productImg(PRODUCTS.find(p=>p.id===it.id) || it)}" alt="${it.name}" onerror="this.classList.add('img-missing')"></div>
       <div class="order-item-info">
-        <div class="order-item-name">${it.name}</div>
+        <div class="order-item-name">${toDisplayName(it.name)}</div>
         <div class="order-item-meta">${it.pack} · Qty ${it.qty}</div>
       </div>
       <div class="order-item-price">${fmtCur(it.price*it.qty, order.currency || 'MVR')}</div>
@@ -2789,7 +3026,7 @@ function openOrderConfirmModal(order){
     <div class="oc-item-row">
       <div class="oc-item-media"><img src="${productImg(PRODUCTS.find(p=>p.id===it.id) || it)}" alt="${it.name}" onerror="this.classList.add('img-missing')"></div>
       <div class="oc-item-info">
-        <div class="oc-item-name">${it.name}</div>
+        <div class="oc-item-name">${toDisplayName(it.name)}</div>
         <div class="oc-item-meta">${it.pack} &middot; Qty ${it.qty}</div>
       </div>
       <div class="oc-item-price">${fmtCur(it.price * it.qty, order.currency || 'MVR')}</div>
@@ -2887,7 +3124,7 @@ function renderReceiptContent(order){
     <div class="receipt-items">
       ${order.items.map(it => `
         <div class="receipt-item">
-          <div class="receipt-item-name">${it.name}</div>
+          <div class="receipt-item-name">${toDisplayName(it.name)}</div>
           <div class="receipt-item-sub">
             <span>${it.pack} &times; ${it.qty} @ ${fmtCur(it.price, order.currency || 'MVR')}</span>
             <span>${fmtCur(it.price * it.qty, order.currency || 'MVR')}</span>
@@ -3033,10 +3270,21 @@ function openProfileView(){
   // and ends up with the last name doubled everywhere ("Monir Ahmed Ahmed").
   let pvFirst = session.firstName || session.name || '';
   let pvLast = session.lastName || '';
-  if (!pvLast && pvFirst.trim().includes(' ')){
-    const split = splitFullName(pvFirst);
+  const pvFirstTrimmed = pvFirst.trim();
+  if (!pvLast && pvFirstTrimmed.includes(' ')){
+    const split = splitFullName(pvFirstTrimmed);
     pvFirst = split.first;
     pvLast = split.last;
+  } else if (pvLast && pvFirstTrimmed.includes(' ')){
+    // First Name already contains the full "First Last" string while Last
+    // Name is separately populated (stale data from before this was fixed) —
+    // strip the last name back out instead of showing it twice.
+    const pvLastTrimmed = pvLast.trim();
+    if (pvFirstTrimmed === pvLastTrimmed){
+      pvFirst = '';
+    } else if (pvFirstTrimmed.endsWith(' ' + pvLastTrimmed)){
+      pvFirst = pvFirstTrimmed.slice(0, pvFirstTrimmed.length - pvLastTrimmed.length).trim();
+    }
   }
   $('#pvFirstName').value = pvFirst;
   $('#pvLastName').value = pvLast;
@@ -3342,9 +3590,9 @@ function renderMobileSearchBody(rawValue){
     body.innerHTML = `
       <div class="ms-section-head"><span>Suggestions</span></div>
       ${matches.map(p => `
-        <button class="ms-suggest-row" data-suggest="${p.name.replace(/"/g,'&quot;')}">
+        <button class="ms-suggest-row" data-suggest="${toDisplayName(p.name).replace(/"/g,'&quot;')}">
           <span class="ms-row-icon"><img src="${productImg(p)}" alt="" onerror="this.classList.add('img-missing')"></span>
-          <span class="ms-row-text">${p.name}</span>
+          <span class="ms-row-text">${toDisplayName(p.name)}</span>
         </button>
       `).join('')}
     `;
@@ -3366,8 +3614,8 @@ function renderMobileSearchBody(rawValue){
     </div>
     <div class="ms-recent-tags">
       ${state.recentSearches.map(term => `
-        <button class="ms-recent-tag" data-recent="${escapeHtml(term)}">
-          <span>${escapeHtml(term)}</span>
+        <button class="ms-recent-tag" data-recent="${escapeHtml(term)}" title="${escapeHtml(term)}">
+          <span class="ms-recent-tag-label">${escapeHtml(term)}</span>
           <span class="ms-recent-tag-remove" data-remove-recent="${escapeHtml(term)}" aria-label="Remove">&times;</span>
         </button>
       `).join('')}
@@ -3687,6 +3935,8 @@ function init(){
 
   $('#profileViewClose').addEventListener('click', closeProfileView);
   $('#productViewClose').addEventListener('click', closeProductView);
+  $('#imageViewClose').addEventListener('click', closeImageQuickView);
+  bindImageQuickViewZoom();
   $('#similarPrevBtn').addEventListener('click', ()=> scrollSimilarCarousel(-1));
   $('#similarNextBtn').addEventListener('click', ()=> scrollSimilarCarousel(1));
   $('#similarProductsGrid').addEventListener('scroll', ()=> updateSimilarCarouselArrows(), { passive:true });
@@ -3731,6 +3981,15 @@ function init(){
 
   const heroSearchBar = $('#heroSearchBar');
   if (heroSearchBar) heroSearchBar.addEventListener('click', openMobileSearch);
+  $('#heroSearchClear')?.addEventListener('click', e=>{
+    // Don't let the click bubble up to heroSearchBar's own listener, or
+    // clearing the search would immediately reopen the search panel.
+    e.stopPropagation();
+    state.query = '';
+    $('#searchInput').value = '';
+    $('#mobileSearchInput').value = '';
+    renderProducts();
+  });
 
   function scrollToCatalog(){
     const target = $('#sectionTitle');
@@ -3929,11 +4188,21 @@ function init(){
    the redirect and never runs again once the shopper is back on the site.
    Guarded so it never re-fires the email/password flow's own success UI:
    that path already calls applyAuthenticatedSession() itself and sets the
-   local session before this listener's SIGNED_IN event even arrives. */
+   local session before this listener's SIGNED_IN event even arrives.
+
+   Also handles INITIAL_SESSION: the SIGNED_IN event fires once, as soon as
+   supabase-js finishes parsing the redirect URL, which can happen before
+   this listener has even subscribed (it depends on how long the rest of
+   page init takes). When that race is lost, SIGNED_IN is missed forever —
+   the session is still saved to storage, but this code never hears about
+   it, so the UI is stuck showing the shopper as logged out even though
+   they aren't. INITIAL_SESSION is emitted to every subscriber exactly
+   once, right after the client finishes initializing, no matter when it
+   subscribed — so it's a reliable fallback that always fires. */
 function bindGoogleAuthLanding(){
   if (!window.MaziAPI || !MaziAPI.onAuthChange) return;
   MaziAPI.onAuthChange((event, session)=>{
-    if (event !== 'SIGNED_IN' || !session || !session.user) return;
+    if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !session || !session.user) return;
     if (getSession()) return; // already signed in locally — the email/password flow handled it
     const provider = session.user.app_metadata && session.user.app_metadata.provider;
     if (provider !== 'google') return;

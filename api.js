@@ -544,6 +544,22 @@
     };
   }
 
+  // Realtime order updates for staff/admin (ALL orders, not just one user's —
+  // that's subscribeOrders above, used by the customer-facing live tracker).
+  // RLS (orders_select, see 01_schema.sql) already limits what any given
+  // account receives to user_id = self OR is_admin() = true, so a staff
+  // account only ever hears about the full order stream, same as a normal
+  // adminListOrders() call would return. Requires public.orders to be in the
+  // supabase_realtime publication (already done in 01_schema.sql, section 9).
+  function subscribeAdminOrders(cb) {
+    var channel = getClient().channel('orders-live-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, function (payload) { cb(payload); })
+      .subscribe();
+    return function unsubscribe() {
+      try { getClient().removeChannel(channel); } catch (e) {}
+    };
+  }
+
   // ============================================================
   // Staff / admin (only works for profiles with is_admin = true)
   // ============================================================
@@ -606,6 +622,12 @@
   function adminSetSuperAdmin(userId, isSuper) {
     return run(function () {
       return getClient().rpc('admin_set_super_admin', { p_user: userId, p_is_super: !!isSuper }).then(unwrap);
+    });
+  }
+  // ---- reject/delete a pending Admin Sign Up request (needs supabase/32_admin_delete_signup_request.sql) ----
+  function adminDeleteSignupRequest(userId) {
+    return run(function () {
+      return getClient().rpc('admin_delete_signup_request', { p_user: userId }).then(unwrap);
     });
   }
   // ---- stock control (needs supabase/08_stock.sql) ----
@@ -751,10 +773,11 @@
     listShops: listShops, addShop: addShop, updateShop: updateShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
     getProfile: getProfile, claimAdminSignup: claimAdminSignup, updateProfile: updateProfile, updateStaffName: updateStaffName, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
-    cancelOrder: cancelOrder, subscribeOrders: subscribeOrders, subscribeProducts: subscribeProducts, subscribeProfiles: subscribeProfiles,
+    cancelOrder: cancelOrder, subscribeOrders: subscribeOrders, subscribeAdminOrders: subscribeAdminOrders, subscribeProducts: subscribeProducts, subscribeProfiles: subscribeProfiles,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
     adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus, adminListProfileChanges: adminListProfileChanges,
     adminListAccounts: adminListAccounts, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
+    adminDeleteSignupRequest: adminDeleteSignupRequest,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
     adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,
     adminUpdateProduct: adminUpdateProduct, adminAddProduct: adminAddProduct, adminListProductEditLog: adminListProductEditLog,
