@@ -143,6 +143,7 @@
       total: Number(o.total),
       currency: o.currency || 'MVR',
       refundStatus: o.refund_status || 'none',
+      orderType: o.order_type || 'online',
       customer: {
         name: customer.name, mobile: customer.mobile,
         method: o.method, location: o.location || {},
@@ -184,7 +185,14 @@
         return (rows || []).map(function (p) {
           var out = { id: p.id, name: p.name, cat: p.category, icon: p.icon, pack: p.pack,
                       unit: p.unit, price: p.price, stock: p.stock };
-          if (p.image_url) out.img = p.image_url;
+          // Only trust image_url from the database when it's a real uploaded
+          // Storage URL (http/https) — some rows still carry stale, old-style
+          // relative paths from early seed data (full product names + .jpg)
+          // that never matched the actual files on disk. For anything else,
+          // always resolve to the known img/household&cleaning/<id>.png
+          // convention that every current product photo actually uses.
+          var isUploadedUrl = p.image_url && /^https?:\/\//i.test(p.image_url);
+          out.img = isUploadedUrl ? p.image_url : ('img/household&cleaning/' + p.id + '.png');
           return out;
         });
       });
@@ -702,6 +710,71 @@
       return getClient().rpc('admin_delete_product', { p_product_id: productId }).then(unwrap);
     });
   }
+  // ============================================================
+  // Walk-in POS (needs supabase/36_walkin_pos.sql)
+  // Admin-only: create a walk-in sale directly, or a quotation first.
+  // opts = { cart:{productId:qty} OR items:[{product_id,qty}], name, mobile, note }
+  // ============================================================
+  function posPayload(opts) {
+    opts = opts || {};
+    var items = opts.items || Object.keys(opts.cart || {}).map(function (id) {
+      return { product_id: id, qty: opts.cart[id] };
+    });
+    return { items: items, customer: { name: opts.name || '', mobile: opts.mobile || '' }, note: opts.note || '' };
+  }
+  function normalizeQuotation(q) {
+    if (!q) return null;
+    var items = (q.items || q.quotation_items || []).map(function (it) {
+      return { id: it.product_id, name: it.name, pack: it.pack, unit: it.unit, price: Number(it.price), qty: it.qty };
+    });
+    var customer = q.customer || { name: q.customer_name, mobile: q.customer_mobile };
+    return {
+      id: q.id,
+      status: q.status,
+      createdAt: new Date(q.created_at || Date.now()).getTime(),
+      items: items,
+      subtotal: Number(q.subtotal),
+      gst: Number(q.gst),
+      total: Number(q.total),
+      note: q.note || '',
+      convertedOrderId: q.converted_order_id || null,
+      customer: { name: customer.name, mobile: customer.mobile }
+    };
+  }
+  // Confirmed walk-in sale — takes stock off immediately (same rules as an
+  // online order: not enough stock raises INSUFFICIENT_STOCK / OUT_OF_STOCK-
+  // style errors and nothing is saved).
+  function adminCreateWalkinOrder(opts) {
+    return run(function () {
+      return getClient().rpc('admin_create_walkin_order', { payload: posPayload(opts) }).then(unwrap).then(normalizeOrder);
+    });
+  }
+  // Quotation only — no stock impact. Convert it later with adminConvertQuotation.
+  function adminCreateQuotation(opts) {
+    return run(function () {
+      return getClient().rpc('admin_create_quotation', { payload: posPayload(opts) }).then(unwrap).then(normalizeQuotation);
+    });
+  }
+  // Turns an OPEN quotation into a real walk-in order (stock moves now, at
+  // conversion time). Returns the new order.
+  function adminConvertQuotation(quotationId) {
+    return run(function () {
+      return getClient().rpc('admin_convert_quotation', { p_id: quotationId }).then(unwrap).then(normalizeOrder);
+    });
+  }
+  function adminVoidQuotation(quotationId) {
+    return run(function () {
+      return getClient().rpc('admin_void_quotation', { p_id: quotationId }).then(unwrap).then(normalizeQuotation);
+    });
+  }
+  function adminListQuotations(status) {
+    return run(function () {
+      var q = getClient().from('quotations').select('*, quotation_items(*)').order('created_at', { ascending: false });
+      if (status) q = q.eq('status', status);
+      return q.then(unwrap).then(function (rows) { return (rows || []).map(normalizeQuotation); });
+    });
+  }
+
   // Temporary (5 min) link to view a private payment slip
   function getSlipUrl(path) {
     return run(function () {
@@ -782,6 +855,9 @@
     adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,
     adminUpdateProduct: adminUpdateProduct, adminAddProduct: adminAddProduct, adminListProductEditLog: adminListProductEditLog,
     adminDeleteProduct: adminDeleteProduct,
-    uploadProductImage: uploadProductImage
+    uploadProductImage: uploadProductImage,
+    adminCreateWalkinOrder: adminCreateWalkinOrder, adminCreateQuotation: adminCreateQuotation,
+    adminConvertQuotation: adminConvertQuotation, adminVoidQuotation: adminVoidQuotation,
+    adminListQuotations: adminListQuotations
   };
 })();

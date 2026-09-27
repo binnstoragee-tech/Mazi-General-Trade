@@ -534,7 +534,7 @@
     if (busy) return Promise.resolve();
     busy = true;
     var jobs = [loadOrders(initial)];
-    if (S.view === 'stock' || S.view === 'dashboard' || initial) jobs.push(loadStock());
+    if (S.view === 'stock' || S.view === 'dashboard' || S.view === 'pos' || initial) jobs.push(loadStock());
     if (isSuperAdmin(S.profile) && (S.view === 'accounts' || initial)) jobs.push(loadShops(), loadProfileChanges());
     if (isSuperAdmin(S.profile) && (S.view === 'accounts' || S.view === 'staffaccess' || initial)) jobs.push(loadAccounts());
     return Promise.all(jobs).catch(function (e) {
@@ -567,7 +567,7 @@
   /* ============ helpers ============ */
   function findOrder(id) { return S.orders.filter(function (o) { return o.id === id; })[0]; }
   function findProduct(id) { return S.products.filter(function (p) { return p.id === id; })[0]; }
-  function typeOf(o) { return TYPE_LABEL[o.customer && o.customer.method] || '—'; }
+  function typeOf(o) { return o.orderType === 'walkin' ? 'Walk-in' : (TYPE_LABEL[o.customer && o.customer.method] || '—'); }
   function locationText(o) {
     var l = (o.customer && o.customer.location) || {}, m = o.customer && o.customer.method, out = [];
     if (m === 'pickup') {
@@ -607,7 +607,7 @@
       (S.view === 'staffaccess' ? 'Search name or email' : 'Search order, name or mobile'));
     if ($('search').value !== S.q) $('search').value = S.q;
     var searchWrap = document.querySelector('.search');
-    if (searchWrap) searchWrap.classList.toggle('hidden', S.view === 'dashboard');
+    if (searchWrap) searchWrap.classList.toggle('hidden', S.view === 'dashboard' || S.view === 'pos');
 
     // Only replay the rise-up / chart-draw animations when we actually land on
     // a view for the first time (switching tabs). A background poll re-renders
@@ -621,6 +621,7 @@
     else if (S.view === 'stock') renderStock();
     else if (S.view === 'accounts') renderAccounts();
     else if (S.view === 'staffaccess') renderStaffAccess();
+    else if (S.view === 'pos') { if (freshMount) { posReset(); loadPosQuotations(); } renderPos(); }
     else renderOrders();
     // Same rise-up entrance as the dashboard, applied to whatever landed in the
     // panel — works for every view (Orders, Order History, Stock, Accounts,
@@ -694,6 +695,7 @@
 
     h += weeklyChartHtml(live);
     h += monthlySalesHtml(orders);
+    h += topSellingProductsHtml(live);
     h += '</div><div>';
     h += activityFeedHtml();
     h += notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount);
@@ -892,6 +894,42 @@
       (rows || '<div class="empty" style="padding:16px">No sales in ' + esc(activeYear) + '.</div>') + moreBtn +
       '<div class="month-total"><span>' + totalLabel + '</span><span>' + num(grandCnt) + '</span><span>' + esc(mvr(grandRev)) + '</span><span></span></div>' +
       '</div>';
+  }
+
+  // Top Selling Products — aggregates order_items across all live orders
+  // (walk-in + online, same "live" rule as the rest of the dashboard: not
+  // cancelled, not still 'placed') from the last 30 days, ranked by revenue.
+  // Reuses data already in S.orders/S.products — no new table, no new query.
+  function topSellingProductsHtml(live) {
+    var cutoff = Date.now() - 30 * 86400000;
+    var byProduct = {};
+    live.forEach(function (o) {
+      if (o.placedAt < cutoff) return;
+      (o.items || []).forEach(function (it) {
+        var key = it.id || it.name;
+        if (!byProduct[key]) byProduct[key] = { id: it.id, name: it.name, qty: 0, rev: 0 };
+        byProduct[key].qty += Number(it.qty) || 0;
+        byProduct[key].rev += (Number(it.qty) || 0) * (Number(it.price) || 0);
+      });
+    });
+    var list = Object.keys(byProduct).map(function (k) { return byProduct[k]; })
+      .sort(function (a, b) { return b.rev - a.rev; })
+      .slice(0, 6);
+    var body = !list.length
+      ? '<div class="empty" style="padding:16px">No sales in the last 30 days.</div>'
+      : list.map(function (x, i) {
+        var p = findProduct(x.id);
+        var thumb = (p && p.image_url)
+          ? '<img class="ico thumb" src="' + esc(p.image_url) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<span class=&quot;ico&quot;>' + esc((p && p.icon) || '📦') + '</span>\'">'
+          : '<span class="ico">' + esc((p && p.icon) || '📦') + '</span>';
+        return '<div class="topprod-row">' +
+          '<span class="topprod-rank">' + (i + 1) + '</span>' +
+          thumb +
+          '<span class="topprod-name">' + esc(x.name || '—') + '</span>' +
+          '<span class="topprod-figs"><span class="topprod-rev">' + esc(mvr(x.rev)) + '</span><span class="topprod-sold">' + num(x.qty) + ' sold</span></span>' +
+          '</div>';
+      }).join('');
+    return '<div class="box" style="margin-top:16px"><h3>Top Selling Products</h3><p class="topprod-lead">Your best movers · last 30 days</p>' + body + '</div>';
   }
 
   function activityFeedHtml() {
@@ -1422,6 +1460,312 @@
     run();
   }
 
+  /* ============ Walk-in / POS (needs supabase/36_walkin_pos.sql) ============ */
+  var POS = { cart: {}, mode: 'order', name: '', mobile: '', note: '', q: '', quotations: [], busy: false };
+
+  function posReset() { POS.cart = {}; POS.mode = 'order'; POS.name = ''; POS.mobile = ''; POS.note = ''; POS.q = ''; POS.busy = false; }
+
+  function loadPosQuotations() {
+    MaziAPI.adminListQuotations().then(function (rows) {
+      POS.quotations = (rows || []).filter(function (q) { return q.status === 'open'; }).slice(0, 20);
+      if (S.view === 'pos') renderPos();
+    }).catch(function () { POS.quotations = []; if (S.view === 'pos') renderPos(); });
+  }
+
+  function posCartTotal() {
+    return Object.keys(POS.cart).reduce(function (sum, id) {
+      var p = findProduct(id); if (!p) return sum;
+      return sum + Number(p.price || 0) * POS.cart[id];
+    }, 0);
+  }
+
+  function posProductResultsHtml() {
+    var q = POS.q.trim().toLowerCase();
+    var list = (S.products || []).filter(function (p) { return p.active !== false; });
+    if (q) {
+      list = list.filter(function (p) {
+        return (p.name || '').toLowerCase().indexOf(q) >= 0 || (p.id || '').toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    list = list.slice(0, 60);
+    if (!list.length) return '<div class="pos-list-empty">No products found.</div>';
+    return list.map(function (p, i) {
+      var sk = stockStatus(p);
+      var disabled = sk.key === 'out';
+      var pid = esc(p.id);
+      var thumb = p.image_url
+        ? '<img class="ico thumb" src="' + esc(p.image_url) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<span class=&quot;ico&quot;>' + esc(p.icon || '📦') + '</span>\'">'
+        : '<span class="ico">' + esc(p.icon || '📦') + '</span>';
+      return '<div class="pos-row rise-item" style="animation-delay:' + (Math.min(i, 12) * 0.02) + 's">' +
+        thumb +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="pos-row-name">' + esc(productDisplayName(p.name)) + '</div>' +
+          '<div class="pos-row-meta">' + pid + (p.pack ? ' · ' + esc(p.pack) : '') + ' · ' + esc(mvr(p.price)) + ' · ' + esc(sk.label || sk.key) + '</div>' +
+        '</div>' +
+        '<button type="button" class="btn ' + (disabled ? 'ghost' : 'primary') + ' sm pos-add-btn" data-pos-add="' + pid + '"' + (disabled ? ' disabled' : '') + '>Add</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function posCartHtml() {
+    var ids = Object.keys(POS.cart);
+    if (!ids.length) return '<div class="pos-cart-empty">Cart is empty — add products from the left.</div>';
+    return ids.map(function (id) {
+      var p = findProduct(id);
+      var name = p ? productDisplayName(p.name) : id;
+      var price = p ? Number(p.price || 0) : 0;
+      var qty = POS.cart[id];
+      return '<div class="pos-cart-row">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="pos-row-name">' + esc(name) + '</div>' +
+          '<div class="pos-row-meta">' + esc(mvr(price)) + ' each</div>' +
+        '</div>' +
+        '<button type="button" class="btn ghost sm" style="width:26px;height:26px;padding:0" data-pos-dec="' + esc(id) + '">−</button>' +
+        '<input class="inp" style="width:48px;text-align:center;padding:4px" data-pos-qty="' + esc(id) + '" value="' + qty + '">' +
+        '<button type="button" class="btn ghost sm" style="width:26px;height:26px;padding:0" data-pos-inc="' + esc(id) + '">+</button>' +
+        '<div style="width:74px;text-align:right;font-weight:500;font-size:12.5px">' + esc(mvr(price * qty)) + '</div>' +
+        '<button type="button" class="btn danger sm" style="width:26px;height:26px;padding:0" data-pos-remove="' + esc(id) + '">' + ICON.trash + '</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function posQuotationsHtml() {
+    if (!POS.quotations.length) return '<div class="pos-cart-empty">No open quotations.</div>';
+    return POS.quotations.map(function (q) {
+      return '<div class="pos-quote-row">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="pos-quote-name">' + esc(q.id) + ' · ' + esc(q.customer.name || 'Walk-in customer') + '</div>' +
+          '<div class="pos-row-meta">' + esc(mvr(q.total)) + ' · ' + q.items.length + ' item(s) · ' + esc(fmtDate(q.createdAt)) + '</div>' +
+        '</div>' +
+        '<button type="button" class="btn neutral sm" data-pos-print-quote="' + esc(q.id) + '">Print</button>' +
+        '<button type="button" class="btn primary sm" data-pos-convert="' + esc(q.id) + '">Confirm sale</button>' +
+        '<button type="button" class="btn danger sm" data-pos-void="' + esc(q.id) + '">Void</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  var lastPosTotal = null;
+  function renderPos() {
+    var total = posCartTotal();
+    var bump = lastPosTotal !== null && total !== lastPosTotal;
+    lastPosTotal = total;
+    var h = '<h1>Walk-in / POS</h1><p class="lead">Ring up an in-person sale, or make a quotation first and confirm it later.</p>' +
+      '<div class="pos-wrap">' +
+        '<div class="pos-col">' +
+          '<div class="field" style="margin-bottom:0"><input class="inp" id="posSearch" placeholder="Search product name or code…" value="' + esc(POS.q) + '"></div>' +
+          '<div class="pos-list">' + posProductResultsHtml() + '</div>' +
+        '</div>' +
+        '<div class="pos-col">' +
+          '<div class="pos-mode">' +
+            '<button type="button" class="' + (POS.mode === 'order' ? 'active' : '') + '" data-pos-mode="order">Confirmed order</button>' +
+            '<button type="button" class="' + (POS.mode === 'quotation' ? 'active' : '') + '" data-pos-mode="quotation">Quotation only</button>' +
+          '</div>' +
+          '<div class="pos-cart">' + posCartHtml() + '</div>' +
+          '<div class="pos-total' + (bump ? ' bump' : '') + '"><span>Total (GST incl.)</span><b>' + esc(mvr(total)) + '</b></div>' +
+          '<div class="field" style="margin-bottom:8px"><label>Customer name (optional)</label><input class="inp" id="posName" value="' + esc(POS.name) + '" placeholder="Walk-in customer"></div>' +
+          '<div class="field" style="margin-bottom:8px"><label>Mobile (optional)</label><input class="inp" id="posMobile" value="' + esc(POS.mobile) + '"></div>' +
+          '<div class="field" style="margin-bottom:0"><label>Note (optional)</label><input class="inp" id="posNote" value="' + esc(POS.note) + '"></div>' +
+          '<div class="err" id="posErr"></div>' +
+          '<button type="button" class="btn primary pos-submit" style="width:100%" id="posSubmitBtn" data-pos-submit>' +
+            (POS.mode === 'quotation' ? 'Create quotation' : 'Complete sale &amp; print slip') +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="box" style="margin-top:18px"><h3>Open quotations</h3>' + posQuotationsHtml() + '</div>';
+    $('panel').innerHTML = h;
+  }
+
+  function posSubmit() {
+    if (POS.busy) return;
+    if (!Object.keys(POS.cart).length) { var e0 = $('posErr'); if (e0) e0.textContent = 'Add at least one product to the cart.'; return; }
+    var opts = {
+      cart: POS.cart,
+      name: $('posName') ? $('posName').value.trim() : POS.name,
+      mobile: $('posMobile') ? $('posMobile').value.trim() : POS.mobile,
+      note: $('posNote') ? $('posNote').value.trim() : POS.note
+    };
+    var btn = $('posSubmitBtn');
+    POS.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Please wait…'; }
+    var isQuote = POS.mode === 'quotation';
+    var call = isQuote ? MaziAPI.adminCreateQuotation(opts) : MaziAPI.adminCreateWalkinOrder(opts);
+    call.then(function (result) {
+      POS.busy = false;
+      toast(isQuote ? 'Quotation ' + result.id + ' created' : 'Sale ' + result.id + ' completed');
+      if (isQuote) { openPrintable(buildQuotationDocHtml(result)); }
+      else { openPrintable(buildWalkinSlipHtml(result)); loadStock().then(render); loadOrders(true).then(render); }
+      posReset();
+      renderPos();
+      loadPosQuotations();
+    }).catch(function (e) {
+      POS.busy = false;
+      renderPos();
+      var err = $('posErr'); if (err) err.textContent = e.message || 'Could not complete this.';
+    });
+  }
+
+  function posConvertQuotation(id) {
+    showConfirm({
+      title: 'Confirm this sale?',
+      message: 'This takes the items off stock and creates a walk-in order from quotation ' + id + '.',
+      confirmLabel: 'Confirm sale',
+      onConfirm: function () {
+        MaziAPI.adminConvertQuotation(id).then(function (order) {
+          toast('Converted to sale ' + order.id);
+          openPrintable(buildWalkinSlipHtml(order));
+          loadStock().then(render); loadOrders(true).then(render);
+          loadPosQuotations();
+        }).catch(function (e) { toast(e.message || 'Could not confirm this sale.', true); });
+      }
+    });
+  }
+  function posVoidQuotation(id) {
+    showConfirm({
+      title: 'Void this quotation?',
+      message: 'Quotation ' + id + ' will be marked void. This cannot be undone.',
+      confirmLabel: 'Void it',
+      danger: true,
+      onConfirm: function () {
+        MaziAPI.adminVoidQuotation(id).then(function () {
+          toast('Quotation voided'); loadPosQuotations();
+        }).catch(function (e) { toast(e.message || 'Could not void this.', true); });
+      }
+    });
+  }
+  function posPrintExistingQuotation(id) {
+    var q = POS.quotations.filter(function (x) { return x.id === id; })[0];
+    if (q) { openPrintable(buildQuotationDocHtml(q)); return; }
+    MaziAPI.adminListQuotations().then(function (rows) {
+      var found = (rows || []).filter(function (x) { return x.id === id; })[0];
+      if (found) openPrintable(buildQuotationDocHtml(found)); else toast('Quotation not found.', true);
+    }).catch(function (e) { toast(e.message || 'Could not load quotation.', true); });
+  }
+
+  /* ---- printable slip (walk-in sale, 80mm) / quotation (A4) ---- */
+  function posStoreInfo() {
+    return { name: 'MAZI General Trade', addr: "Male', Republic of Maldives", email: 'mazigeneraltrade@gmail.com', phone: '+960 929 1600' };
+  }
+  function openPrintable(html) {
+    var blob = new Blob([html], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var w = window.open(url, '_blank');
+    if (!w) toast('Please allow pop-ups to print or save this as a PDF.', true);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+  }
+  function buildWalkinSlipHtml(order) {
+    var store = posStoreInfo();
+    var itemsHtml = order.items.map(function (it) {
+      return '<div class="receipt-item"><div class="receipt-item-name">' + esc(productDisplayName(it.name)) + '</div>' +
+        '<div class="receipt-item-sub"><span>' + (it.pack ? esc(it.pack) + ' &times; ' : '') + it.qty + ' @ ' + esc(mvr(it.price)) + '</span><span>' + esc(mvr(it.price * it.qty)) + '</span></div></div>';
+    }).join('');
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Slip - ' + esc(order.id) + '</title><style>' +
+      '@page{ size:80mm auto; margin:2mm; } *{box-sizing:border-box;}' +
+      'body{margin:0;background:#F8F7F2;font-family:\'Courier New\',Courier,monospace;color:#16211C;display:flex;justify-content:center;padding:24px 12px;}' +
+      '.receipt-paper{background:#fff;width:80mm;max-width:100%;box-shadow:0 2px 10px rgba(15,58,46,.14);padding:18px 16px;}' +
+      '.receipt-store-name{font-size:14px;font-weight:700;text-align:center;letter-spacing:.02em;}' +
+      '.receipt-store-addr{font-size:10.5px;text-align:center;color:#5C6B63;margin-top:2px;}' +
+      '.receipt-divider{border-top:1px dashed #b9b6a9;margin:10px 0;}' +
+      '.receipt-meta-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;}' +
+      '.receipt-items{display:flex;flex-direction:column;gap:8px;}' +
+      '.receipt-item-name{font-size:11.5px;font-weight:700;}' +
+      '.receipt-item-sub{display:flex;justify-content:space-between;font-size:11px;color:#5C6B63;margin-top:1px;}' +
+      '.receipt-total-row{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;}' +
+      '.receipt-footer{font-size:11.5px;text-align:center;font-weight:700;margin-top:2px;}' +
+      '.receipt-footer-small{font-size:9.5px;text-align:center;color:#5C6B63;margin-top:3px;}' +
+      '@media print{ body{background:#fff;padding:0;} .receipt-paper{box-shadow:none;margin:0 auto;} }' +
+      '</style></head><body><div class="receipt-paper">' +
+        '<div class="receipt-store-name">' + esc(store.name) + '</div>' +
+        '<div class="receipt-store-addr">' + esc(store.addr) + '</div>' +
+        '<div class="receipt-store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div>' +
+        '<div class="receipt-divider"></div>' +
+        '<div class="receipt-meta-row"><span>Sale #</span><span>' + esc(order.id) + '</span></div>' +
+        '<div class="receipt-meta-row"><span>Date</span><span>' + esc(fmtDate(order.placedAt)) + '</span></div>' +
+        '<div class="receipt-meta-row"><span>Customer</span><span>' + esc(order.customer.name || 'Walk-in customer') + '</span></div>' +
+        '<div class="receipt-divider"></div>' +
+        '<div class="receipt-items">' + itemsHtml + '</div>' +
+        '<div class="receipt-divider"></div>' +
+        '<div class="receipt-total-row"><span>Total</span><span>' + esc(mvr(order.total)) + '</span></div>' +
+        '<div class="receipt-divider"></div>' +
+        '<div class="receipt-footer">Thank you for shopping with us!</div>' +
+        '<div class="receipt-footer-small">Walk-in sale &middot; computer-generated slip.</div>' +
+      '</div>' +
+      '<script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); };<\/script>' +
+      '</body></html>';
+  }
+  function buildQuotationDocHtml(q) {
+    var store = posStoreInfo();
+    var rows = q.items.map(function (it) {
+      return '<tr><td>' + esc(productDisplayName(it.name)) + (it.pack ? '<div class="sub">' + esc(it.pack) + '</div>' : '') + '</td>' +
+        '<td style="text-align:center">' + it.qty + '</td><td style="text-align:right">' + esc(mvr(it.price)) + '</td>' +
+        '<td style="text-align:right">' + esc(mvr(it.price * it.qty)) + '</td></tr>';
+    }).join('');
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Quotation - ' + esc(q.id) + '</title><style>' +
+      '@page{ size:A4; margin:16mm; } *{box-sizing:border-box;}' +
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#16211C;padding:0;}' +
+      '.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16211C;padding-bottom:14px;margin-bottom:18px;}' +
+      '.store-name{font-size:20px;font-weight:800;}' +
+      '.store-addr{font-size:11.5px;color:#5C6B63;margin-top:2px;}' +
+      '.doc-title{font-size:22px;font-weight:800;text-align:right;}' +
+      '.doc-meta{font-size:11.5px;color:#5C6B63;text-align:right;margin-top:2px;}' +
+      '.customer{font-size:12.5px;margin-bottom:18px;}' +
+      'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+      'th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#5C6B63;border-bottom:1px solid #d8d5c9;padding:6px 4px;}' +
+      'td{padding:8px 4px;border-bottom:1px solid #eee;vertical-align:top;}' +
+      '.sub{font-size:10.5px;color:#5C6B63;}' +
+      '.totals{width:260px;margin-left:auto;margin-top:14px;font-size:12.5px;}' +
+      '.totals div{display:flex;justify-content:space-between;padding:4px 0;}' +
+      '.totals .grand{font-weight:800;font-size:15px;border-top:2px solid #16211C;margin-top:4px;padding-top:8px;}' +
+      '.footer{margin-top:36px;font-size:10.5px;color:#5C6B63;}' +
+      '</style></head><body>' +
+      '<div class="head"><div><div class="store-name">' + esc(store.name) + '</div><div class="store-addr">' + esc(store.addr) + '</div><div class="store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div></div>' +
+      '<div><div class="doc-title">QUOTATION</div><div class="doc-meta">' + esc(q.id) + '</div><div class="doc-meta">' + esc(fmtDate(q.createdAt)) + '</div></div></div>' +
+      '<div class="customer"><b>Quoted to:</b> ' + esc(q.customer.name || 'Walk-in customer') + (q.customer.mobile ? ' · ' + esc(q.customer.mobile) : '') + '</div>' +
+      '<table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit price</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="totals"><div class="grand"><span>Total (GST incl.)</span><span>' + esc(mvr(q.total)) + '</span></div></div>' +
+      (q.note ? '<div class="customer" style="margin-top:18px"><b>Note:</b> ' + esc(q.note) + '</div>' : '') +
+      '<div class="footer">This quotation is valid for a limited time and prices may change. Thank you for considering ' + esc(store.name) + '.</div>' +
+      '<script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); };<\/script>' +
+      '</body></html>';
+  }
+
+  function onPosClick(e) {
+    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote]');
+    if (!t) return;
+    var d = t.dataset;
+    if (d.posAdd) { POS.cart[d.posAdd] = (POS.cart[d.posAdd] || 0) + 1; renderPos(); return; }
+    if (d.posInc) { POS.cart[d.posInc] = (POS.cart[d.posInc] || 0) + 1; renderPos(); return; }
+    if (d.posDec) {
+      var n = (POS.cart[d.posDec] || 0) - 1;
+      if (n <= 0) delete POS.cart[d.posDec]; else POS.cart[d.posDec] = n;
+      renderPos(); return;
+    }
+    if (d.posRemove) { delete POS.cart[d.posRemove]; renderPos(); return; }
+    if (d.posMode) { POS.mode = d.posMode; renderPos(); return; }
+    if (d.posSubmit !== undefined) { posSubmit(); return; }
+    if (d.posConvert) { posConvertQuotation(d.posConvert); return; }
+    if (d.posVoid) { posVoidQuotation(d.posVoid); return; }
+    if (d.posPrintQuote) { posPrintExistingQuotation(d.posPrintQuote); return; }
+  }
+  function onPosInput(e) {
+    var t = e.target; if (!t || !t.id) return;
+    if (t.id === 'posSearch') {
+      POS.q = t.value; renderPos();
+      var el = $('posSearch');
+      if (el) { el.focus(); var v = el.value; el.value = ''; el.value = v; }
+      return;
+    }
+    if (t.id === 'posName') { POS.name = t.value; return; }
+    if (t.id === 'posMobile') { POS.mobile = t.value; return; }
+    if (t.id === 'posNote') { POS.note = t.value; return; }
+  }
+  function onPosChange(e) {
+    var t = e.target;
+    if (t && t.dataset && t.dataset.posQty) {
+      var id = t.dataset.posQty, v = parseInt(t.value, 10);
+      if (!isFinite(v) || v <= 0) delete POS.cart[id]; else POS.cart[id] = Math.min(v, 99999);
+      renderPos();
+    }
+  }
+
   /* ============ edit product (name/pack/unit/price/icon/visibility) ============ */
   function editFormHtml(p) {
     return '<div class="field"><label>Name</label><input class="inp" id="editName" value="' + esc(p.name) + '"></div>' +
@@ -1783,7 +2127,7 @@
     var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-staff-reject],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail]');
     if (!t) return;
     var d = t.dataset, o;
-    if (d.view) { S.view = d.view; S.q = ''; if (d.view === 'live') markPlacedSeen(); closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard') { loadStock().then(render); } render(); return; }
+    if (d.view) { S.view = d.view; S.q = ''; if (d.view === 'live') markPlacedSeen(); closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard' || S.view === 'pos') { loadStock().then(render); } render(); return; }
     if (d.goto) {
       var parts = d.goto.split(':'); S.view = parts[0]; S.q = d.gotoQ || '';
       if (parts[1]) S.tab[S.view] = parts[1];
@@ -2027,6 +2371,9 @@
     $('scrim').addEventListener('click', closeDrawer);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeDrawer(); closeMenu(); closeNotif(); closeInfo(); closeEditProduct(); closeStaffNameModal(); } });
     window.addEventListener('scroll', function () { closeMenu(); closeNotif(); }, true);
+    $('panel').addEventListener('click', onPosClick);
+    $('panel').addEventListener('input', onPosInput);
+    $('panel').addEventListener('change', onPosChange);
     restore();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
