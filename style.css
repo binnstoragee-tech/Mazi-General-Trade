@@ -6466,3 +6466,21 @@ body.ma-modal-open{overflow:hidden;}
   .pd-actions .card-qty.pd-qty .qty-btn:hover{background:var(--line);}
   .pd-share-btn:hover{color:var(--ink);}
 }
+
+
+/* ============================================================
+   Forgot password / Set a new password — cleaner panel
+   (no Google button above it; roomier, white inputs)
+   ============================================================ */
+#authModal.auth-in-panel .auth-google-btn,
+#authModal.auth-in-panel .auth-or-divider{display:none !important;}
+#authNewPass,#authForgot{padding:24px 0 6px;gap:10px;}
+#authNewPass .auth-verify-icon,#authForgot .auth-verify-icon{margin-bottom:6px;}
+#authNewPass .auth-verify-text,#authForgot .auth-verify-text{margin-bottom:4px;}
+#authNewPass .auth-panel-form,#authForgot .auth-panel-form{margin-top:12px;gap:14px;}
+#authNewPass .auth-field input,#authForgot .auth-field input{
+  background:#fff;border-color:var(--line);padding:13px 15px;font-size:14.5px;
+}
+#authNewPass .auth-field input:focus,#authForgot .auth-field input:focus{border-color:var(--green-700);}
+#authNewPass .auth-password-wrap input{padding-right:46px;}
+#authNewPass .auth-submit-btn,#authForgot .auth-submit-btn{margin-top:6px;}

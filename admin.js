@@ -34,10 +34,22 @@
     orders: [], products: [], log: [], editLog: [], shops: [], shopsError: null,
     accounts: [], accountsError: null, profileChanges: [], profileChangesError: null, showChangesErrorDetail: false,
     productsError: null, drawerId: null, profile: null, editingId: null,
-    expMonths: {}, showAllMonths: false, salesYear: 'all'
+    expMonths: {}, showAllMonths: false, salesYear: 'all', salesSource: 'all',
+    customers: [], customersError: null, editingCustomerId: null
   };
   var knownIds = null, pollTimer = null, busy = false, menuEl = null, notifEl = null, pendingImageFile = null, lastPanelView = null;
 
+  // Wipe everything the previous signed-in account loaded (lists, current page, search) so a
+  // different account that signs in on the same page can never see the old account's screens.
+  var SUPER_ONLY_VIEWS = ['accounts', 'staffaccess'];
+  function resetSessionState() {
+    S.view = 'dashboard'; S.q = '';
+    S.orders = []; S.products = []; S.log = []; S.editLog = []; S.shops = [];
+    S.accounts = []; S.accountsError = null; S.profileChanges = []; S.profileChangesError = null;
+    S.customers = []; S.customersError = null; S.drawerId = null; S.editingId = null; S.profile = null;
+    S.tab.accounts = 'pending'; S.tab.accountsGroup = 'business'; S.tab.staffaccess = 'all'; S.salesSource = 'all';
+    knownIds = null; lastPanelView = null;
+  }
   function getSeenPlaced() { try { return JSON.parse(localStorage.getItem('mazi_seen_placed') || '{}'); } catch (e) { return {}; } }
   function setSeenPlaced(obj) { try { localStorage.setItem('mazi_seen_placed', JSON.stringify(obj)); } catch (e) {} }
   function markPlacedSeen() {
@@ -159,7 +171,7 @@
 
   /* ============ sign in ============ */
   function setMsg(text, ok, id) { var m = $(id || 'loginErr'); m.textContent = text || ''; m.className = 'msg' + (ok ? ' ok' : ''); }
-  var AUTH_WAIT_MS = 3000;
+  var AUTH_WAIT_MS = 600;   // just long enough that the loader never flashes; the result shows as soon as it is ready
   function showAuthLoading(text) {
     $('authLoadingText').textContent = text;
     $('authLoading').classList.remove('hidden');
@@ -180,6 +192,7 @@
     $('forgotRequest').style.display = '';
     setMsg(msg || '');
     stopWaiting(); stopPolling(); stopProfilesRealtime(); stopOrdersRealtime(); closeDrawer(); closeMenu();
+    resetSessionState();
   }
 
   /* ============ waiting for Super Admin approval ============
@@ -190,8 +203,12 @@
      seconds; the moment a Super Admin turns on staff access it switches to the
      "approved" state and opens the dashboard. */
   var WAIT_POLL_MS = 6000, WAIT_AUTO_OPEN_MS = 3000;
-  var W = { profile: null, done: false, timer: null, auto: null, busy: false };
-  function isPendingStaff(p) { return !!(p && !p.is_admin && p.signup_source === 'admin'); }
+  var W = { profile: null, done: false, timer: null, auto: null, busy: false, offer: false };
+  function isPendingStaff(p) { return !!(p && !p.is_admin && (p.signup_source === 'admin' || p.staff_requested)); }
+  // A shop (customer) account that asked for staff access from this page.
+  function isShopStaffRequest(x) { return !!(x && !x.is_admin && x.staff_requested && x.signup_source !== 'admin'); }
+  // Anything waiting for a Super Admin decision (admin.html sign-up OR shop account request).
+  function isStaffRequest(x) { return !!(x && !x.is_admin && (x.signup_source === 'admin' || x.staff_requested)); }
   function stopWaiting() {
     if (W.timer) { clearInterval(W.timer); W.timer = null; }
     if (W.auto) { clearTimeout(W.auto); W.auto = null; }
@@ -201,6 +218,7 @@
   function clockNow() { try { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
   function showWaiting(profile) {
     stopWaiting(); stopPolling(); stopProfilesRealtime(); stopOrdersRealtime(); closeDrawer(); closeMenu();
+    leaveOfferMode(); resetSessionState();
     W.profile = profile; W.done = false;
     $('appView').classList.add('hidden');
     $('loginView').classList.remove('hidden');
@@ -225,6 +243,55 @@
     setMsg('');
     W.timer = setInterval(function () { if (!document.hidden) checkWaiting(false); }, WAIT_POLL_MS);
   }
+  /* ---- a SHOP (customer) account signed in here: offer to request staff access ----
+     Nothing is opened. The account stays a normal customer account; the request is a
+     separate flag (profiles.staff_requested) that only a Super Admin can approve. */
+  function showRequestOffer(profile, declined) {
+    stopWaiting(); stopPolling(); stopProfilesRealtime(); stopOrdersRealtime(); closeDrawer(); closeMenu();
+    resetSessionState();
+    W.profile = profile; W.done = false; W.offer = true;
+    $('appView').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+    $('forgotPane').classList.add('hidden');
+    $('signinPane').classList.add('hidden');
+    $('authCard').classList.remove('signup');
+    $('authCard').classList.add('status');
+    var box = $('statusBox');
+    box.classList.remove('is-done');
+    box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+    $('statusPane').classList.remove('hidden');
+    $('stTitle').textContent = declined ? 'Request not approved' : 'This is a shop account';
+    $('stCap').textContent = declined
+      ? 'A Super Admin did not approve staff access for this account. It still works as a normal shop account.'
+      : 'You signed in with a customer account. It cannot open the staff dashboard unless a Super Admin approves it. Send a staff-access request?';
+    $('stWho').textContent = profile.email || profile.name || 'your account';
+    ['.st-steps', '.st-live', '.st-bar'].forEach(function (sel) { var el = box.querySelector(sel); if (el) el.style.display = 'none'; });
+    $('stMainLabel').textContent = declined ? 'Request again' : 'Request staff access';
+    $('stMainBtn').disabled = false;
+    $('ovCTitle').textContent = 'Shop account';
+    $('ovCText').textContent = 'Your shop account and orders are not affected.';
+    setMsg('');
+  }
+  function leaveOfferMode() {
+    W.offer = false;
+    var box = $('statusBox');
+    ['.st-steps', '.st-live', '.st-bar'].forEach(function (sel) { var el = box.querySelector(sel); if (el) el.style.display = ''; });
+  }
+  function sendStaffRequest() {
+    var btn = $('stMainBtn');
+    btn.disabled = true; $('stMainLabel').textContent = 'Sending…';
+    MaziAPI.requestStaffAccess().then(function (p) {
+      var email = W.profile && W.profile.email;
+      p = Object.assign({}, p, email ? { email: email } : {});
+      leaveOfferMode();
+      showWaiting(p);
+    }).catch(function (e) {
+      btn.disabled = false; $('stMainLabel').textContent = 'Request staff access';
+      var msg = String((e && e.message) || '');
+      if (/request_staff_access|does not exist|schema cache/i.test(msg)) msg = 'Staff requests are not set up yet. Ask the developer to run 41_staff_access_request.sql in Supabase.';
+      toast(msg || 'Could not send the request.', true);
+    });
+  }
   function checkWaiting(manual) {
     if (W.busy || W.done) return;
     W.busy = true;
@@ -233,6 +300,7 @@
     MaziAPI.getProfile().then(function (p) {
       if (p && W.profile && W.profile.email) p = Object.assign({}, p, { email: W.profile.email });
       if (isStaff(p)) { W.busy = false; showApproved(p); return; }
+      if (p && !isPendingStaff(p)) { W.busy = false; showRequestOffer(p, true); return; }   // request was declined
       var wait = manual ? Math.max(0, 700 - (Date.now() - started)) : 0;
       return new Promise(function (r) { setTimeout(r, wait); }).then(function () {
         setWaitNote((manual ? 'Not approved yet. ' : '') + 'Last checked ' + clockNow());
@@ -268,6 +336,7 @@
     showApp(p);
   }
   function showApp(profile) {
+    resetSessionState();
     S.profile = profile;
     $('loginView').classList.add('hidden');
     $('appView').classList.remove('hidden');
@@ -299,10 +368,12 @@
         $('meName').textContent = displayName(S.profile);
         $('meAv').textContent = initials(displayName(S.profile));
       }
-      var becameAdminRequest = changed && changed.signup_source === 'admin' && !changed.is_admin &&
-        (payload.eventType === 'INSERT' || (payload.old && payload.old.signup_source !== 'admin'));
+      var becameAdminRequest = (changed && changed.signup_source === 'admin' && !changed.is_admin &&
+        (payload.eventType === 'INSERT' || (payload.old && payload.old.signup_source !== 'admin'))) ||
+        (payload.new && payload.new.staff_requested && !payload.new.is_admin &&
+          payload.eventType === 'UPDATE' && payload.old && payload.old.staff_requested === false);
       if (becameAdminRequest) {
-        toast('New staff-access request: ' + (changed.name || changed.email || 'An admin account') + ' is waiting for approval.');
+        toast('New staff-access request: ' + (changed.name || changed.email || 'An account') + ' is waiting for approval.');
         beep();
       }
       if (S.view === 'staffaccess' || S.view === 'accounts') {
@@ -380,6 +451,9 @@
       if (isStaff(res.profile)) return showApp(res.profile);
       // Registered from admin.html but not approved yet: show the waiting screen.
       if (isPendingStaff(res.profile)) return showWaiting(res.profile);
+      // A shop (customer) account: the session stays in THIS page's own storage slot only.
+      // Offer to request access; the dashboard stays locked until a Super Admin approves.
+      if (res.profile) return showRequestOffer(res.profile, false);
       return MaziAPI.logout().catch(function () {}).then(function () { showLogin('This account is not a staff account.'); });
     }).catch(function (e) {
       setMsg(e.message || 'Could not sign in.');
@@ -398,7 +472,7 @@
     // a customer who is already Google-signed-in on the storefront and
     // simply opens admin.html - both look identical (an active session with
     // provider "google") once the page reloads.
-    try { sessionStorage.setItem('mazi_admin_google_claim', '1'); } catch (e0) {}
+    try { sessionStorage.setItem('mazi_admin_google_claim', String(Date.now())); } catch (e0) {}
     MaziAPI.signInWithGoogle('admin.html').catch(function (e) {
       try { sessionStorage.removeItem('mazi_admin_google_claim'); } catch (e2) {}
       setMsg(e.message || 'Could not start Google sign-in.');
@@ -423,7 +497,8 @@
     // customer's account into a pending staff request.
     var claimGoogleAdmin = false;
     try {
-      claimGoogleAdmin = sessionStorage.getItem('mazi_admin_google_claim') === '1';
+      var claimVal = sessionStorage.getItem('mazi_admin_google_claim');
+      claimGoogleAdmin = !!claimVal && (claimVal === '1' || (Date.now() - Number(claimVal) >= 0 && Date.now() - Number(claimVal) < 10 * 60 * 1000));
       sessionStorage.removeItem('mazi_admin_google_claim');
     } catch (e1) {}
     MaziAPI.getSession().then(function (s) {
@@ -442,9 +517,18 @@
         if (p && authEmail) p = Object.assign({}, p, { email: authEmail });
         if (isStaff(p)) showApp(p);
         else if (isPendingStaff(p)) showWaiting(p);   // waiting for Super Admin approval
+        else if (p) showRequestOffer(p, false);        // shop account: may request staff access
         else MaziAPI.logout().catch(function () {}).then(function () { showLogin(''); });
       });
     }).catch(function (e) {
+      // Google from admin.html on an existing shop account is not an error: offer the request.
+      if (e && e.code === 'STOREFRONT_ACCOUNT') {
+        return Promise.all([MaziAPI.getSession(), MaziAPI.getProfile()]).then(function (r) {
+          var p = r[1], em = r[0] && r[0].user && r[0].user.email;
+          if (p && em) p = Object.assign({}, p, { email: em });
+          if (p && isPendingStaff(p)) showWaiting(p); else if (p) showRequestOffer(p, false); else showLogin('');
+        }).catch(function () { showLogin(''); });
+      }
       var msg = e && e.message ? String(e.message) : '';
       if (/claim_admin_signup|function .*does not exist|schema cache/i.test(msg)) {
         msg = 'Google request setup is incomplete. Ask the developer to run 23_admin_signup_source.sql in Supabase SQL Editor.';
@@ -480,13 +564,14 @@
       // signed in straight away (email confirmation is off): sign out so they log in properly
       return MaziAPI.logout().catch(function () {}).then(function () { done('Account created. You can sign in now. ' + after); });
     }).catch(function (e) {
-      err(e.message || 'Could not create the account.');
+      if (e && e.code === 'USER_EXISTS') err('This email already has an account (maybe a shop account). Sign in instead; a shop account can request staff access after signing in.');
+      else err(e.message || 'Could not create the account.');
     }).then(function () { btn.disabled = false; $('suLabel').textContent = 'Sign Up'; });
   }
   var INFO = {
     about: '<h3>About us</h3><p>MAZI General Trade is a grocery and convenience wholesaler based in Male\', Republic of Maldives, delivering across Male\' and beyond.</p><p>This portal is for our staff to manage orders and stock.</p>',
     contact: '<h3>Contact</h3><p>Phone / Viber: <a href="tel:+9609291600">+960 929 1600</a></p><p>Email: <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a></p><p>Male\', Republic of Maldives</p>',
-    help: '<h3>Help</h3><ol><li>Sign in with the email and password of your staff account, then press <b>Go</b>.</li><li>Forgot your password? Type your email, then press <b>Forgot Password</b> — we send you a reset link.</li><li>New here? Press <b>Create New Account</b>, confirm your email, then ask a Super Admin to give your account staff access (Staff Access page).</li></ol><p>Shopping as a customer? <a href="index.html">Go to the MAZI shop</a>.</p><p>Still stuck? Write to <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a>.</p>'
+    help: '<h3>Help</h3><ol><li>Sign in with the email and password of your staff account, then press <b>Go</b>.</li><li>Forgot your password? Type your email, then press <b>Forgot Password</b> — we send you a reset link.</li><li>New here? Press <b>Create New Account</b>, confirm your email, then ask a Super Admin to give your account staff access (Staff Access page).</li><li>Already have a shop account? Sign in here with it and press <b>Request staff access</b>. You can only enter after a Super Admin approves.</li></ol><p>Shopping as a customer? <a href="index.html">Go to the MAZI shop</a>.</p><p>Still stuck? Write to <a href="mailto:info@mazitrading.mv">info@mazitrading.mv</a>.</p>'
   };
   function openInfo(k) { $('infoBody').innerHTML = INFO[k] || ''; $('infoModal').classList.remove('hidden'); }
   function closeInfo() { $('infoModal').classList.add('hidden'); }
@@ -525,6 +610,10 @@
     return MaziAPI.adminListAccounts().then(function (rows) { S.accounts = rows || []; S.accountsError = null; })
       .catch(function (e) { S.accountsError = e; });
   }
+  function loadCustomers() {
+    return MaziAPI.adminListCustomers().then(function (rows) { S.customers = rows || []; S.customersError = null; })
+      .catch(function (e) { S.customersError = e; });
+  }
   function loadProfileChanges() {
     if (!isSuperAdmin(S.profile)) { S.profileChanges = []; S.profileChangesError = null; return Promise.resolve(); }
     return MaziAPI.adminListProfileChanges(200).then(function (rows) { S.profileChanges = rows || []; S.profileChangesError = null; })
@@ -537,6 +626,7 @@
     if (S.view === 'stock' || S.view === 'dashboard' || S.view === 'pos' || initial) jobs.push(loadStock());
     if (isSuperAdmin(S.profile) && (S.view === 'accounts' || initial)) jobs.push(loadShops(), loadProfileChanges());
     if (isSuperAdmin(S.profile) && (S.view === 'accounts' || S.view === 'staffaccess' || initial)) jobs.push(loadAccounts());
+    if (S.view === 'customers' || initial) jobs.push(loadCustomers());
     return Promise.all(jobs).catch(function (e) {
       if (e && e.code === 'NOT_AUTHENTICATED') {
         // A background refresh (not the very first load) can hit a brief token/
@@ -568,6 +658,11 @@
   function findOrder(id) { return S.orders.filter(function (o) { return o.id === id; })[0]; }
   function findProduct(id) { return S.products.filter(function (p) { return p.id === id; })[0]; }
   function typeOf(o) { return o.orderType === 'walkin' ? 'Walk-in' : (TYPE_LABEL[o.customer && o.customer.method] || '—'); }
+  function sourcePill(o) {
+    return o.orderType === 'walkin'
+      ? '<span class="pill amber src-pill">Walk-in</span>'
+      : '<span class="pill src-pill">Online</span>';
+  }
   function locationText(o) {
     var l = (o.customer && o.customer.location) || {}, m = o.customer && o.customer.method, out = [];
     if (m === 'pickup') {
@@ -586,10 +681,15 @@
     if (l.note) out.push('Note: ' + l.note);
     return out.join('\n');
   }
-  function statusHtml(o) { return '<span class="dot d-' + o.status + '"></span><span class="t-' + o.status + '">' + LABEL[o.status] + '</span>'; }
+  function statusHtml(o) {
+    var lbl = (o.orderType === 'walkin' && o.status === 'delivered') ? 'Completed' : LABEL[o.status];
+    return '<span class="dot d-' + o.status + '"></span><span class="t-' + o.status + '">' + lbl + '</span>';
+  }
 
   /* ============ render ============ */
   function render() {
+    // Staff (non-Super-Admin) accounts can never be on Accounts / Staff Access, whatever state is left over.
+    if (SUPER_ONLY_VIEWS.indexOf(S.view) >= 0 && !isSuperAdmin(S.profile)) { S.view = 'dashboard'; S.accounts = []; }
     // nav + counts
     var active = S.orders.filter(function (o) { return ACTIVE.indexOf(o.status) >= 0; }).length;
     var fresh = S.orders.filter(function (o) { return o.status === 'placed' && !getSeenPlaced()[o.id]; }).length;
@@ -600,11 +700,11 @@
     var bn = $('bellN'); bn.textContent = badgeText(fresh); bn.classList.toggle('hidden', !fresh);
     var acBtn = $('navAccountsBtn'); if (acBtn) acBtn.classList.toggle('hidden', !isSuperAdmin(S.profile));
     var saBtn = $('navStaffAccessBtn'); if (saBtn) saBtn.classList.toggle('hidden', !isSuperAdmin(S.profile));
-    var staffRequests = isSuperAdmin(S.profile) ? S.accounts.filter(function (x) { return x.signup_source === 'admin' && !x.is_admin; }).length : 0;
+    var staffRequests = isSuperAdmin(S.profile) ? S.accounts.filter(isStaffRequest).length : 0;
     var sr = $('navStaffReqCnt'); if (sr) { sr.textContent = badgeText(staffRequests); sr.classList.toggle('hidden', !staffRequests); }
     $('search').placeholder = S.view === 'stock' ? 'Search products' : (S.view === 'accounts' ?
       (S.tab.accountsGroup === 'customer' ? 'Search name or email' : 'Search account, owner or mobile') :
-      (S.view === 'staffaccess' ? 'Search name or email' : 'Search order, name or mobile'));
+      (S.view === 'staffaccess' ? 'Search name or email' : (S.view === 'customers' ? 'Search name or mobile' : 'Search order, name or mobile')));
     if ($('search').value !== S.q) $('search').value = S.q;
     var searchWrap = document.querySelector('.search');
     if (searchWrap) searchWrap.classList.toggle('hidden', S.view === 'dashboard' || S.view === 'pos');
@@ -621,6 +721,7 @@
     else if (S.view === 'stock') renderStock();
     else if (S.view === 'accounts') renderAccounts();
     else if (S.view === 'staffaccess') renderStaffAccess();
+    else if (S.view === 'customers') renderCustomers();
     else if (S.view === 'pos') { if (freshMount) { posReset(); loadPosQuotations(); } renderPos(); }
     else renderOrders();
     // Same rise-up entrance as the dashboard, applied to whatever landed in the
@@ -646,12 +747,26 @@
     if (p === 0) return '<span class="dstat-delta flat">Same as yesterday</span>';
     return '<span class="dstat-delta ' + (p > 0 ? 'up' : 'down') + '">' + (p > 0 ? '▲' : '▼') + ' ' + Math.abs(p) + '% vs yesterday</span>';
   }
+  /* ---- Sales source filter: All / Online / Walk-in ---- */
+  function srcOk(o) {
+    if (S.salesSource === 'walkin') return o.orderType === 'walkin';
+    if (S.salesSource === 'online') return o.orderType !== 'walkin';
+    return true;
+  }
+  function srcSuffix() { return S.salesSource === 'walkin' ? ' · Walk-in' : (S.salesSource === 'online' ? ' · Online' : ''); }
+  function sourceTabsHtml() {
+    var defs = [['all', 'All sales'], ['online', 'Online'], ['walkin', 'Walk-in']];
+    return '<div class="myear-tabs" role="tablist" aria-label="Sales source" style="margin:0 0 14px">' + defs.map(function (d) {
+      return '<button type="button" class="myear-tab' + (S.salesSource === d[0] ? ' active' : '') + '" data-sales-source="' + d[0] + '">' + d[1] + '</button>';
+    }).join('') + '</div>';
+  }
   function renderDashboard(freshMount) {
     var orders = S.orders, today = ymd(Date.now()), yest = ymd(Date.now() - 86400000);
     // Orders still awaiting staff acceptance ('placed') are excluded from dashboard
     // stats, revenue and the activity feed — they only appear on the Orders page
     // until accepted (moved to 'processing').
-    var live = orders.filter(function (o) { return o.status !== 'cancelled' && o.status !== 'placed'; });
+    var liveAll = orders.filter(function (o) { return o.status !== 'cancelled' && o.status !== 'placed'; });
+    var live = liveAll.filter(srcOk);   // sales figures follow the All / Online / Walk-in filter
     var activeCount = orders.filter(function (o) { return o.status === 'processing' || o.status === 'delivery'; }).length;
     var freshCount = orders.filter(function (o) { return o.status === 'placed' && !getSeenPlaced()[o.id]; }).length;
     var todayOrders = live.filter(function (o) { return ymd(o.placedAt) === today; });
@@ -664,9 +779,9 @@
     var lowTotal = lowStock + outStock; // combined, used only for the "needs attention" notification badge
 
     var cards = [
-      { ico: ICON.clock, cls: 'blue', label: 'Active Orders', val: num(activeCount), g: 'live:all', delta: '<span class="dstat-delta flat">' + num(todayOrders.length) + ' placed today</span>' },
-      { ico: ICON.cash, cls: '', label: "Today's Revenue", val: esc(mvr(todayRev)), g: 'history:all', delta: pctDelta(todayRev, yestRev) },
-      { ico: ICON.bag, cls: 'purple', label: 'New Orders Today', val: num(todayOrders.length), g: 'history:all', delta: pctDelta(todayOrders.length, yestOrders.length) },
+      { ico: ICON.clock, cls: 'blue', label: 'Active Orders', val: num(activeCount), g: 'live:all', delta: '<span class="dstat-delta flat">' + num(liveAll.filter(function (o) { return o.orderType !== 'walkin' && ymd(o.placedAt) === today; }).length) + ' placed today</span>' },
+      { ico: ICON.cash, cls: '', label: "Today's Revenue" + srcSuffix(), val: esc(mvr(todayRev)), g: 'history:all', delta: pctDelta(todayRev, yestRev) },
+      { ico: ICON.bag, cls: 'purple', label: (S.salesSource === 'walkin' ? 'Sales Today' : 'New Orders Today') + srcSuffix(), val: num(todayOrders.length), g: 'history:all', delta: pctDelta(todayOrders.length, yestOrders.length) },
       { ico: ICON.alert, cls: 'amber', label: 'Low Stock Items', val: num(lowStock), g: 'stock:low', delta: '<span class="dstat-delta ' + (lowStock ? 'down' : 'flat') + '">' + (lowStock ? 'Needs restock' : 'All good') + '</span>' },
       { ico: ICON.alert, cls: 'red', label: 'Out of Stock', val: num(outStock), g: 'stock:out', delta: '<span class="dstat-delta ' + (outStock ? 'down' : 'flat') + '">' + (outStock ? 'Restock now' : 'All good') + '</span>' },
       { ico: ICON.undo, cls: 'red', label: 'Pending Refunds', val: num(pendingRefunds), g: 'history:refund_pending', delta: '<span class="dstat-delta ' + (pendingRefunds ? 'down' : 'flat') + '">' + (pendingRefunds ? 'Awaiting refund' : 'None pending') + '</span>' }
@@ -676,7 +791,7 @@
     var firstName = displayName(S.profile).split(' ')[0];
     var dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
     var h = '<h1>Good ' + greetWord + (firstName ? ', ' + esc(firstName) : '') + '</h1>' +
-      '<p class="lead">' + esc(dateStr) + ' · Store overview &amp; today\'s activity.</p>';
+      '<p class="lead">' + esc(dateStr) + ' · Store overview &amp; today\'s activity.</p>' + sourceTabsHtml();
     h += '<div class="dstats">' + cards.map(function (c) {
       return '<div class="dstat" role="button" tabindex="0" data-goto="' + c.g + '"><div class="dstat-top"><small>' + c.label + '</small><span class="dstat-ico ' + c.cls + '">' + c.ico + '</span></div><b>' + c.val + '</b>' + c.delta + '</div>';
     }).join('') + '</div>';
@@ -684,7 +799,7 @@
     h += '<div class="dgrid"><div>';
 
     var qa = [
-      { g: 'live:all', ico: ICON.bolt, t: 'Orders', s: num(activeCount) + ' need action' },
+      { g: 'live:all', ico: ICON.bolt, t: 'Online Orders', s: num(activeCount) + ' need action' },
       { g: 'history:all', ico: ICON.receipt, t: 'Order History', s: num(orders.length) + ' total orders' },
       { g: 'stock:all', ico: ICON.box, t: 'Manage Stock', s: num((S.products || []).length) + ' products' },
       { g: 'stock:low', ico: ICON.alert, t: 'Low Stock', s: num(lowStock) + ' need restock' }
@@ -694,7 +809,7 @@
     }).join('') + '</div></div>';
 
     h += weeklyChartHtml(live);
-    h += monthlySalesHtml(orders);
+    h += monthlySalesHtml(orders.filter(srcOk));
     h += topSellingProductsHtml(live);
     h += '</div><div>';
     h += activityFeedHtml();
@@ -807,7 +922,7 @@
     var dLabels = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' }); });
     var dFull = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); });
 
-    return '<div class="box chart-wrap"><h3>Weekly Performance</h3>' +
+    return '<div class="box chart-wrap"><h3>Weekly Performance' + srcSuffix() + '</h3>' +
       '<div class="chart-legend"><span><i style="background:var(--green-600)"></i>Revenue · last 7 days</span></div>' +
       waveChartHtml(vals, dFull, ordVals, 150) +
       '<div class="chart-days">' + dLabels.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>' +
@@ -822,7 +937,7 @@
     // not-yet-accepted ('placed') orders don't count as sales.
     var live = orders.filter(function (o) { return o.status !== 'cancelled' && o.status !== 'placed'; });
     if (!live.length) {
-      return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month</h3><div class="empty" style="padding:16px">No sales yet.</div></div>';
+      return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month' + srcSuffix() + '</h3><div class="empty" style="padding:16px">No sales yet.</div></div>';
     }
     var byMonth = {};
     live.forEach(function (o) {
@@ -888,7 +1003,7 @@
       : '';
     var totalLabel = 'Total' + (activeYear !== 'all' ? ' · ' + activeYear : '') + ' · ' + num(monthsInView.length) + ' month' + (monthsInView.length === 1 ? '' : 's');
 
-    return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month</h3>' +
+    return '<div class="box month-sales" style="margin-top:16px"><h3>Sales by Month' + srcSuffix() + '</h3>' +
       yearTabs +
       '<div class="month-head"><span>Month</span><span>Orders</span><span>Revenue</span><span>vs prev.</span></div>' +
       (rows || '<div class="empty" style="padding:16px">No sales in ' + esc(activeYear) + '.</div>') + moreBtn +
@@ -929,7 +1044,7 @@
           '<span class="topprod-figs"><span class="topprod-rev">' + esc(mvr(x.rev)) + '</span><span class="topprod-sold">' + num(x.qty) + ' sold</span></span>' +
           '</div>';
       }).join('');
-    return '<div class="box" style="margin-top:16px"><h3>Top Selling Products</h3><p class="topprod-lead">Your best movers · last 30 days</p>' + body + '</div>';
+    return '<div class="box" style="margin-top:16px"><h3>Top Selling Products' + srcSuffix() + '</h3><p class="topprod-lead">Your best movers · last 30 days</p>' + body + '</div>';
   }
 
   function activityFeedHtml() {
@@ -1009,7 +1124,7 @@
     var base = baseOrders(), tab = S.tab[S.view], h = '';
     var defs, title, lead;
     if (S.view === 'live') {
-      title = 'Orders'; lead = 'Orders that still need action. Updates every 30 seconds.';
+      title = 'Online Orders'; lead = 'Online store orders that still need action. Walk-in sales are in Order History. Updates every 30 seconds.';
       defs = [['all', 'All', base.length], ['placed', 'New', cnt(base, 'placed')], ['processing', 'Processing', cnt(base, 'processing')], ['delivery', 'Out for delivery', cnt(base, 'delivery')]];
     } else {
       title = 'Order History'; lead = 'Every order, newest first.';
@@ -1022,7 +1137,7 @@
     h += '</div>';
 
     if (S.view === 'history' && tab === 'summary') {
-      h += summaryHtml(base);
+      h += sourceTabsHtml() + summaryHtml(base.filter(srcOk));
     } else {
       var list = tabList(base);
       if (!list.length) h += '<div class="empty">No orders here.</div>';
@@ -1037,9 +1152,11 @@
   function rowHtml(o) {
     var c = o.customer || {};
     return '<div class="trow' + (o.status === 'placed' ? ' new' : '') + '" data-open="' + esc(o.id) + '">' +
-      '<div class="c-id">#' + esc(o.id) + '</div>' +
+      '<div class="c-id">#' + esc(o.id) + '<div style="margin-top:4px">' + sourcePill(o) + '</div></div>' +
       '<div class="c-name"><span class="av">' + esc(initials(c.name)) + '</span><span><b>' + esc(c.name) + '</b><small>' + esc(c.mobile) + ' · ' + esc(typeOf(o)) + '</small></span></div>' +
-      '<div class="c-pay"><span class="pill">Slip</span> ' + esc(o.currency) + '</div>' +
+      '<div class="c-pay">' + (o.orderType === 'walkin'
+        ? '<span class="pill gray">At counter</span>'
+        : '<span class="pill">Slip</span> ' + esc(o.currency)) + '</div>' +
       '<div class="c-time"><b>' + esc(fmtShort(o.placedAt)) + '</b><small>' + esc(ago(o.placedAt)) + '</small></div>' +
       '<div class="c-type">' + esc(typeOf(o)) + '</div>' +
       '<div class="c-status">' + statusHtml(o) + '</div>' +
@@ -1330,7 +1447,7 @@
       }
       return '<div class="note-banner">Could not load accounts: ' + esc(msg) + '</div>';
     }
-    var h = '<p class="lead" style="margin-top:-4px">Everyone who registered on the customer storefront. Reference only — these accounts cannot be given dashboard access.</p>';
+    var h = '<p class="lead" style="margin-top:-4px">Everyone who registered on the customer storefront. A shop account only gets dashboard access if it requested it and a Super Admin approved it (see Staff Access).</p>';
     var q = S.q.trim().toLowerCase();
     var list = (S.accounts || []).filter(function (x) { return x.signup_source !== 'admin'; }).filter(function (x) {
       return !q || [x.name, x.email, x.mobile].join(' ').toLowerCase().indexOf(q) >= 0;
@@ -1341,7 +1458,7 @@
       return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
         '<div><b>' + esc(x.name || (x.email || '').split('@')[0] || 'Unnamed') + '</b>' +
         '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
-        '<span class="pill" title="Registered on the customer storefront — cannot be given staff access">Store front account</span></div>';
+        '<span>' + (x.is_admin ? '<span class="pill staff-pill">Staff</span> ' : (x.staff_requested ? '<span class="pill amber">Staff request pending</span> ' : '')) + '<span class="pill" title="Registered on the customer storefront">Store front account</span></span></div>';
     }).join('');
     return h;
   }
@@ -1354,7 +1471,7 @@
 
   /* ---------- staff access (Super Admin only) ---------- */
   function renderStaffAccess() {
-    var h = '<h1>Staff Access</h1><p class="lead">Give or remove dashboard access for accounts registered through this Admin Sign Up form. Only a Super Admin can change this. Customer storefront accounts are listed separately under Accounts → Customer Account.</p>';
+    var h = '<h1>Staff Access</h1><p class="lead">Give or remove dashboard access. Requests come from the Admin Sign Up form, or from shop (customer) accounts that pressed “Request staff access” on the admin login. Nobody gets in until a Super Admin approves. Declining a shop account never deletes it.</p>';
     if (S.accountsError) {
       var msg = String(S.accountsError.message || '');
       if (/admin_list_accounts|does not exist|schema cache/i.test(msg)) {
@@ -1366,11 +1483,11 @@
     }
     // Staff Access only shows accounts created through the admin signup form.
     // Customer storefront accounts stay under Accounts -> Customer Account.
-    var L = (S.accounts || []).filter(function (x) { return x.signup_source === 'admin'; }), c = { staff: 0, available: 0 };
+    var L = (S.accounts || []).filter(function (x) { return x.signup_source === 'admin' || x.staff_requested || x.is_admin; }), c = { staff: 0, available: 0 };
     L.forEach(function (x) { if (x.is_admin) c.staff++; else c.available++; });
-    if (c.available) h += '<div class="note-banner"><b>' + c.available + ' staff-access request' + (c.available === 1 ? '' : 's') + ' waiting for approval.</b> Review the Admin sign-up account' + (c.available === 1 ? '' : 's') + ' below and grant access when approved.</div>';
+    if (c.available) h += '<div class="note-banner"><b>' + c.available + ' staff-access request' + (c.available === 1 ? '' : 's') + ' waiting for approval.</b> Review the account' + (c.available === 1 ? '' : 's') + ' below and grant access when approved.</div>';
     var tab = S.tab.staffaccess;
-    var defs = [['all', 'All', L.length], ['staff', 'Staff', c.staff], ['available', 'Admin sign-ups', c.available]];
+    var defs = [['all', 'All', L.length], ['staff', 'Staff', c.staff], ['available', 'Requests', c.available]];
     h += '<div class="bar"><div class="tabs">' + defs.map(function (d) {
       return '<button class="tab' + (tab === d[0] ? ' active' : '') + '" data-tab="' + d[0] + '">' + d[1] + '<span class="n">' + d[2] + '</span></button>';
     }).join('') + '</div></div>';
@@ -1392,11 +1509,13 @@
         var btns = '';
         if (x.is_admin || x.is_super_admin) {
           if (!isPrimaryAdminAccount(x)) btns += '<button class="kebab" data-staff-menu="' + esc(x.id) + '" aria-label="Staff actions" title="Staff actions">' + ICON.kebab + '</button>';
-        } else btns += '<button class="btn staff-grant sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> <button class="btn staff-remove sm" data-staff-reject="' + esc(x.id) + '">Remove</button>';
+        } else if (isShopStaffRequest(x)) btns += '<button class="btn staff-grant sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> <button class="btn staff-remove sm" data-staff-decline="' + esc(x.id) + '">Decline</button>';
+        else btns += '<button class="btn staff-grant sm" data-staff-on="' + esc(x.id) + '">Grant staff access</button> <button class="btn staff-remove sm" data-staff-reject="' + esc(x.id) + '">Remove</button>';
         return '<div class="box" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">' +
           '<div><b>' + esc(accountDisplayName(x)) + '</b> ' +
           (isPrimaryAdminAccount(x) ? '<span class="pill staff-pill">Super Admin</span>' : (x.is_admin ? '<span class="pill staff-pill">Staff</span>' : '')) +
           (self ? ' <span class="pill amber">You</span>' : '') +
+          (isShopStaffRequest(x) ? ' <span class="pill" title="Existing shop account that requested staff access">Shop account</span>' : '') +
           '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-soft);line-height:1.6">' + lines.map(esc).join('<br>') + '</div></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' + btns + '</div></div>';
       }).join('');
@@ -1404,18 +1523,111 @@
     $('panel').innerHTML = h;
   }
   function setStaffAccess(id, on) {
+    if (!isSuperAdmin(S.profile)) { toast('Only a Super Admin can do that.', true); return; }
     MaziAPI.adminSetStaffAccess(id, on).then(function () {
       toast(on ? 'Staff access granted' : 'Staff access removed');
       return loadAccounts().then(render);
     }).catch(function (e) { toast(e.message || 'Could not update this account.', true); });
   }
+  /* ---------- customers ---------- */
+  function findCustomer(id) { return (S.customers || []).filter(function (c) { return c.id === id; })[0]; }
+  function renderCustomers() {
+    var h = '<h1>Customers</h1><p class="lead">Customer records with credit limits, used by Walk-in / POS for credit sales. Outstanding balances will populate once credit sales are tracked.</p>';
+    if (S.customersError) {
+      var msg = String(S.customersError.message || '');
+      if (/admin_list_customers|does not exist|schema cache/i.test(msg)) {
+        h += '<div class="note-banner"><b>One-time setup needed.</b> Open Supabase → SQL Editor and run <code>38_customers.sql</code>, then press Refresh.</div>';
+      } else {
+        h += '<div class="note-banner">Could not load customers: ' + esc(msg) + '</div>';
+      }
+      $('panel').innerHTML = h; return;
+    }
+    h += '<div class="bar"><div style="flex:1"></div><button type="button" class="btn primary sm" data-new-customer>+ New Customer</button></div>';
+    var q = S.q.trim().toLowerCase();
+    var list = (S.customers || []).filter(function (c) {
+      return !q || (c.name + ' ' + c.mobile).toLowerCase().indexOf(q) >= 0;
+    });
+    if (!list.length) { h += '<div class="empty">' + (q ? 'No customers match.' : 'No customers yet — add one to get started.') + '</div>'; }
+    else {
+      h += '<div class="cust-head"><span>Name</span><span>Mobile</span><span>Outstanding</span><span>Total Spent</span><span>Action</span></div>';
+      h += list.map(function (c) {
+        return '<div class="cust-row"><span class="cust-name">' + esc(c.name) + '</span>' +
+          '<span>' + esc(c.mobile || '—') + '</span>' +
+          '<span>' + mvr(c.outstanding) + '</span>' +
+          '<span>' + mvr(c.totalSpent) + '</span>' +
+          '<span><button type="button" class="btn ghost sm" data-edit-customer="' + esc(c.id) + '">Details</button></span></div>';
+      }).join('');
+    }
+    $('panel').innerHTML = h;
+  }
+  function custFormHtml(c) {
+    c = c || {};
+    return '<div class="field"><label>Name</label><input class="inp" id="custName" value="' + esc(c.name || '') + '" maxlength="120"></div>' +
+      '<div class="field"><label>Mobile</label><input class="inp" id="custMobile" value="' + esc(c.mobile || '') + '" maxlength="20"></div>' +
+      '<div class="field"><label>Email</label><input class="inp" id="custEmail" value="' + esc(c.email || '') + '" maxlength="120"></div>' +
+      '<div class="field"><label>Address</label><input class="inp" id="custAddress" value="' + esc(c.address || '') + '" maxlength="200"></div>' +
+      '<div class="field"><label>Tax Number</label><input class="inp" id="custTax" value="' + esc(c.taxNumber || '') + '" maxlength="40"></div>' +
+      '<div class="field"><label>Credit Limit (MVR)</label><input class="inp" id="custCredit" type="number" min="0" step="0.01" value="' + esc(c.creditLimit || 0) + '"></div>' +
+      '<div class="field"><label>Price Level</label><input class="inp" id="custPriceLevel" value="' + esc(c.priceLevel || '') + '" maxlength="60" placeholder="Optional reference label"></div>' +
+      '<div class="field"><label>Note</label><input class="inp" id="custNote" value="' + esc(c.note || '') + '" maxlength="300"></div>' +
+      (c.id ? '<div style="display:flex;gap:22px;margin:14px 0;padding-top:14px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-soft)"><span>Outstanding: <b style="color:var(--ink)">' + mvr(c.outstanding) + '</b></span><span>Total spent: <b style="color:var(--ink)">' + mvr(c.totalSpent) + '</b></span></div>' : '') +
+      '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-customer>Cancel</button><button type="button" class="btn primary" data-save-customer="' + (c.id ? esc(c.id) : '__new__') + '">' + (c.id ? 'Save changes' : 'Add customer') + '</button></div>';
+  }
+  function openNewCustomer() {
+    S.editingCustomerId = null;
+    $('custTitle').textContent = 'New customer';
+    $('custBody').innerHTML = custFormHtml();
+    $('custModal').classList.remove('hidden');
+    setTimeout(function () { var i = $('custName'); if (i) i.focus(); }, 50);
+  }
+  function openEditCustomer(id) {
+    var c = findCustomer(id); if (!c) return;
+    S.editingCustomerId = id;
+    $('custTitle').textContent = c.name;
+    $('custBody').innerHTML = custFormHtml(c);
+    $('custModal').classList.remove('hidden');
+  }
+  function closeCustomerModal() { S.editingCustomerId = null; $('custModal').classList.add('hidden'); }
+  function saveCustomer(id) {
+    var name = $('custName').value.trim();
+    if (!name) { toast('Enter a customer name.', true); $('custName').focus(); return; }
+    var opts = {
+      name: name, mobile: $('custMobile').value.trim(), email: $('custEmail').value.trim(),
+      address: $('custAddress').value.trim(), taxNumber: $('custTax').value.trim(),
+      creditLimit: Number($('custCredit').value || 0), priceLevel: $('custPriceLevel').value.trim(),
+      note: $('custNote').value.trim()
+    };
+    var call = id === '__new__' ? MaziAPI.adminCreateCustomer(opts) : MaziAPI.adminUpdateCustomer(id, opts);
+    call.then(function () {
+      closeCustomerModal();
+      toast(id === '__new__' ? 'Customer added' : 'Customer updated');
+      return loadCustomers().then(render);
+    }).catch(function (e) {
+      var msg = String((e && e.message) || '');
+      if (/admin_create_customer|admin_update_customer|does not exist|schema cache/i.test(msg)) {
+        toast('One-time setup needed — open Supabase → SQL Editor and run supabase/38_customers.sql, then try again.', true);
+      } else {
+        toast(msg || 'Could not save this customer.', true);
+      }
+    });
+  }
+
   function deleteSignupRequest(id) {
+    if (!isSuperAdmin(S.profile)) { toast('Only a Super Admin can do that.', true); return; }
     MaziAPI.adminDeleteSignupRequest(id).then(function () {
       toast('Sign-up request removed');
       return loadAccounts().then(render);
     }).catch(function (e) { toast(e.message || 'Could not remove this request.', true); });
   }
+  function declineStaffRequest(id) {
+    if (!isSuperAdmin(S.profile)) { toast('Only a Super Admin can do that.', true); return; }
+    MaziAPI.adminDeclineStaffRequest(id).then(function () {
+      toast('Request declined. The shop account is untouched.');
+      return loadAccounts().then(render);
+    }).catch(function (e) { toast(e.message || 'Could not decline this request.', true); });
+  }
   function setSuperAdmin(id, on) {
+    if (!isSuperAdmin(S.profile)) { toast('Only a Super Admin can do that.', true); return; }
     MaziAPI.adminSetSuperAdmin(id, on).then(function () {
       toast(on ? 'Now a Super Admin' : 'Super Admin removed');
       return loadAccounts().then(render);
@@ -1538,6 +1750,7 @@
           '<div class="pos-row-meta">' + esc(mvr(q.total)) + ' · ' + q.items.length + ' item(s) · ' + esc(fmtDate(q.createdAt)) + '</div>' +
         '</div>' +
         '<button type="button" class="btn neutral sm" data-pos-print-quote="' + esc(q.id) + '">Print</button>' +
+        '<button type="button" class="btn neutral sm" data-pos-download-quote="' + esc(q.id) + '">Download</button>' +
         '<button type="button" class="btn primary sm" data-pos-convert="' + esc(q.id) + '">Confirm sale</button>' +
         '<button type="button" class="btn danger sm" data-pos-void="' + esc(q.id) + '">Void</button>' +
       '</div>';
@@ -1584,9 +1797,21 @@
       mobile: $('posMobile') ? $('posMobile').value.trim() : POS.mobile,
       note: $('posNote') ? $('posNote').value.trim() : POS.note
     };
+    var isQuote = POS.mode === 'quotation';
+    if (isQuote) { posRun(opts, true); return; }
+    // a real sale takes stock off and counts as revenue straight away, so ask first
+    var lines = Object.keys(POS.cart).length;
+    showConfirm({
+      title: 'Confirm this sale?',
+      message: lines + ' item' + (lines > 1 ? 's' : '') + ' · Total ' + mvr(posCartTotal()) + '. This takes the items off stock and records the sale as completed.',
+      confirmLabel: 'Confirm sale',
+      onConfirm: function () { posRun(opts, false); }
+    });
+  }
+  function posRun(opts, isQuote) {
+    if (POS.busy) return;
     var btn = $('posSubmitBtn');
     POS.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Please wait…'; }
-    var isQuote = POS.mode === 'quotation';
     var call = isQuote ? MaziAPI.adminCreateQuotation(opts) : MaziAPI.adminCreateWalkinOrder(opts);
     call.then(function (result) {
       POS.busy = false;
@@ -1631,13 +1856,19 @@
       }
     });
   }
-  function posPrintExistingQuotation(id) {
+  function withQuotation(id, cb) {
     var q = POS.quotations.filter(function (x) { return x.id === id; })[0];
-    if (q) { openPrintable(buildQuotationDocHtml(q)); return; }
+    if (q) { cb(q); return; }
     MaziAPI.adminListQuotations().then(function (rows) {
       var found = (rows || []).filter(function (x) { return x.id === id; })[0];
-      if (found) openPrintable(buildQuotationDocHtml(found)); else toast('Quotation not found.', true);
+      if (found) cb(found); else toast('Quotation not found.', true);
     }).catch(function (e) { toast(e.message || 'Could not load quotation.', true); });
+  }
+  function posPrintExistingQuotation(id) {
+    withQuotation(id, function (q) { openPrintable(buildQuotationDocHtml(q)); });
+  }
+  function posDownloadExistingQuotation(id) {
+    withQuotation(id, function (q) { downloadQuotationPdf(q); });
   }
 
   /* ---- printable slip (walk-in sale, 80mm) / quotation (A4) ---- */
@@ -1645,90 +1876,296 @@
     return { name: 'MAZI General Trade', addr: "Male', Republic of Maldives", email: 'mazigeneraltrade@gmail.com', phone: '+960 929 1600' };
   }
   function openPrintable(html) {
-    var blob = new Blob([html], { type: 'text/html' });
-    var url = URL.createObjectURL(blob);
-    var w = window.open(url, '_blank');
-    if (!w) toast('Please allow pop-ups to print or save this as a PDF.', true);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    // Prints via a hidden iframe in the current tab — no extra browser tab,
+    // no pop-up blocker to worry about. The iframe's own onload script
+    // triggers window.print(); we just clean it up afterwards.
+    var ifr = document.createElement('iframe');
+    ifr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+    document.body.appendChild(ifr);
+    var cleaned = false;
+    var cleanup = function () {
+      if (cleaned) return; cleaned = true;
+      setTimeout(function () { if (ifr.parentNode) ifr.parentNode.removeChild(ifr); }, 300);
+    };
+    try { if (ifr.contentWindow) ifr.contentWindow.addEventListener('afterprint', cleanup); } catch (e) {}
+    var doc = ifr.contentDocument || (ifr.contentWindow && ifr.contentWindow.document);
+    if (!doc) { cleanup(); toast('Could not open the print preview.', true); return; }
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(cleanup, 20000); // fallback in case afterprint never fires
   }
   function buildWalkinSlipHtml(order) {
+    // A5 sales slip — same look as the quotation document, scaled for A5
     var store = posStoreInfo();
-    var itemsHtml = order.items.map(function (it) {
-      return '<div class="receipt-item"><div class="receipt-item-name">' + esc(productDisplayName(it.name)) + '</div>' +
-        '<div class="receipt-item-sub"><span>' + (it.pack ? esc(it.pack) + ' &times; ' : '') + it.qty + ' @ ' + esc(mvr(it.price)) + '</span><span>' + esc(mvr(it.price * it.qty)) + '</span></div></div>';
+    var issuedBy = (S.profile && (S.profile.staff_name || (isPrimarySuperAdmin(S.profile) && PRIMARY_SUPER_ADMIN_NAME))) || 'Staff';
+    var gstAmt = Number(order.gst || 0);
+    var netAmt = Number(order.total || 0) - gstAmt;
+    var c = order.customer || {};
+    var rows = order.items.map(function (it, i) {
+      return '<tr><td class="num">' + (i + 1) + '</td><td>' + esc(productDisplayName(it.name)) + (it.pack ? '<div class="sub">' + esc(it.pack) + '</div>' : '') + '</td>' +
+        '<td style="text-align:center">' + it.qty + '</td><td style="text-align:right">' + esc(mvr(it.price)) + '</td>' +
+        '<td style="text-align:right">' + esc(mvr(it.price * it.qty)) + '</td></tr>';
     }).join('');
-    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Slip - ' + esc(order.id) + '</title><style>' +
-      '@page{ size:80mm auto; margin:2mm; } *{box-sizing:border-box;}' +
-      'body{margin:0;background:#F8F7F2;font-family:\'Courier New\',Courier,monospace;color:#16211C;display:flex;justify-content:center;padding:24px 12px;}' +
-      '.receipt-paper{background:#fff;width:80mm;max-width:100%;box-shadow:0 2px 10px rgba(15,58,46,.14);padding:18px 16px;}' +
-      '.receipt-store-name{font-size:14px;font-weight:700;text-align:center;letter-spacing:.02em;}' +
-      '.receipt-store-addr{font-size:10.5px;text-align:center;color:#5C6B63;margin-top:2px;}' +
-      '.receipt-divider{border-top:1px dashed #b9b6a9;margin:10px 0;}' +
-      '.receipt-meta-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;}' +
-      '.receipt-items{display:flex;flex-direction:column;gap:8px;}' +
-      '.receipt-item-name{font-size:11.5px;font-weight:700;}' +
-      '.receipt-item-sub{display:flex;justify-content:space-between;font-size:11px;color:#5C6B63;margin-top:1px;}' +
-      '.receipt-total-row{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;}' +
-      '.receipt-footer{font-size:11.5px;text-align:center;font-weight:700;margin-top:2px;}' +
-      '.receipt-footer-small{font-size:9.5px;text-align:center;color:#5C6B63;margin-top:3px;}' +
-      '@media print{ body{background:#fff;padding:0;} .receipt-paper{box-shadow:none;margin:0 auto;} }' +
-      '</style></head><body><div class="receipt-paper">' +
-        '<div class="receipt-store-name">' + esc(store.name) + '</div>' +
-        '<div class="receipt-store-addr">' + esc(store.addr) + '</div>' +
-        '<div class="receipt-store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div>' +
-        '<div class="receipt-divider"></div>' +
-        '<div class="receipt-meta-row"><span>Sale #</span><span>' + esc(order.id) + '</span></div>' +
-        '<div class="receipt-meta-row"><span>Date</span><span>' + esc(fmtDate(order.placedAt)) + '</span></div>' +
-        '<div class="receipt-meta-row"><span>Customer</span><span>' + esc(order.customer.name || 'Walk-in customer') + '</span></div>' +
-        '<div class="receipt-divider"></div>' +
-        '<div class="receipt-items">' + itemsHtml + '</div>' +
-        '<div class="receipt-divider"></div>' +
-        '<div class="receipt-total-row"><span>Total</span><span>' + esc(mvr(order.total)) + '</span></div>' +
-        '<div class="receipt-divider"></div>' +
-        '<div class="receipt-footer">Thank you for shopping with us!</div>' +
-        '<div class="receipt-footer-small">Walk-in sale &middot; computer-generated slip.</div>' +
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Sales Slip ' + esc(order.id) + '</title><style>' +
+      '@page{ size:A5 portrait; margin:10mm; } *{box-sizing:border-box;}' +
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#16211C;padding:10mm;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+      '@media print{ body{padding:0;} }' +
+      '.head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}' +
+      '.head-left{border-left:4px solid #0F3A2E;padding-left:10px;padding-top:4px;}' +
+      '.doc-title{font-size:21px;font-weight:800;color:#16211C;line-height:1.1;}' +
+      '.doc-status{font-size:11px;font-weight:700;color:#8A9A91;margin-top:2px;}' +
+      '.head-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;}' +
+      '.head-right img{height:72px;width:auto;display:block;margin:0 0 2px;}' +
+      '.store-name{font-size:13px;font-weight:800;color:#16211C;margin-top:2px;}' +
+      '.store-addr{font-size:9.5px;color:#5C6B63;margin-top:2px;font-weight:600;}' +
+      '.meta{display:flex;justify-content:space-between;gap:16px;margin-bottom:14px;padding-top:6px;border-top:1px solid #EEEDE6;}' +
+      '.meta-block{font-size:11px;}' +
+      '.meta-label{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:#8A9A91;margin-bottom:5px;}' +
+      '.meta-row{display:flex;gap:8px;margin-bottom:3px;}' +
+      '.meta-row .k{color:#5C6B63;min-width:58px;font-weight:600;}' +
+      '.meta-row .v{font-weight:700;color:#16211C;}' +
+      '.cust-name{font-weight:800;font-size:12px;color:#0F3A2E;margin-bottom:2px;}' +
+      'table{width:100%;border-collapse:collapse;}' +
+      'thead{display:table-header-group;} tr{page-break-inside:avoid;}' +
+      'th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#5C6B63;background:#F3F2EC;padding:7px 6px;font-weight:800;}' +
+      'td{padding:8px 6px;border-bottom:1px solid #EEEDE6;vertical-align:top;font-weight:700;}' +
+      'td.num{color:#8A9A91;font-weight:600;width:20px;}' +
+      '.sub{font-size:9.5px;color:#5C6B63;font-weight:400;margin-top:1px;}' +
+      '.totals{width:230px;margin-left:auto;margin-top:0;page-break-inside:avoid;}' +
+      '.totals .row{display:flex;justify-content:space-between;padding:7px 10px;font-size:11px;background:#F7F6F1;font-weight:700;}' +
+      '.totals .row + .row{margin-top:1px;}' +
+      '.totals .grand{font-weight:900;font-size:13px;background:#0F3A2E;color:#fff;}' +
+      '.terms{margin-top:22px;font-size:9.5px;color:#3D473F;}' +
+      '.terms-title{font-weight:800;font-size:10px;letter-spacing:.03em;color:#16211C;margin-bottom:5px;}' +
+      '.terms div{margin-bottom:3px;}' +
+      '.footer{margin-top:22px;font-size:9px;color:#8A9A91;text-align:center;border-top:1px solid #EEEDE6;padding-top:10px;}' +
+      '</style></head><body>' +
+      '<div class="head"><div class="head-left"><div class="doc-title">Sales Slip</div><div class="doc-status">Completed</div></div>' +
+      '<div class="head-right"><img src="' + esc(location.origin) + '/img/logo-green.png" alt="' + esc(store.name) + '" onerror="this.style.display=\'none\'"><div class="store-name">' + esc(store.name) + '</div><div class="store-addr">' + esc(store.addr) + '</div><div class="store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div></div></div>' +
+      '<div class="meta"><div class="meta-block"><div class="meta-label">DETAILS</div>' +
+        '<div class="meta-row"><span class="k">Number</span><span class="v">' + esc(order.id) + '</span></div>' +
+        '<div class="meta-row"><span class="k">Date</span><span class="v">' + esc(fmtDate(order.placedAt)) + '</span></div>' +
+        '<div class="meta-row"><span class="k">Payment</span><span class="v">At counter</span></div>' +
+        '<div class="meta-row"><span class="k">Issued by</span><span class="v">' + esc(issuedBy) + '</span></div></div>' +
+      '<div class="meta-block" style="text-align:right"><div class="meta-label">CUSTOMER</div>' +
+        '<div class="cust-name">' + esc(c.name || 'Walk-in customer') + '</div>' +
+        (c.mobile ? '<div class="store-addr">' + esc(c.mobile) + '</div>' : '') + '</div></div>' +
+      '<table><thead><tr><th></th><th>Description</th><th style="text-align:center">Quantity</th><th style="text-align:right">Unit price</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="totals">' +
+        '<div class="row"><span>Sub Total</span><span>' + esc(mvr(netAmt)) + '</span></div>' +
+        '<div class="row"><span>GST @ 8%</span><span>' + esc(mvr(gstAmt)) + '</span></div>' +
+        '<div class="row grand"><span>Total (MVR)</span><span>' + esc(mvr(order.total)) + '</span></div>' +
       '</div>' +
+      '<div class="terms"><div class="terms-title">TERMS &amp; CONDITIONS</div>' +
+        '<div>* Please check the goods before leaving the counter. For any issue, call us on ' + esc(store.phone) + '.</div>' +
+        '<div>* Thank you for shopping with ' + esc(store.name) + '.</div></div>' +
+      '<div class="footer">Generated at ' + esc(fmtDate(Date.now())) + ' by ' + esc(issuedBy) + '</div>' +
       '<script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); };<\/script>' +
       '</body></html>';
   }
   function buildQuotationDocHtml(q) {
     var store = posStoreInfo();
-    var rows = q.items.map(function (it) {
-      return '<tr><td>' + esc(productDisplayName(it.name)) + (it.pack ? '<div class="sub">' + esc(it.pack) + '</div>' : '') + '</td>' +
+    var issuedBy = (S.profile && (S.profile.staff_name || (isPrimarySuperAdmin(S.profile) && PRIMARY_SUPER_ADMIN_NAME))) || 'Staff';
+    var gstAmt = Number(q.gst || 0);
+    var netAmt = Number(q.total || 0) - gstAmt;
+    var rows = q.items.map(function (it, i) {
+      return '<tr><td class="num">' + (i + 1) + '</td><td>' + esc(productDisplayName(it.name)) + (it.pack ? '<div class="sub">' + esc(it.pack) + '</div>' : '') + '</td>' +
         '<td style="text-align:center">' + it.qty + '</td><td style="text-align:right">' + esc(mvr(it.price)) + '</td>' +
         '<td style="text-align:right">' + esc(mvr(it.price * it.qty)) + '</td></tr>';
     }).join('');
-    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Quotation - ' + esc(q.id) + '</title><style>' +
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Quotation ' + esc(q.id) + '</title><style>' +
       '@page{ size:A4; margin:16mm; } *{box-sizing:border-box;}' +
-      'body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#16211C;padding:0;}' +
-      '.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16211C;padding-bottom:14px;margin-bottom:18px;}' +
-      '.store-name{font-size:20px;font-weight:800;}' +
-      '.store-addr{font-size:11.5px;color:#5C6B63;margin-top:2px;}' +
-      '.doc-title{font-size:22px;font-weight:800;text-align:right;}' +
-      '.doc-meta{font-size:11.5px;color:#5C6B63;text-align:right;margin-top:2px;}' +
-      '.customer{font-size:12.5px;margin-bottom:18px;}' +
-      'table{width:100%;border-collapse:collapse;font-size:12px;}' +
-      'th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#5C6B63;border-bottom:1px solid #d8d5c9;padding:6px 4px;}' +
-      'td{padding:8px 4px;border-bottom:1px solid #eee;vertical-align:top;}' +
-      '.sub{font-size:10.5px;color:#5C6B63;}' +
-      '.totals{width:260px;margin-left:auto;margin-top:14px;font-size:12.5px;}' +
-      '.totals div{display:flex;justify-content:space-between;padding:4px 0;}' +
-      '.totals .grand{font-weight:800;font-size:15px;border-top:2px solid #16211C;margin-top:4px;padding-top:8px;}' +
-      '.footer{margin-top:36px;font-size:10.5px;color:#5C6B63;}' +
+      'body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#16211C;padding:16mm;font-size:12.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+      '@media print{ body{padding:0;} }' +
+      '.head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}' +
+      '.head-left{border-left:4px solid #0F3A2E;padding-left:14px;padding-top:6px;}' +
+      '.doc-title{font-size:26px;font-weight:800;color:#16211C;line-height:1.1;}' +
+      '.doc-status{font-size:12.5px;font-weight:700;color:#8A9A91;margin-top:2px;text-transform:capitalize;}' +
+      '.head-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;}' +
+      '.head-right img{height:112px;width:auto;display:block;margin:0 0 2px;}' +
+      '.store-name{font-size:16px;font-weight:800;color:#16211C;margin-top:2px;}' +
+      '.store-addr{font-size:11px;color:#5C6B63;margin-top:2px;font-weight:600;}' +
+      '.meta{display:flex;justify-content:space-between;gap:24px;margin-bottom:20px;padding-top:6px;border-top:1px solid #EEEDE6;}' +
+      '.meta-block{font-size:12px;}' +
+      '.meta-label{font-size:10.5px;font-weight:800;letter-spacing:.05em;color:#8A9A91;margin-bottom:6px;}' +
+      '.meta-row{display:flex;gap:8px;margin-bottom:3px;}' +
+      '.meta-row .k{color:#5C6B63;min-width:64px;font-weight:600;}' +
+      '.meta-row .v{font-weight:700;color:#16211C;}' +
+      '.cust-name{font-weight:800;font-size:13px;color:#0F3A2E;margin-bottom:2px;}' +
+      'table{width:100%;border-collapse:collapse;}' +
+      'th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#5C6B63;background:#F3F2EC;padding:9px 8px;font-weight:800;}' +
+      'td{padding:10px 8px;border-bottom:1px solid #EEEDE6;vertical-align:top;font-weight:700;}' +
+      'td.num{color:#8A9A91;font-weight:600;width:22px;}' +
+      '.sub{font-size:10.5px;color:#5C6B63;font-weight:400;margin-top:1px;}' +
+      '.totals{width:280px;margin-left:auto;margin-top:0;}' +
+      '.totals .row{display:flex;justify-content:space-between;padding:9px 12px;font-size:12.5px;background:#F7F6F1;font-weight:700;}' +
+      '.totals .row + .row{margin-top:1px;}' +
+      '.totals .grand{font-weight:900;font-size:15px;background:#0F3A2E;color:#fff;}' +
+      '.terms{margin-top:34px;font-size:10.5px;color:#3D473F;}' +
+      '.terms-title{font-weight:800;font-size:11px;letter-spacing:.03em;color:#16211C;margin-bottom:6px;}' +
+      '.terms div{margin-bottom:3px;}' +
+      '.footer{margin-top:34px;font-size:10px;color:#8A9A91;text-align:center;border-top:1px solid #EEEDE6;padding-top:14px;}' +
       '</style></head><body>' +
-      '<div class="head"><div><div class="store-name">' + esc(store.name) + '</div><div class="store-addr">' + esc(store.addr) + '</div><div class="store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div></div>' +
-      '<div><div class="doc-title">QUOTATION</div><div class="doc-meta">' + esc(q.id) + '</div><div class="doc-meta">' + esc(fmtDate(q.createdAt)) + '</div></div></div>' +
-      '<div class="customer"><b>Quoted to:</b> ' + esc(q.customer.name || 'Walk-in customer') + (q.customer.mobile ? ' · ' + esc(q.customer.mobile) : '') + '</div>' +
-      '<table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit price</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-      '<div class="totals"><div class="grand"><span>Total (GST incl.)</span><span>' + esc(mvr(q.total)) + '</span></div></div>' +
-      (q.note ? '<div class="customer" style="margin-top:18px"><b>Note:</b> ' + esc(q.note) + '</div>' : '') +
-      '<div class="footer">This quotation is valid for a limited time and prices may change. Thank you for considering ' + esc(store.name) + '.</div>' +
+      '<div class="head"><div class="head-left"><div class="doc-title">Quotation</div><div class="doc-status">' + esc(q.status || 'Open') + '</div></div>' +
+      '<div class="head-right"><img src="' + esc(location.origin) + '/img/logo-green.png" alt="' + esc(store.name) + '" onerror="this.style.display=\'none\'"><div class="store-name">' + esc(store.name) + '</div><div class="store-addr">' + esc(store.addr) + '</div><div class="store-addr">' + esc(store.phone) + ' · ' + esc(store.email) + '</div></div></div>' +
+      '<div class="meta"><div class="meta-block"><div class="meta-label">DETAILS</div>' +
+        '<div class="meta-row"><span class="k">Number</span><span class="v">' + esc(q.id) + '</span></div>' +
+        '<div class="meta-row"><span class="k">Date</span><span class="v">' + esc(fmtDate(q.createdAt)) + '</span></div>' +
+        '<div class="meta-row"><span class="k">Issued by</span><span class="v">' + esc(issuedBy) + '</span></div></div>' +
+      '<div class="meta-block" style="text-align:right"><div class="meta-label">CUSTOMER</div>' +
+        '<div class="cust-name">' + esc(q.customer.name || 'Walk-in customer') + '</div>' +
+        (q.customer.mobile ? '<div class="store-addr">' + esc(q.customer.mobile) + '</div>' : '') + '</div></div>' +
+      '<table><thead><tr><th></th><th>Description</th><th style="text-align:center">Quantity</th><th style="text-align:right">Unit price</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="totals">' +
+        '<div class="row"><span>Sub Total</span><span>' + esc(mvr(netAmt)) + '</span></div>' +
+        '<div class="row"><span>GST @ 8%</span><span>' + esc(mvr(gstAmt)) + '</span></div>' +
+        '<div class="row grand"><span>Total (MVR)</span><span>' + esc(mvr(q.total)) + '</span></div>' +
+      '</div>' +
+      (q.note ? '<div class="terms" style="margin-top:22px"><div class="terms-title">NOTE</div><div>' + esc(q.note) + '</div></div>' : '') +
+      '<div class="terms"><div class="terms-title">TERMS &amp; CONDITIONS</div>' +
+        '<div>* Please check and accept the goods. If the goods are not in good condition, do not accept them and call us on ' + esc(store.phone) + '.</div>' +
+        '<div>* This quotation is valid for a limited time and prices may change without notice.</div>' +
+        '<div>* Total amount to be paid in invoiced currency.</div>' +
+        '<div>* Thank you for considering ' + esc(store.name) + '.</div></div>' +
+      '<div class="footer">Generated at ' + esc(fmtDate(Date.now())) + ' by ' + esc(issuedBy) + '</div>' +
       '<script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); };<\/script>' +
       '</body></html>';
   }
 
+  /* ---- quotation PDF download (vector text via jsPDF — stays a few KB, no embedded images) ---- */
+  function buildQuotationPdf(q) {
+    var JsPDF = window.jspdf && window.jspdf.jsPDF;
+    if (!JsPDF) { toast('PDF library did not load. Refresh the page and try again.', true); return null; }
+    var store = posStoreInfo();
+    var issuedBy = (S.profile && (S.profile.staff_name || (isPrimarySuperAdmin(S.profile) && PRIMARY_SUPER_ADMIN_NAME))) || 'Staff';
+    var gstAmt = Number(q.gst || 0);
+    var netAmt = Number(q.total || 0) - gstAmt;
+    var ink = [22, 33, 28], gray = [92, 107, 99], soft = [138, 154, 145], green = [15, 58, 46];
+    var headFill = [243, 242, 236], rowFill = [247, 246, 241], lineFill = [238, 237, 230];
+
+    var doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    var pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+    var margin = 16, x = margin, right = pageW - margin, y = margin;
+
+    doc.setDrawColor(green[0], green[1], green[2]); doc.setLineWidth(1.1);
+    doc.line(x, y, x, y + 15);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(19); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text('Quotation', x + 4, y + 6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(soft[0], soft[1], soft[2]);
+    doc.text(String(q.status || 'open').replace(/^./, function (c) { return c.toUpperCase(); }), x + 4, y + 11.5);
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text(store.name, right, y + 2, { align: 'right' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text(store.addr, right, y + 7, { align: 'right' });
+    doc.text(store.phone + ' \u00B7 ' + store.email, right, y + 11, { align: 'right' });
+
+    y += 20;
+    doc.setDrawColor(lineFill[0], lineFill[1], lineFill[2]); doc.setLineWidth(0.3);
+    doc.line(x, y, right, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(soft[0], soft[1], soft[2]);
+    doc.text('DETAILS', x, y);
+    doc.text('CUSTOMER', right, y, { align: 'right' });
+    y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text('Number', x, y);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text(String(q.id), x + 20, y);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(green[0], green[1], green[2]);
+    doc.text(q.customer.name || 'Walk-in customer', right, y, { align: 'right' });
+    y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text('Date', x, y);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text(fmtDate(q.createdAt), x + 20, y);
+    if (q.customer.mobile) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(gray[0], gray[1], gray[2]);
+      doc.text(q.customer.mobile, right, y, { align: 'right' });
+    }
+    y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text('Issued by', x, y);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text(issuedBy, x + 20, y);
+
+    y += 8;
+    var qtyX = right - 65, priceX = right - 38;
+    doc.setFillColor(headFill[0], headFill[1], headFill[2]);
+    doc.rect(x, y, right - x, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text('DESCRIPTION', x + 3, y + 4.6);
+    doc.text('QTY', qtyX, y + 4.6, { align: 'center' });
+    doc.text('UNIT PRICE', priceX, y + 4.6, { align: 'right' });
+    doc.text('TOTAL', right - 2, y + 4.6, { align: 'right' });
+    y += 7;
+
+    q.items.forEach(function (it, i) {
+      var rowH = it.pack ? 10 : 7;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(soft[0], soft[1], soft[2]);
+      doc.text(String(i + 1), x + 2, y + 5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.text(productDisplayName(it.name), x + 8, y + 5, { maxWidth: qtyX - x - 28 });
+      if (it.pack) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(gray[0], gray[1], gray[2]);
+        doc.text(it.pack, x + 8, y + 9);
+      }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.text(String(it.qty), qtyX, y + 5, { align: 'center' });
+      doc.text(mvr(it.price), priceX, y + 5, { align: 'right' });
+      doc.text(mvr(it.price * it.qty), right - 2, y + 5, { align: 'right' });
+      y += rowH;
+      doc.setDrawColor(lineFill[0], lineFill[1], lineFill[2]); doc.setLineWidth(0.2);
+      doc.line(x, y, right, y);
+    });
+
+    y += 6;
+    var boxW = 66, boxX = right - boxW;
+    function totalsRow(label, value, filled) {
+      doc.setFillColor(filled ? green[0] : rowFill[0], filled ? green[1] : rowFill[1], filled ? green[2] : rowFill[2]);
+      doc.rect(boxX, y, boxW, 7.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(filled ? 10 : 9);
+      doc.setTextColor(filled ? 255 : ink[0], filled ? 255 : ink[1], filled ? 255 : ink[2]);
+      doc.text(label, boxX + 3, y + 5);
+      doc.text(value, right - 2, y + 5, { align: 'right' });
+      y += 7.7;
+    }
+    totalsRow('Sub Total', mvr(netAmt), false);
+    totalsRow('GST @ 8%', mvr(gstAmt), false);
+    totalsRow('Total (MVR)', mvr(q.total), true);
+
+    y += 10;
+    if (q.note) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.text('NOTE', x, y); y += 4.5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(61, 71, 63);
+      doc.text(q.note, x, y, { maxWidth: right - x }); y += 8;
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(ink[0], ink[1], ink[2]);
+    doc.text('TERMS & CONDITIONS', x, y); y += 4.5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(61, 71, 63);
+    [
+      '* Please check and accept the goods. If the goods are not in good condition, do not accept them and call us on ' + store.phone + '.',
+      '* This quotation is valid for a limited time and prices may change without notice.',
+      '* Total amount to be paid in invoiced currency.',
+      '* Thank you for considering ' + store.name + '.'
+    ].forEach(function (line) { doc.text(line, x, y, { maxWidth: right - x }); y += 4; });
+
+    doc.setDrawColor(lineFill[0], lineFill[1], lineFill[2]); doc.setLineWidth(0.3);
+    doc.line(x, pageH - 20, right, pageH - 20);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(soft[0], soft[1], soft[2]);
+    doc.text('Generated at ' + fmtDate(Date.now()) + ' by ' + issuedBy, pageW / 2, pageH - 15, { align: 'center' });
+
+    return doc;
+  }
+  function downloadQuotationPdf(q) {
+    var doc = buildQuotationPdf(q);
+    if (!doc) return;
+    doc.save('Quotation-' + q.id + '.pdf');
+  }
+
   function onPosClick(e) {
-    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote]');
+    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote],[data-pos-download-quote]');
     if (!t) return;
     var d = t.dataset;
     if (d.posAdd) { POS.cart[d.posAdd] = (POS.cart[d.posAdd] || 0) + 1; renderPos(); return; }
@@ -1744,6 +2181,7 @@
     if (d.posConvert) { posConvertQuotation(d.posConvert); return; }
     if (d.posVoid) { posVoidQuotation(d.posVoid); return; }
     if (d.posPrintQuote) { posPrintExistingQuotation(d.posPrintQuote); return; }
+    if (d.posDownloadQuote) { posDownloadExistingQuotation(d.posDownloadQuote); return; }
   }
   function onPosInput(e) {
     var t = e.target; if (!t || !t.id) return;
@@ -2006,33 +2444,50 @@
     $('drawer').innerHTML = drawerHtml(o);
   }
   function drawerHtml(o) {
-    var c = o.customer || {}, feeTbc = o.deliveryFee == null;
+    var c = o.customer || {}, wk = o.orderType === 'walkin', feeTbc = !wk && o.deliveryFee == null;
     var mobile = String(c.mobile || '').replace(/[^0-9+]/g, '');
     var items = o.items.map(function (it) {
       return '<li><span>' + esc(productDisplayName(it.name)) + '<small>' + esc(it.pack || '') + ' · ' + esc(mvr(it.price)) + ' × ' + it.qty + '</small></span><span>' + esc(mvr(it.price * it.qty)) + '</span></li>';
     }).join('');
-    var h = '<div class="dh"><div><h2>#' + esc(o.id) + '</h2><small>' + esc(fmtDate(o.placedAt)) + '</small><div class="c-status" style="margin-top:6px">' + statusHtml(o) + '</div></div>' +
+    var h = '<div class="dh"><div><h2>#' + esc(o.id) + '</h2><small>' + esc(fmtDate(o.placedAt)) + '</small><div class="c-status" style="margin-top:6px;gap:6px">' + sourcePill(o) + statusHtml(o) + '</div></div>' +
       '<button class="kebab" data-close aria-label="Close">' + ICON.close + '</button></div><div class="dc"><div class="dc-cols"><div class="dc-col">';
-    h += '<div class="sec"><h4>Customer</h4><div><b>' + esc(c.name) + '</b></div><div><a href="tel:' + esc(mobile) + '">' + esc(c.mobile) + '</a> · <a href="https://wa.me/' + esc(mobile.replace(/^\+/, '')) + '" target="_blank" rel="noopener">WhatsApp</a></div></div>';
-    h += '<div class="sec"><h4>' + esc(typeOf(o)) + '</h4><div class="loc">' + esc(locationText(o)) + '</div></div>';
-    h += '<div class="sec"><h4>Payment slip</h4><button class="btn ghost sm" data-slip="' + esc(o.id) + '">View payment slip</button></div>';
+    h += '<div class="sec"><h4>Customer</h4><div><b>' + esc(c.name || (wk ? 'Walk-in customer' : '')) + '</b></div>' +
+      ((wk && !mobile) ? '' : '<div><a href="tel:' + esc(mobile) + '">' + esc(c.mobile) + '</a> · <a href="https://wa.me/' + esc(mobile.replace(/^\+/, '')) + '" target="_blank" rel="noopener">WhatsApp</a></div>') + '</div>';
+    if (wk) {
+      h += '<div class="sec"><h4>Sale</h4><div class="loc">Counter sale &middot; paid at counter</div></div>';
+    } else {
+      h += '<div class="sec"><h4>' + esc(typeOf(o)) + '</h4><div class="loc">' + esc(locationText(o)) + '</div></div>';
+      h += '<div class="sec"><h4>Payment slip</h4>' +
+        (o.slipPath
+          ? '<button class="btn ghost sm" data-slip="' + esc(o.id) + '">View payment slip</button>'
+          : '<div style="color:var(--ink-soft);font-size:13px">No payment slip</div>') +
+        '</div>';
+    }
     h += '</div><div class="dc-col">';
     h += '<div class="sec"><h4>Items</h4><ul class="items">' + items + '</ul>' +
       '<div style="margin-top:8px"><div class="kv"><span>Subtotal</span><span>' + esc(mvr(o.subtotal)) + '</span></div>' +
       '<div class="kv" style="color:var(--ink-soft)"><span>incl. GST</span><span>' + esc(mvr(o.gst)) + '</span></div>' +
-      '<div class="kv"><span>Delivery</span><span>' + (feeTbc ? '<b style="color:var(--amber)">to be confirmed</b>' : esc(mvr(o.deliveryFee))) + '</span></div>' +
+      (wk ? '' : '<div class="kv"><span>Delivery</span><span>' + (feeTbc ? '<b style="color:var(--amber)">to be confirmed</b>' : esc(mvr(o.deliveryFee))) + '</span></div>') +
       '<div class="kv total"><span>Total</span><span>' + esc(mvr(o.total)) + '</span></div></div>' +
       (o.currency === 'USD' ? '<div class="info">Customer chose to pay in <b>USD</b> ≈ $' + (o.total / MVR_PER_USD).toFixed(2) + ' (at ' + MVR_PER_USD + ')</div>' : '') + '</div>';
     h += '</div></div>';
 
     h += '<div class="sec dc-actions"><h4>Actions</h4><div class="acts">';
-    if (o.status !== 'cancelled') {
+    if (wk && o.status !== 'cancelled') {
+      h += '<span class="pill">Completed</span>' +
+        '<button class="btn primary" data-reprint="' + esc(o.id) + '">Print slip</button>' +
+        '<button class="btn danger" data-cancel="' + esc(o.id) + '">Void sale</button>';
+    } else if (o.status !== 'cancelled') {
       var i = FLOW.indexOf(o.status);
       if (i < FLOW.length - 1) h += '<button class="btn primary" data-next="' + esc(o.id) + '">' + NEXT_LABEL[o.status] + '</button>';
       if (o.status !== 'delivered') h += '<button class="btn danger" data-cancel="' + esc(o.id) + '">Cancel order</button>';
       if (o.status === 'delivered') h += '<span class="pill">Completed</span>';
     } else {
-      h += '<span class="refund-chip' + (o.refundStatus === 'refunded' ? ' done' : '') + '"><span class="dot"></span>' + (o.refundStatus === 'refunded' ? 'Refunded' : 'Refund pending') + '</span>';
+      if (o.refundStatus === 'pending' || o.refundStatus === 'refunded') {
+        h += '<span class="refund-chip' + (o.refundStatus === 'refunded' ? ' done' : '') + '"><span class="dot"></span>' + (o.refundStatus === 'refunded' ? 'Refunded' : 'Refund pending') + '</span>';
+      } else {
+        h += '<span class="pill gray">' + (wk ? 'Voided — stock returned' : 'Cancelled — no refund due') + '</span>';
+      }
       if (o.refundStatus === 'pending') h += '<button class="btn primary" data-refunded="' + esc(o.id) + '">Mark refunded</button>';
     }
     h += '</div>';
@@ -2049,13 +2504,15 @@
     closeMenu();
     var o = findOrder(id); if (!o) return;
     var items = ['<button data-open="' + esc(id) + '">View details</button>'];
-    if (o.status !== 'cancelled') {
+    var wkm = o.orderType === 'walkin';
+    if (wkm && o.status !== 'cancelled') items.push('<button data-reprint="' + esc(id) + '">Print slip</button>');
+    if (!wkm && o.status !== 'cancelled') {
       var i = FLOW.indexOf(o.status);
       if (i < FLOW.length - 1) items.push('<button data-next="' + esc(id) + '">' + NEXT_LABEL[o.status] + '</button>');
     }
-    items.push('<button data-slip="' + esc(id) + '">View payment slip</button>');
+    if (o.slipPath) items.push('<button data-slip="' + esc(id) + '">View payment slip</button>');
     if (o.status === 'cancelled' && o.refundStatus === 'pending') items.push('<button data-refunded="' + esc(id) + '">Mark refunded</button>');
-    if (o.status !== 'cancelled' && o.status !== 'delivered') items.push('<button class="dng" data-cancel="' + esc(id) + '">Cancel order</button>');
+    if (o.status !== 'cancelled' && (o.status !== 'delivered' || wkm)) items.push('<button class="dng" data-cancel="' + esc(id) + '">' + (wkm ? 'Void sale' : 'Cancel order') + '</button>');
     placeMenu(items, btn);
   }
   function openStockMenu(pid, btn) {
@@ -2067,12 +2524,11 @@
   }
   function openStaffMenu(id, btn) {
     closeMenu();
+    if (!isSuperAdmin(S.profile)) return;
     var account = (S.accounts || []).filter(function (x) { return x.id === id; })[0];
     if (!account) return;
     var items = [];
-    if ((account.is_admin || account.is_super_admin) && !isPrimaryAdminAccount(account)) {
-      items.push('<button data-sa-on="' + esc(id) + '">Make Super Admin</button>');
-    }
+    // No "Make Super Admin": MAZI has a single Super Admin (the primary company account).
     if ((account.is_admin || account.is_super_admin) && !isPrimaryAdminAccount(account)) {
       items.push('<button data-staff-off="' + esc(id) + '">Remove access</button>');
     }
@@ -2124,7 +2580,7 @@
 
   /* ============ events ============ */
   function onClick(e) {
-    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-staff-reject],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail]');
+    var t = e.target.closest('[data-tab],[data-agroup],[data-open],[data-menu],[data-stock-menu],[data-staff-menu],[data-next],[data-cancel],[data-slip],[data-reprint],[data-refunded],[data-fee],[data-note],[data-add],[data-subtract],[data-set],[data-edit],[data-add-product],[data-save-product],[data-delete-product],[data-close-edit],[data-shop-approve],[data-shop-reject],[data-close],[data-view],[data-goto],[data-month-toggle],[data-months-toggle],[data-sales-year],[data-sales-source],[data-notif-enable],[data-notif-off],[data-notif-on],[data-notif-item],[data-notif-viewall],[data-close-confirm],[data-img-view],[data-close-imgview],[data-remove-image],[data-staff-on],[data-staff-off],[data-staff-reject],[data-staff-decline],[data-sa-on],[data-sa-off],[data-open-staffname],[data-close-staffname],[data-save-staffname],[data-retry-changes],[data-toggle-error-detail],[data-new-customer],[data-edit-customer],[data-close-customer],[data-save-customer]');
     if (!t) return;
     var d = t.dataset, o;
     if (d.view) { S.view = d.view; S.q = ''; if (d.view === 'live') markPlacedSeen(); closeDrawer(); closeMenu(); if (S.view === 'stock' || S.view === 'dashboard' || S.view === 'pos') { loadStock().then(render); } render(); return; }
@@ -2138,6 +2594,7 @@
     }
     if (d.monthToggle) { S.expMonths[d.monthToggle] = !S.expMonths[d.monthToggle]; render(); return; }
     if (d.monthsToggle !== undefined) { S.showAllMonths = !S.showAllMonths; render(); return; }
+    if (d.salesSource) { S.salesSource = d.salesSource; S.showAllMonths = false; render(); return; }
     if (d.salesYear) { S.salesYear = d.salesYear; S.showAllMonths = false; render(); return; }
     if (d.notifItem) { closeNotif(); markOneSeen(d.notifItem); openDrawer(d.notifItem); render(); return; }
     if (d.retryChanges !== undefined) { t.classList.add('spin'); loadProfileChanges().then(render); return; }
@@ -2188,6 +2645,17 @@
       });
       return;
     }
+    if (d.staffDecline) {
+      var reqToDecline = (S.accounts || []).filter(function (x) { return x.id === d.staffDecline; })[0];
+      showConfirm({
+        title: 'Decline this request?',
+        message: 'Decline staff access for ' + ((reqToDecline && (reqToDecline.name || reqToDecline.email)) || 'this account') + '? Their shop account and order history stay as they are. They can request again later.',
+        confirmLabel: 'Decline',
+        danger: true,
+        onConfirm: function () { declineStaffRequest(d.staffDecline); }
+      });
+      return;
+    }
     if (d.staffOff) {
       closeMenu();
       var staffToRemove = (S.accounts || []).filter(function (x) { return x.id === d.staffOff; })[0];
@@ -2210,6 +2678,10 @@
       });
       return;
     }
+    if (d.newCustomer !== undefined) { openNewCustomer(); return; }
+    if (d.editCustomer) { openEditCustomer(d.editCustomer); return; }
+    if (d.closeCustomer !== undefined) { closeCustomerModal(); return; }
+    if (d.saveCustomer) { saveCustomer(d.saveCustomer); return; }
     if (d.openStaffname !== undefined) { openStaffNameModal(); return; }
     if (d.closeStaffname !== undefined) { closeStaffNameModal(); return; }
     if (d.saveStaffname !== undefined) { saveStaffName(); return; }
@@ -2228,12 +2700,18 @@
     }
     if (d.cancel) {
       closeMenu(); o = findOrder(d.cancel);
+      var isWalkin = o.orderType === 'walkin';
       showConfirm({
-        title: 'Cancel order ' + o.id + '?',
-        message: 'The customer paid with a slip, so the refund is marked as pending.',
-        confirmLabel: 'Cancel order',
+        title: (isWalkin ? 'Void sale ' : 'Cancel order ') + o.id + '?',
+        message: isWalkin
+          ? 'Walk-in sale: the stock will be returned. No refund will be queued. Mark it refunded manually if you already gave money back.'
+          : 'The customer paid with a slip, so the refund is marked as pending.',
+        confirmLabel: isWalkin ? 'Void sale' : 'Cancel order',
         danger: true,
-        onConfirm: function () { apply(o.id, 'cancelled', { refundStatus: 'pending' }, 'Order cancelled — refund pending'); }
+        onConfirm: function () {
+          apply(o.id, 'cancelled', { refundStatus: isWalkin ? 'none' : 'pending' },
+            isWalkin ? 'Walk-in sale voided' : 'Order cancelled — refund pending');
+        }
       });
       return;
     }
@@ -2246,8 +2724,10 @@
       return;
     }
     if (d.note) { o = findOrder(d.note); apply(o.id, o.status, { note: $('note-' + o.id).value }, 'Note saved'); return; }
+    if (d.reprint) { closeMenu(); o = findOrder(d.reprint); if (o) openPrintable(buildWalkinSlipHtml(o)); return; }
     if (d.slip) {
       closeMenu(); o = findOrder(d.slip);
+      if (!o || !o.slipPath) { toast('This order has no payment slip.', true); return; }
       var w = window.open('', '_blank'); // open first so mobile browsers don't block the popup
       MaziAPI.getSlipUrl(o.slipPath).then(function (url) {
         if (w) w.location.href = url; else window.location.href = url;
@@ -2259,11 +2739,12 @@
     $('loginBtn').addEventListener('click', login);
     $('googleBtn').addEventListener('click', loginWithGoogle);
     $('stMainBtn').addEventListener('click', function () {
-      if (W.done) { if (W.auto) { clearTimeout(W.auto); W.auto = null; } openApprovedDashboard(); }
+      if (W.offer) sendStaffRequest();
+      else if (W.done) { if (W.auto) { clearTimeout(W.auto); W.auto = null; } openApprovedDashboard(); }
       else checkWaiting(true);
     });
     $('stOutBtn').addEventListener('click', function () {
-      stopWaiting();
+      stopWaiting(); leaveOfferMode();
       MaziAPI.logout().catch(function () {}).then(function () { showLogin(); });
     });
     // coming back to the tab: check right away instead of waiting for the next tick
@@ -2363,7 +2844,8 @@
     });
     document.addEventListener('click', function (e) { if (menuEl && !e.target.closest('.menu') && !e.target.closest('[data-menu]') && !e.target.closest('[data-stock-menu]') && !e.target.closest('[data-staff-menu]')) closeMenu(); });
     document.addEventListener('click', function (e) { if (notifEl && !e.target.closest('.notif-dd') && !e.target.closest('#bell')) closeNotif(); });
-    ['nav', 'panel', 'drawer', 'editModal', 'confirmModal', 'imgViewModal', 'staffNameModal'].forEach(function (id) { $(id).addEventListener('click', onClick); });
+    ['nav', 'panel', 'drawer', 'editModal', 'confirmModal', 'imgViewModal', 'staffNameModal', 'custModal'].forEach(function (id) { $(id).addEventListener('click', onClick); });
+    $('custModal').addEventListener('click', function (e) { if (e.target === this) closeCustomerModal(); });
     $('staffNameModal').addEventListener('click', function (e) { if (e.target === this) closeStaffNameModal(); });
     var sni = $('staffNameInput'); if (sni) sni.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveStaffName(); });
     document.addEventListener('click', function (e) { if (menuEl && menuEl.contains(e.target)) onClick(e); }, true);

@@ -49,7 +49,9 @@
     CANNOT_REMOVE_SELF: 'You cannot remove your own staff access.',
     CANNOT_REMOVE_PRIMARY_SUPER_ADMIN: 'The primary Super Admin account cannot be removed.',
     LAST_SUPER_ADMIN: 'There must always be at least one Super Admin — make another account Super Admin first.',
-    STOREFRONT_ACCOUNT: 'This account signed up on the customer store front and cannot be given staff access.'
+    STOREFRONT_ACCOUNT: 'This is a shop account that has not requested staff access.',
+    NOT_A_STAFF_REQUEST: 'This account has no pending staff-access request.',
+    ALREADY_STAFF: 'This account already has staff access.'
   };
 
   // ---------- client ----------
@@ -59,7 +61,10 @@
     if (typeof window.supabase === 'undefined') throw fail('CONFIG', 'Supabase library did not load.');
     var url = window.SUPABASE_URL, key = window.SUPABASE_ANON_KEY;
     if (!url || !key || String(url).indexOf('PASTE_YOUR') === 0) throw fail('CONFIG', 'supabase-config.js is not filled in.');
-    client = window.supabase.createClient(url, key);
+    // The staff dashboard sets window.MAZI_AUTH_STORAGE_KEY so staff and shopper
+    // logins don't overwrite each other (both live on the same site/origin).
+    var opts = window.MAZI_AUTH_STORAGE_KEY ? { auth: { storageKey: window.MAZI_AUTH_STORAGE_KEY } } : undefined;
+    client = window.supabase.createClient(url, key, opts);
     return client;
   }
 
@@ -235,7 +240,7 @@
     return getClient().auth.onAuthStateChange(function (event, session) { cb(event, session); });
   }
   function logout() {
-    return run(function () { return getClient().auth.signOut().then(unwrap); });
+    return run(function () { return getClient().auth.signOut({ scope: 'local' }).then(unwrap); }); // this device only
   }
 
   function authResult(data) {
@@ -262,6 +267,7 @@
   // page, then back here already signed in. Google verifies the email
   // itself, so no confirmation email step is needed for this path.
   function signInWithGoogle(redirectPath) {
+    if (!redirectPath) { try { sessionStorage.removeItem('mazi_admin_google_claim'); } catch (e0) {} }   // shop login: drop any stale staff flag
     return run(function () {
       var redirectTo = redirectPath
         ? new URL(String(redirectPath).replace(/^\/+/, ''), window.location.href).href
@@ -638,6 +644,24 @@
       return getClient().rpc('admin_delete_signup_request', { p_user: userId }).then(unwrap);
     });
   }
+  // ---- customer (shop) account asks for staff access (needs supabase/41_staff_access_request.sql) ----
+  // Uses a separate flag (profiles.staff_requested); never touches signup_source
+  // and never deletes anything. Dashboard stays locked until a Super Admin approves.
+  function requestStaffAccess() {
+    return run(function () {
+      return getClient().rpc('request_staff_access').then(unwrap);
+    });
+  }
+  function cancelStaffRequest() {
+    return run(function () {
+      return getClient().rpc('cancel_staff_request').then(unwrap);
+    });
+  }
+  function adminDeclineStaffRequest(userId) {
+    return run(function () {
+      return getClient().rpc('admin_decline_staff_request', { p_user: userId }).then(unwrap);
+    });
+  }
   // ---- stock control (needs supabase/08_stock.sql) ----
   function adminListProducts() {
     return run(function () {
@@ -775,8 +799,49 @@
     });
   }
 
+  // ============================================================
+  // Customers (needs supabase/38_customers.sql)
+  // Admin-only: real customer records with credit limit, used by POS.
+  // opts = { name, mobile, email, address, taxNumber, creditLimit, priceLevel, note }
+  // ============================================================
+  function customerPayload(opts) {
+    opts = opts || {};
+    return {
+      name: opts.name || '', mobile: opts.mobile || '', email: opts.email || '',
+      address: opts.address || '', tax_number: opts.taxNumber || '',
+      credit_limit: opts.creditLimit || 0, price_level: opts.priceLevel || '', note: opts.note || ''
+    };
+  }
+  function normalizeCustomer(c) {
+    if (!c) return null;
+    return {
+      id: c.id, name: c.name, mobile: c.mobile || '', email: c.email || '',
+      address: c.address || '', taxNumber: c.tax_number || '',
+      creditLimit: Number(c.credit_limit || 0), priceLevel: c.price_level || '', note: c.note || '',
+      totalSpent: Number(c.total_spent || 0), outstanding: Number(c.outstanding || 0),
+      createdAt: new Date(c.created_at || Date.now()).getTime()
+    };
+  }
+  function adminListCustomers() {
+    return run(function () {
+      return getClient().rpc('admin_list_customers').then(unwrap)
+        .then(function (rows) { return (rows || []).map(normalizeCustomer); });
+    });
+  }
+  function adminCreateCustomer(opts) {
+    return run(function () {
+      return getClient().rpc('admin_create_customer', { payload: customerPayload(opts) }).then(unwrap).then(normalizeCustomer);
+    });
+  }
+  function adminUpdateCustomer(id, opts) {
+    return run(function () {
+      return getClient().rpc('admin_update_customer', { p_id: id, payload: customerPayload(opts) }).then(unwrap).then(normalizeCustomer);
+    });
+  }
+
   // Temporary (5 min) link to view a private payment slip
   function getSlipUrl(path) {
+    if (!path) return Promise.reject(new Error('No payment slip for this order.'));
     return run(function () {
       return getClient().storage.from(SLIP_BUCKET).createSignedUrl(path, 300).then(unwrap)
         .then(function (d) { return d.signedUrl; });
@@ -851,6 +916,7 @@
     adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus, adminListProfileChanges: adminListProfileChanges,
     adminListAccounts: adminListAccounts, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
     adminDeleteSignupRequest: adminDeleteSignupRequest,
+    requestStaffAccess: requestStaffAccess, cancelStaffRequest: cancelStaffRequest, adminDeclineStaffRequest: adminDeclineStaffRequest,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
     adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,
     adminUpdateProduct: adminUpdateProduct, adminAddProduct: adminAddProduct, adminListProductEditLog: adminListProductEditLog,
@@ -858,6 +924,7 @@
     uploadProductImage: uploadProductImage,
     adminCreateWalkinOrder: adminCreateWalkinOrder, adminCreateQuotation: adminCreateQuotation,
     adminConvertQuotation: adminConvertQuotation, adminVoidQuotation: adminVoidQuotation,
-    adminListQuotations: adminListQuotations
+    adminListQuotations: adminListQuotations,
+    adminListCustomers: adminListCustomers, adminCreateCustomer: adminCreateCustomer, adminUpdateCustomer: adminUpdateCustomer
   };
 })();

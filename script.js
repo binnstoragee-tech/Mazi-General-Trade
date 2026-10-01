@@ -571,11 +571,18 @@ function startAuthResendCooldown(seconds){
     if (authResendLeft <= 0) clearInterval(authResendTimer);
   }, 1000);
 }
+// Forgot / set-new-password / email-confirmation panels replace the whole
+// sign-in form, so the Google button + "or" divider must go too (CSS: .auth-in-panel).
+function setAuthPanelMode(on){
+  const m = $('#authModal');
+  if (m) m.classList.toggle('auth-in-panel', !!on);
+}
 function hideAuthPanels(){
   ['authForgot', 'authNewPass'].forEach(id=>{ const el = $(`#${id}`); if (el) el.hidden = true; });
 }
 function hideAuthVerify(){
   authVerifyState = null;
+  setAuthPanelMode(false);
   hideAuthPanels();
   const panel = $('#authVerify');
   if (!panel) return;
@@ -613,6 +620,7 @@ function showAuthVerify(state, email){
 
   $('#authModal .auth-head').hidden = true;
   $('#emailAuthForm').hidden = true;
+  setAuthPanelMode(true);
   panel.hidden = false;
   panel.classList.remove('auth-verify-in');
   void panel.offsetWidth; // restart the entrance animation
@@ -673,6 +681,7 @@ function showAuthForgot(){
   hideAuthVerify(); // back to a known state, then swap the form for the forgot panel
   $('#authModal .auth-head').hidden = true;
   $('#emailAuthForm').hidden = true;
+  setAuthPanelMode(true);
   $('#authForgotEmail').value = typed;
   $('#authForgotField').classList.remove('has-error');
   $('#authForgotError').hidden = true;
@@ -688,6 +697,7 @@ function showAuthNewPassword(){
   hideAuthVerify();
   $('#authModal .auth-head').hidden = true;
   $('#emailAuthForm').hidden = true;
+  setAuthPanelMode(true);
   ['authNewPassInput', 'authNewPassConfirm'].forEach(id=>{ $(`#${id}`).value = ''; });
   $('#authNewPassError').hidden = true;
   ['authNewPassField', 'authNewPassConfirmField'].forEach(id=> $(`#${id}`).classList.remove('has-error'));
