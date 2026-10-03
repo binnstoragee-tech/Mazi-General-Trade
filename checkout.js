@@ -18,7 +18,6 @@ const PRODUCTS = [
      after load (see the sync block further down), so it mainly avoids a price flash on first render.
      Photos: all in img/household&cleaning/ (new ones named <product code>.png, from the supplier packing list).
      KEEP THIS LIST IDENTICAL in script.js and checkout.js. */
-  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:1350, stock:'in', img:'img/household&cleaning/108DW10103.png' },
   { id:'104DW40405', name:'DAIWA FLOOR CLEANER 3800 ML.-AQUA BLUE , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:590, stock:'in', img:'img/household&cleaning/104DW40405.png' },
   { id:'104DW10107', name:'DAIWA FLOOR CLEANER 3800 ML.-FLORAL MIST SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:590, stock:'in', img:'img/household&cleaning/104DW10107.png' },
   { id:'104DW20205', name:'DAIWA FLOOR CLEANER 3800 ML.-LAVENDER SCENT , (1 X 4) CTN', cat:'household', icon:'🧹', pack:'Carton', unit:'1 x 4', price:590, stock:'in', img:'img/household&cleaning/104DW20205.png' },
@@ -84,6 +83,7 @@ const PRODUCTS = [
   { id:'607CR00101', name:'CLEAREX EUCALYPTUS OIL AIR FRESHENER GEL 180G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/607CR00101.png' },
   { id:'607BN00201', name:'ZLEEP EASY BY BANNE DEEP SLEEP AIR GEL 180 G', cat:'household', icon:'🌸', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/607BN00201.png' },
   { id:'503ZS00101', name:'ZENSI NATURAL CLEANSING SHOWER 450 ML.', cat:'personal-care', icon:'🚿', pack:'Carton', unit:'', price:0, stock:'out', img:'img/household&cleaning/503ZS00101.png' },
+  { id:'108DW10103', name:'DAIWA DISINFECTANT DEODORIZER 3500 ML. , (1 X 4) CTN', cat:'household', icon:'🧴', pack:'Carton', unit:'1 x 4', price:1350, stock:'in', img:'img/household&cleaning/108DW10103.png' },
 ];
 const ATOLLS = {
   'Haa Alif (HA)': ['Dhidhdhoo', 'Hoarafushi', 'Kelaa', 'Ihavandhoo'],
