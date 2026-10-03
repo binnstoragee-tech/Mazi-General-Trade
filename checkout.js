@@ -820,7 +820,12 @@ function syncCheckoutProducts(){
   }).catch(()=>{});
 }
 
+/* ---------- CART MAINTENANCE SWITCH (keep same value as script.js) ----------
+   true = ordering is paused; anyone landing on checkout is sent back to the shop. */
+const CART_MAINTENANCE = true;
+
 function init(){
+  if (CART_MAINTENANCE){ window.location.replace('index.html'); return; }
   if (!session || Object.keys(cart).length === 0) return;
 
   renderContact();

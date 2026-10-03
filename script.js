@@ -41,6 +41,13 @@ const CATEGORIES = [
   { id: 'household',    name: 'Household & Cleaning' },
 ];
 
+/* ---------- CART MAINTENANCE SWITCH ----------
+   true  = Add to Cart, quantity "+", Checkout and placing orders are all paused
+           (customers see a "under maintenance" notice).
+   false = everything works normally again.
+   Keep this the same value in script.js and checkout.js. */
+const CART_MAINTENANCE = true;
+
 /* ---------- Product data ---------- */
 const PRODUCTS = [
   /* Daiwa, Sanzoft, Carefor, R-Fresh, Pinto, Clearex, Zleep Easy, Zensi. id = backend code, name = backend name.
@@ -1319,6 +1326,7 @@ function bindCardSlot(slot){
     addBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       if (addBtn.classList.contains('loading') || addBtn.classList.contains('success')) return;
+      if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
       const qty = parseInt(addBtn.dataset.qty || '1', 10);
       addBtn.classList.add('loading');
       setTimeout(()=>{
@@ -1769,7 +1777,28 @@ function closeOtherFullScreenViews(exceptId){
 }
 
 /* ============ Cart logic ============ */
+function cartMaintenanceNotice(){
+  showToast('Cart is under maintenance', 'Adding items and ordering are temporarily unavailable. Please check back soon.', 'info');
+}
+
+/* Shows the maintenance banner inside the cart drawer and disables Checkout. */
+function applyCartMaintenanceUI(){
+  if (!CART_MAINTENANCE) return;
+  const body = $('#cartItems');
+  if (body && !$('#cartMaintNote')){
+    const n = document.createElement('div');
+    n.id = 'cartMaintNote';
+    n.setAttribute('role', 'status');
+    n.style.cssText = 'margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#fff7e0;border:1px solid #f0d27a;color:#6b4e00;font-size:13px;line-height:1.45;';
+    n.innerHTML = '<strong>Cart is under maintenance.</strong><br>Adding items and placing orders is temporarily unavailable. Please check back soon.';
+    body.parentNode.insertBefore(n, body);
+  }
+  const cb = $('#checkoutBtn');
+  if (cb){ cb.disabled = true; cb.textContent = 'Under maintenance'; }
+}
+
 function addToCart(id, qty){
+  if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
   qty = qty || 1;
   state.cart[id] = (state.cart[id] || 0) + qty;
   delete state.pendingQty[id];
@@ -1780,6 +1809,7 @@ function addToCart(id, qty){
 }
 
 function changeQty(id, delta){
+  if (CART_MAINTENANCE && delta > 0){ cartMaintenanceNotice(); return; }
   const next = (state.cart[id] || 0) + delta;
   if (next <= 0) { delete state.cart[id]; }
   else { state.cart[id] = next; }
@@ -1797,6 +1827,7 @@ function removeFromCart(id){
 }
 
 function updateCartUI(){
+  applyCartMaintenanceUI();
   const count = cartCount();
   $$('.js-cart-count').forEach(el=>{
     el.textContent = count;
@@ -1852,6 +1883,7 @@ function updateCartUI(){
 
 /* ============ Drawer / menu toggles ============ */
 function openCart(){
+  applyCartMaintenanceUI();
   $('#cartDrawer').classList.add('open');
   $('#drawerBackdrop').classList.add('show');
 }
@@ -3837,6 +3869,7 @@ function init(){
   $('#closeCart').addEventListener('click', closeCart);
   $('#drawerBackdrop').addEventListener('click', closeCart);
   $('#checkoutBtn').addEventListener('click', ()=>{
+    if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
     if (cartCount()===0){ showToast('Your cart is empty', null, 'info'); return; }
     if (!getSession()){
       closeCart();
