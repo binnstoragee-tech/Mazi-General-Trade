@@ -6781,3 +6781,13 @@ body.ma-modal-open{overflow:hidden;}
    forward = new page slides in from the right, menu slides out to the left;
    back    = page slides out to the right, menu slides back in from the left. */
 .profile-menu.park-left:not(.open){transform:translateX(-100%);}
+
+/* Similar / Other products carousels: render cards at their real height.
+   content-visibility:auto + contain-intrinsic-size (420px) was forcing every card
+   in the horizontal strip to 420px tall, leaving a big empty gap inside each card. */
+#similarProductsGrid .product-card,
+.carousel-track .product-card{
+  content-visibility:visible;
+  contain-intrinsic-size:auto;
+}
+#similarProductsGrid{align-items:flex-start;}
