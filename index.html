@@ -82,6 +82,7 @@
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" class="search-icon"><path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
           <input type="text" id="searchInput" placeholder="Search products, tags, color, SKU..." autocomplete="off">
+          <button type="button" class="search-clear" id="searchClear" aria-label="Remove search" title="Remove search" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
         </div>
       </div>
 
@@ -127,6 +128,7 @@
     <div class="mobile-search-bar">
       <svg viewBox="0 0 24 24" class="search-icon"><path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
       <input type="text" id="mobileSearchInput" placeholder="Search products, tags, color, SKU..." autocomplete="off">
+      <button type="button" class="search-clear" id="mobileSearchClear" aria-label="Remove search" title="Remove search" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
       <button class="mobile-search-close" id="mobileSearchClose" aria-label="Close">&times;</button>
     </div>
     <div class="mobile-search-body" id="mobileSearchBody"></div>
@@ -421,23 +423,35 @@
       <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Back to store</span>
     </button>
-    <img src="img/logo-green.png" alt="MAZI General Trade" class="profile-menu-logo">
   </div>
   <div class="profile-menu-body">
-    <button type="button" id="pmProfileBtn">
-      <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM4.5 20.25a7.5 7.5 0 0115 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <span class="pm-row-label">Profile</span>
-      <svg class="pm-row-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button type="button" id="pmOrdersBtn">
-      <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-5 8h6m-6 4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <span class="pm-row-label">My Orders</span>
-      <svg class="pm-row-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button type="button" id="pmLogoutBtn">
-      <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <span class="pm-row-label">Logout</span>
-    </button>
+    <div class="pm-hero">
+      <span class="pm-avatar" id="pmAvatar" aria-hidden="true">?</span>
+      <div class="pm-hero-text">
+        <p class="pm-hero-name" id="pmHeroName">My Account</p>
+        <p class="pm-hero-sub" id="pmHeroEmail"></p>
+      </div>
+    </div>
+
+    <div class="pm-group">
+      <button type="button" id="pmProfileBtn">
+        <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM4.5 20.25a7.5 7.5 0 0115 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="pm-row-label">Profile</span>
+        <svg class="pm-row-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" id="pmOrdersBtn">
+        <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-5 8h6m-6 4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="pm-row-label">My Orders</span>
+        <svg class="pm-row-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="pm-group">
+      <button type="button" id="pmLogoutBtn">
+        <span class="pm-row-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="pm-row-label">Logout</span>
+      </button>
+    </div>
   </div>
 </aside>
 
@@ -931,6 +945,13 @@
   </div>
   <div class="profile-view-wrap">
 
+    <div class="pv-hero">
+      <span class="pv-avatar" id="pvAvatar" aria-hidden="true">?</span>
+      <div class="pv-hero-text">
+        <h1 class="pv-hero-name" id="pvHeroName">My Profile</h1>
+        <p class="pv-hero-sub" id="pvHeroEmail">Manage your details and account settings</p>
+      </div>
+    </div>
 
     <div class="profile-view-card pv-details-card">
       <h2 class="pv-card-title">Personal Details</h2>

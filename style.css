@@ -675,6 +675,19 @@ input{font-family:inherit;}
 }
 .result-count{font-size:12.5px;color:var(--ink-soft);}
 
+/* Search results heading ("Results for ...") — lighter and smaller, not bold */
+.section-head h2.is-search-title{
+  font-size:14px;
+  font-weight:400;
+  line-height:1.35;
+}
+.section-head:has(.is-search-title) .result-count{font-size:11.5px;font-weight:400;}
+
+/* Keep "1 item" on one line, never squeezed against / wrapped under the heading */
+.section-head{gap:12px;}
+.section-head h2{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;}
+.section-head .result-count{flex:0 0 auto;white-space:nowrap;text-align:right;}
+
 /* ============ Product grid ============ */
 .product-grid{
   display:grid;
@@ -687,18 +700,8 @@ input{font-family:inherit;}
   border-radius:var(--radius);
   overflow:hidden;
   display:flex;flex-direction:column;
-  transition:transform .38s cubic-bezier(.22,1,.36,1), box-shadow .38s cubic-bezier(.22,1,.36,1), border-color .25s ease;
-  will-change:transform;
 }
-.product-card:hover{
-  transform:translateY(-5px);
-  box-shadow:0 16px 32px rgba(15,58,46,.12), 0 3px 10px rgba(15,58,46,.06);
-}
-.product-card:active{
-  transition-duration:.12s;
-  transform:translateY(-1px) scale(.98);
-  box-shadow:0 6px 16px rgba(15,58,46,.10);
-}
+/* Card/box stays still on hover — only the product photo moves (see .card-img below). */
 
 .card-media{
   position:relative;
@@ -711,7 +714,7 @@ input{font-family:inherit;}
   width:100%;height:100%;object-fit:cover;display:block;
   transition:transform .55s cubic-bezier(.22,1,.36,1);
 }
-.product-card:hover .card-media .card-img{transform:scale(1.07);}
+.product-card:hover .card-media .card-img{transform:scale(1.08);}
 .card-media .card-img.img-missing{visibility:hidden;}
 .card-body{padding:12px 14px 14px;display:flex;flex-direction:column;flex:1;}
 
@@ -1135,8 +1138,8 @@ input{font-family:inherit;}
   display:flex;align-items:center;justify-content:space-between;
   padding:14px 2px 8px;
 }
-.ms-section-head span{font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.03em;text-transform:uppercase;}
-.ms-clear-all{font-size:12px;font-weight:700;color:var(--ink-soft);}
+.ms-section-head span{font-size:12px;font-weight:400;color:var(--ink-soft);letter-spacing:.03em;text-transform:uppercase;}
+.ms-clear-all{font-size:12px;font-weight:400;color:var(--ink-soft);}
 .ms-clear-all:hover{color:var(--ink);text-decoration:underline;}
 
 .ms-suggest-row{
@@ -4825,7 +4828,7 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 }
 .hero-search-bar .search-icon{width:18px;height:18px;flex-shrink:0;color:var(--ink-soft);}
 .hero-search-bar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.hero-search-bar span.has-query{color:var(--ink);font-weight:600;}
+.hero-search-bar span.has-query{color:var(--ink);font-weight:400;}
 .hero-search-clear{
   display:inline-flex;align-items:center;justify-content:center;
   width:22px;height:22px;flex-shrink:0;
@@ -6484,3 +6487,297 @@ body.ma-modal-open{overflow:hidden;}
 #authNewPass .auth-field input:focus,#authForgot .auth-field input:focus{border-color:var(--green-700);}
 #authNewPass .auth-password-wrap input{padding-right:46px;}
 #authNewPass .auth-submit-btn,#authForgot .auth-submit-btn{margin-top:6px;}
+
+/* ============ Search: remove (x) button + scroll-to-results ============ */
+.search-clear{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  border:0;background:var(--line);color:var(--ink-soft);
+  display:grid;place-items:center;padding:0;cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.search-clear svg{width:11px;height:11px;display:block;}
+.search-clear:hover,.search-clear:focus-visible{background:var(--green-100);color:var(--red);outline:none;}
+.search-clear[hidden]{display:none;}
+.mobile-search-bar .search-clear{width:24px;height:24px;}
+
+/* Search: typed / searched text is never bold */
+.search-wrap input,
+.mobile-search-bar input,
+.hero-search-bar span,
+.hero-search-bar span.has-query,
+.ms-row-text,
+.ms-recent-tag-label{font-weight:400;}
+
+
+/* ============================================================
+   PROFILE PAGE — refreshed look
+   Calm and natural: soft cream page, white rounded cards, quiet
+   labels, comfortable inputs, one clear green action.
+   (Placed last so it wins over the older layered profile rules.)
+   ============================================================ */
+#profileView{background:var(--cream);}
+#profileView .profile-view-wrap{
+  max-width:720px;width:100%;margin:0 auto;
+  padding:20px 20px 56px;
+  display:flex;flex-direction:column;gap:16px;
+}
+
+/* --- header: avatar + name + email --- */
+#profileView .pv-hero{
+  display:flex;align-items:center;gap:16px;
+  padding:4px 2px 8px;
+}
+#profileView .pv-avatar{
+  flex:0 0 auto;
+  width:64px;height:64px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--green-100);color:var(--green-800);
+  font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:.02em;
+  border:1px solid rgba(35,114,89,.18);
+}
+#profileView .pv-hero-text{min-width:0;}
+#profileView .pv-hero-name{
+  font-family:var(--font-display);font-size:19px;font-weight:600;line-height:1.25;
+  color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#profileView .pv-hero-sub{
+  margin-top:2px;font-size:13px;font-weight:400;color:var(--ink-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* --- cards --- */
+#profileView .profile-view-card,
+#profileView .notif-settings-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 1px 2px rgba(15,58,46,.04);
+  padding:22px;
+  gap:18px;
+}
+#profileView .pv-card-title,
+#profileView .pv-accounts-card .ma-title{
+  font-family:var(--font-display);
+  font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;
+  padding:0;border:0;margin:0;
+}
+#profileView .pv-accounts-card .ma-head{padding:0;border:0;}
+#profileView .pv-accounts-card .ma-sub{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+
+/* --- form grid: two columns, one on phones --- */
+#profileView .profile-view-grid,
+#profileView .pv-details-card .profile-view-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 14px;
+}
+#profileView .pv-password-card{display:flex;flex-direction:column;}
+#profileView .pv-password-card .profile-view-grid{display:grid;}
+#profileView .pv-password-card>*{grid-column:auto;}
+@media (max-width:640px){
+  #profileView .profile-view-wrap{padding:14px 14px 40px;gap:14px;}
+  #profileView .profile-view-card,
+  #profileView .notif-settings-card{padding:18px 16px;border-radius:14px;}
+  #profileView .profile-view-grid,
+  #profileView .pv-details-card .profile-view-grid{grid-template-columns:1fr;gap:14px;}
+  #profileView .pv-avatar{width:56px;height:56px;font-size:19px;}
+}
+
+/* --- labels + inputs --- */
+#profileView .auth-field{gap:6px;}
+#profileView .auth-field>span{
+  font-size:12px;font-weight:500;color:var(--ink-soft);letter-spacing:.01em;
+}
+#profileView .profile-view-card .auth-field input,
+#profileView .profile-view-card .auth-field select,
+#profileView .profile-view-card .auth-mobile-wrap,
+#profileView .co-dd-btn{
+  height:44px;
+  background:#fff;
+  border:1px solid #dcdad0;
+  border-radius:10px;
+  box-shadow:none;
+  font-size:14px;font-weight:400;color:var(--ink);
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+#profileView .profile-view-card .auth-field input{padding:0 13px;}
+#profileView .profile-view-card .auth-field input::placeholder{color:#9aa59f;}
+#profileView .profile-view-card .auth-field input:hover,
+#profileView .profile-view-card .auth-mobile-wrap:hover,
+#profileView .co-dd-btn:hover{border-color:#c4c2b6;}
+#profileView .profile-view-card .auth-field input:focus,
+#profileView .profile-view-card .auth-field select:focus,
+#profileView .profile-view-card .auth-mobile-wrap:focus-within,
+#profileView .co-dd-btn:focus,
+#profileView .co-dd.open .co-dd-btn{
+  outline:none;
+  border-color:var(--green-600);
+  box-shadow:0 0 0 3px rgba(35,114,89,.14);
+  background:#fff;
+}
+#profileView .profile-view-card .auth-field input[readonly]{
+  background:#f4f3ed;color:var(--ink-soft);cursor:not-allowed;
+  border-color:#e6e4dc;box-shadow:none;
+}
+/* +960 box: one border on the wrapper */
+#profileView .profile-view-card .auth-mobile-wrap{display:flex;align-items:center;overflow:hidden;}
+#profileView .profile-view-card .auth-mobile-wrap input{
+  height:100%;border:0;box-shadow:none;background:transparent;border-radius:0;
+}
+#profileView .profile-view-card .auth-mobile-wrap input:focus{box-shadow:none;}
+#profileView .auth-mobile-prefix{
+  height:100%;padding:0 12px;font-size:13.5px;font-weight:500;color:var(--ink-soft);
+  background:#f4f3ed;border-right:1px solid #e6e4dc;
+}
+#profileView .field-hint{font-size:11.5px;color:#7b8780;line-height:1.45;margin-top:0;}
+#profileView .co-dd-label{font-size:14px;}
+#profileView .co-dd-list{border:1px solid #dcdad0;border-radius:12px;box-shadow:0 12px 30px rgba(15,58,46,.14);}
+#profileView .co-dd-opt{font-size:13.5px;border-radius:8px;}
+#profileView .co-dd-opt[aria-selected="true"]{font-weight:500;color:var(--green-800);}
+
+/* password eye */
+#profileView .auth-password-wrap input{padding-right:44px;}
+#profileView .auth-eye-btn{right:8px;color:#8a958f;}
+#profileView .auth-eye-btn:hover{color:var(--ink);}
+#profileView .pv-password-card .pv-pass-ok{font-weight:500;}
+#profileView .field-error{font-weight:500;}
+
+/* --- currency toggle: quiet segmented control --- */
+#profileView .pv-currency-toggle{
+  width:auto;min-width:0;height:40px;
+  background:#f4f3ed;border:1px solid #e6e4dc;border-radius:10px;padding:3px;gap:2px;
+}
+#profileView .pv-details-card .pv-currency-toggle{align-self:flex-start;}
+
+/* --- primary action --- */
+#profileView .profile-view-save-row{justify-content:flex-end;padding-top:2px;}
+#profileView .profile-view-save-btn{
+  min-width:150px;height:44px;padding:0 26px;
+  border:0;border-radius:10px;
+  background:var(--green-700);color:#fff;
+  font-size:14px;font-weight:600;letter-spacing:.01em;
+  box-shadow:none;
+  transition:background .15s, transform .12s;
+}
+#profileView .profile-view-save-btn:hover{background:var(--green-800);transform:none;box-shadow:none;}
+#profileView .profile-view-save-btn:active{background:var(--green-900);transform:scale(.985);}
+@media (max-width:640px){
+  #profileView .profile-view-save-row{justify-content:stretch;}
+  #profileView .profile-view-save-btn{width:100%;}
+}
+
+/* --- My Accounts block --- */
+#profileView .ma-add-btn{
+  font-size:12.5px;font-weight:600;color:var(--green-700);
+  padding:6px 12px;border:1px solid rgba(35,114,89,.3);border-radius:999px;
+  background:#fff;transition:background .15s;
+}
+#profileView .ma-add-btn:hover{background:var(--green-100);text-decoration:none;}
+#profileView .ma-card{
+  background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+}
+#profileView .ma-card.is-usable:hover{border-color:#c9d6cf;}
+#profileView .ma-card.is-active{background:#f1f8f4;border-color:var(--green-600);}
+#profileView .ma-name{font-size:14px;font-weight:500;}
+#profileView .ma-type{border-radius:999px;padding:2px 8px;font-weight:500;letter-spacing:.03em;}
+#profileView .ma-status{border-radius:999px;font-weight:500;}
+#profileView .ma-selected{font-weight:500;}
+
+/* --- notifications toggle --- */
+#profileView .notif-settings-card{padding:16px 18px;}
+#profileView .pv-toggle-info strong{font-size:14px;font-weight:500;}
+#profileView .pv-toggle-info span{font-size:12.5px;font-weight:400;}
+
+/* --- delete + logout: quiet, at the bottom --- */
+#profileView .profile-view-delete-bar{
+  background:transparent;border:0;box-shadow:none;border-radius:0;
+  padding:4px 0 0;font-size:12.5px;color:var(--ink-soft);text-align:center;
+}
+#profileView .profile-view-delete-bar a{font-weight:500;color:var(--red);text-decoration:none;}
+#profileView .profile-view-delete-bar a:hover{text-decoration:underline;text-underline-offset:3px;}
+#profileView .profile-view-logout-btn{
+  height:46px;margin-top:0;padding:0;
+  background:#fff;border:1px solid rgba(213,71,60,.35);border-radius:12px;
+  color:var(--red);font-size:14px;font-weight:600;box-shadow:none;
+  transition:background .15s,color .15s,border-color .15s;
+}
+#profileView .profile-view-logout-btn:hover{background:var(--red-bg);color:var(--red);border-color:rgba(213,71,60,.5);box-shadow:none;}
+
+/* profile page: selects never overflow the card; calmer currency toggle */
+#profileView .profile-view-card .auth-field select{width:100%;min-width:0;padding:0 12px;}
+#profileView .pv-currency-toggle{box-shadow:none;}
+
+
+/* ============================================================
+   MOBILE ACCOUNT MENU (Profile / My Orders / Logout) — refreshed
+   Same look as the Profile page: cream page, white rounded cards,
+   regular-weight text, no big logo.
+   ============================================================ */
+#profileMenu{
+  background:var(--cream);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:none;
+}
+#profileMenu .profile-menu-head{
+  flex-direction:row;align-items:center;justify-content:flex-start;
+  padding:calc(14px + env(safe-area-inset-top)) 14px 14px;
+  background:#fff;border-bottom:1px solid #d5d9d9;
+}
+#profileMenu .profile-menu-body{
+  padding:20px 16px 32px;gap:16px;background:transparent;
+}
+
+/* identity block */
+#profileMenu .pm-hero{display:flex;align-items:center;gap:14px;padding:4px 4px 6px;}
+#profileMenu .pm-avatar{
+  flex:0 0 auto;width:56px;height:56px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--green-100);color:var(--green-800);
+  border:1px solid rgba(35,114,89,.18);
+  font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:.02em;
+}
+#profileMenu .pm-hero-text{min-width:0;}
+#profileMenu .pm-hero-name{
+  font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.3;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#profileMenu .pm-hero-sub{
+  margin-top:2px;font-size:12.5px;font-weight:400;color:var(--ink-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#profileMenu .pm-hero-sub:empty{display:none;}
+
+/* grouped list cards */
+#profileMenu .pm-group{
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 1px 2px rgba(15,58,46,.04);
+  overflow:hidden;
+}
+#profileMenu .pm-group button{
+  position:relative;
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  padding:14px 16px;min-height:60px;
+  background:#fff;border:0;border-radius:0;box-shadow:none;
+  font-family:var(--font-body);font-size:14.5px;font-weight:500;color:var(--ink);
+  transition:background .15s;
+}
+#profileMenu .pm-group button + button{border-top:1px solid var(--line);}
+#profileMenu .pm-group button:active{background:#f6f5ef;transform:none;box-shadow:none;}
+#profileMenu .pm-row-icon{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--green-100);border:0;color:var(--green-700);
+}
+#profileMenu .pm-row-icon svg{width:18px;height:18px;}
+#profileMenu .pm-row-chevron{width:16px;height:16px;color:#9aa59f;}
+#profileMenu #pmLogoutBtn{color:var(--red);}
+#profileMenu #pmLogoutBtn .pm-row-icon{background:var(--red-bg);color:var(--red);}
+
+/* new-order dot sits next to the chevron */
+#profileMenu #pmOrdersBtn.has-notif::after{
+  top:50%;right:42px;transform:translateY(-50%);
+  width:8px;height:8px;box-shadow:none;
+}
+
+
+/* Page transitions between the account menu and Profile / My Orders:
+   forward = new page slides in from the right, menu slides out to the left;
+   back    = page slides out to the right, menu slides back in from the left. */
+.profile-menu.park-left:not(.open){transform:translateX(-100%);}

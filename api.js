@@ -33,6 +33,7 @@
     INVALID_LOCATION: 'Please complete the delivery / pickup details.',
     INVALID_ITEMS: 'Some items in your cart are invalid.',
     EMPTY_CART: 'Your cart is empty.',
+    INVALID_DISCOUNT: 'That discount is not valid (it cannot be negative, over 100%, or bigger than the item total).',
     SLIP_REQUIRED: 'Please upload your payment slip.',
     IMAGE_REQUIRED: 'Please choose a photo to upload.',
     RATE_LIMITED: 'Too many orders in a short time. Please try again later.',
@@ -51,7 +52,16 @@
     LAST_SUPER_ADMIN: 'There must always be at least one Super Admin — make another account Super Admin first.',
     STOREFRONT_ACCOUNT: 'This is a shop account that has not requested staff access.',
     NOT_A_STAFF_REQUEST: 'This account has no pending staff-access request.',
-    ALREADY_STAFF: 'This account already has staff access.'
+    ALREADY_STAFF: 'This account already has staff access.',
+    CUSTOMER_NOT_FOUND: 'That customer could not be found.',
+    NAME_REQUIRED: 'Enter a customer name.',
+    INVALID_PAYMENT_METHOD: 'Choose a valid payment method.',
+    CREDIT_NEEDS_CUSTOMER: 'Choose a customer first — credit sales must be linked to a customer.',
+    CREDIT_NOT_ALLOWED: 'This customer has no credit limit. Set a credit limit on the customer first.',
+    CREDIT_LIMIT_EXCEEDED: 'This sale goes over the customer\'s credit limit.',
+    INVALID_AMOUNT: 'Enter a valid amount.',
+    PAYMENT_EXCEEDS_OUTSTANDING: 'That is more than the customer owes.',
+    CUSTOMER_HAS_BALANCE: 'This customer still owes money. Collect the balance from Details first, then delete.'
   };
 
   // ---------- client ----------
@@ -132,7 +142,7 @@
   function normalizeOrder(o) {
     if (!o) return null;
     var items = (o.items || o.order_items || []).map(function (it) {
-      return { id: it.product_id, name: it.name, pack: it.pack, unit: it.unit, price: Number(it.price), qty: it.qty };
+      return { id: it.product_id, name: it.name, pack: it.pack, unit: it.unit, price: Number(it.price), qty: it.qty, discount: Number(it.discount) || 0 };
     });
     var customer = o.customer || { name: o.customer_name, mobile: o.customer_mobile };
     var fee = o.delivery_fee == null ? null : Number(o.delivery_fee);
@@ -149,6 +159,8 @@
       currency: o.currency || 'MVR',
       refundStatus: o.refund_status || 'none',
       orderType: o.order_type || 'online',
+      customerId: o.customer_id || null,
+      paymentMethod: o.payment_method || (o.order_type === 'walkin' ? 'cash' : 'transfer'),
       customer: {
         name: customer.name, mobile: customer.mobile,
         method: o.method, location: o.location || {},
@@ -737,19 +749,25 @@
   // ============================================================
   // Walk-in POS (needs supabase/36_walkin_pos.sql)
   // Admin-only: create a walk-in sale directly, or a quotation first.
-  // opts = { cart:{productId:qty} OR items:[{product_id,qty}], name, mobile, note }
+  // opts = { cart:{productId:qty} OR items:[{product_id,qty,disc_type,disc_value}], disc:{productId:{type,value}}, name, mobile, note }
   // ============================================================
   function posPayload(opts) {
     opts = opts || {};
     var items = opts.items || Object.keys(opts.cart || {}).map(function (id) {
-      return { product_id: id, qty: opts.cart[id] };
+      var it = { product_id: id, qty: opts.cart[id] };
+      var d = opts.disc && opts.disc[id];                       // { type:'amount'|'percent', value:number } — optional
+      if (d && Number(d.value) > 0) { it.disc_type = d.type === 'percent' ? 'percent' : 'amount'; it.disc_value = Math.round(Number(d.value) * 100) / 100; }
+      return it;
     });
-    return { items: items, customer: { name: opts.name || '', mobile: opts.mobile || '' }, note: opts.note || '' };
+    return {
+      items: items, customer: { name: opts.name || '', mobile: opts.mobile || '' }, note: opts.note || '',
+      customer_id: opts.customerId || null, payment_method: opts.paymentMethod || 'cash'
+    };
   }
   function normalizeQuotation(q) {
     if (!q) return null;
     var items = (q.items || q.quotation_items || []).map(function (it) {
-      return { id: it.product_id, name: it.name, pack: it.pack, unit: it.unit, price: Number(it.price), qty: it.qty };
+      return { id: it.product_id, name: it.name, pack: it.pack, unit: it.unit, price: Number(it.price), qty: it.qty, discount: Number(it.discount) || 0 };
     });
     var customer = q.customer || { name: q.customer_name, mobile: q.customer_mobile };
     return {
@@ -762,6 +780,7 @@
       total: Number(q.total),
       note: q.note || '',
       convertedOrderId: q.converted_order_id || null,
+      customerId: q.customer_id || null,
       customer: { name: customer.name, mobile: customer.mobile }
     };
   }
@@ -781,9 +800,9 @@
   }
   // Turns an OPEN quotation into a real walk-in order (stock moves now, at
   // conversion time). Returns the new order.
-  function adminConvertQuotation(quotationId) {
+  function adminConvertQuotation(quotationId, paymentMethod) {
     return run(function () {
-      return getClient().rpc('admin_convert_quotation', { p_id: quotationId }).then(unwrap).then(normalizeOrder);
+      return getClient().rpc('admin_convert_quotation', { p_id: quotationId, p_payment_method: paymentMethod || 'cash' }).then(unwrap).then(normalizeOrder);
     });
   }
   function adminVoidQuotation(quotationId) {
@@ -819,8 +838,18 @@
       address: c.address || '', taxNumber: c.tax_number || '',
       creditLimit: Number(c.credit_limit || 0), priceLevel: c.price_level || '', note: c.note || '',
       totalSpent: Number(c.total_spent || 0), outstanding: Number(c.outstanding || 0),
-      createdAt: new Date(c.created_at || Date.now()).getTime()
+      createdAt: new Date(c.created_at || Date.now()).getTime(),
+      deletedAt: c.deleted_at ? new Date(c.deleted_at).getTime() : null
     };
+  }
+  // Shared system settings live in app_config (key -> jsonb). Reading is public (getConfig);
+  // writing is Super Admin only (see supabase/47_app_settings.sql). values = { key: jsonValue }
+  function adminSaveConfig(values) {
+    return run(function () {
+      var rows = Object.keys(values || {}).map(function (k) { return { key: k, value: values[k] }; });
+      if (!rows.length) return [];
+      return getClient().from('app_config').upsert(rows, { onConflict: 'key' }).select().then(unwrap);
+    });
   }
   function adminListCustomers() {
     return run(function () {
@@ -833,9 +862,49 @@
       return getClient().rpc('admin_create_customer', { payload: customerPayload(opts) }).then(unwrap).then(normalizeCustomer);
     });
   }
+  // Customer page: profile + every sale + payments received (needs 43_customer_credit.sql)
+  function adminCustomerDetail(id) {
+    return run(function () {
+      return getClient().rpc('admin_customer_detail', { p_id: id }).then(unwrap).then(normalizeCustomerDetail);
+    });
+  }
+  // Customer pays off (part of) what they owe. method = cash | card | transfer
+  function adminReceiveCustomerPayment(id, amount, method, note) {
+    return run(function () {
+      return getClient().rpc('admin_receive_customer_payment', {
+        p_customer_id: id, p_amount: Number(amount), p_method: method || 'cash', p_note: note || ''
+      }).then(unwrap).then(normalizeCustomerDetail);
+    });
+  }
+  function normalizeCustomerDetail(d) {
+    if (!d) return null;
+    return {
+      customer: normalizeCustomer(d.customer),
+      orders: (d.orders || []).map(function (o) {
+        return { id: o.id, placedAt: new Date(o.placed_at).getTime(), status: o.status, orderType: o.order_type,
+                 paymentMethod: o.payment_method, total: Number(o.total), paid: Number(o.paid || 0) };
+      }),
+      payments: (d.payments || []).map(function (p) {
+        return { id: p.id, amount: Number(p.amount), method: p.method, note: p.note || '',
+                 createdAt: new Date(p.created_at).getTime(), receivedBy: p.received_by || '' };
+      })
+    };
+  }
   function adminUpdateCustomer(id, opts) {
     return run(function () {
       return getClient().rpc('admin_update_customer', { p_id: id, payload: customerPayload(opts) }).then(unwrap).then(normalizeCustomer);
+    });
+  }
+
+  // Delete = hide into History (soft delete, needs 44_customer_delete_restore.sql). Restore brings it back.
+  function adminDeleteCustomer(id) {
+    return run(function () {
+      return getClient().rpc('admin_delete_customer', { p_id: id }).then(unwrap).then(normalizeCustomer);
+    });
+  }
+  function adminRestoreCustomer(id) {
+    return run(function () {
+      return getClient().rpc('admin_restore_customer', { p_id: id }).then(unwrap).then(normalizeCustomer);
     });
   }
 
@@ -925,6 +994,9 @@
     adminCreateWalkinOrder: adminCreateWalkinOrder, adminCreateQuotation: adminCreateQuotation,
     adminConvertQuotation: adminConvertQuotation, adminVoidQuotation: adminVoidQuotation,
     adminListQuotations: adminListQuotations,
-    adminListCustomers: adminListCustomers, adminCreateCustomer: adminCreateCustomer, adminUpdateCustomer: adminUpdateCustomer
+    adminSaveConfig: adminSaveConfig,
+    adminListCustomers: adminListCustomers, adminCreateCustomer: adminCreateCustomer, adminUpdateCustomer: adminUpdateCustomer,
+    adminCustomerDetail: adminCustomerDetail, adminReceiveCustomerPayment: adminReceiveCustomerPayment,
+    adminDeleteCustomer: adminDeleteCustomer, adminRestoreCustomer: adminRestoreCustomer
   };
 })();

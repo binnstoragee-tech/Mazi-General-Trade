@@ -896,6 +896,7 @@ function showToast(msg, sub, type){
    way to clear it and go back to browsing every item. Called from
    renderProducts() so it always matches state.query. */
 function updateHeroSearchBar(){
+  syncSearchClear();
   const textEl = $('#heroSearchBarText');
   const clearBtn = $('#heroSearchClear');
   if (!textEl) return;
@@ -1531,6 +1532,7 @@ function renderProducts(){
   const list = getFilteredProducts();
   const catName = state.category==='all' ? 'All Products' : CATEGORIES.find(c=>c.id===state.category)?.name || 'All Products';
   $('#sectionTitle').textContent = state.query ? `Results for "${state.query}"` : catName;
+  $('#sectionTitle').classList.toggle('is-search-title', !!state.query);
   $('#resultCount').textContent = `${list.length} item${list.length!==1?'s':''}`;
 
   $('#emptyState').hidden = list.length !== 0;
@@ -2345,7 +2347,50 @@ function closeCurrencyDropdown(){
   const btn = $('#navHamburgerBtn');
   if (btn) btn.setAttribute('aria-expanded', 'false');
 }
-function openProfileMenu(){
+// When Profile / My Orders is opened from the mobile account menu, Back should go
+// back to that menu (where the person came from) instead of dropping to the store.
+let pendingMenuReturn = null;   // set by the menu row right before it opens a view
+let menuReturn = null;          // which view ('profile' | 'orders') was opened from the menu
+function claimMenuReturn(viewName){
+  menuReturn = (pendingMenuReturn === viewName) ? viewName : null;
+  pendingMenuReturn = null;
+}
+function backToMenuIfNeeded(viewName){
+  if (menuReturn !== viewName) return false;
+  menuReturn = null;
+  openProfileMenu(true);   // true = coming back, so the menu slides in from the left
+  return true;
+}
+// Going forward from the menu: the menu slides out to the LEFT while the next page
+// slides in from the right (a "push"). Back reverses it exactly.
+function parkProfileMenuLeft(){
+  $('#profileMenu').classList.add('park-left');
+  closeProfileMenu();
+}
+// Avatar / name / email block at the top of the mobile account menu.
+function updatePmHero(){
+  const session = getSession() || {};
+  const first = (session.firstName || session.name || '').trim();
+  const last = (session.lastName || '').trim();
+  const full = (first.includes(' ') && !last) ? first : `${first} ${last}`.trim();
+  const initials = (first.charAt(0) + (last ? last.charAt(0) : (first.includes(' ') ? first.split(/\s+/).pop().charAt(0) : ''))).toUpperCase() || (session.email || '?').charAt(0).toUpperCase();
+  const av = $('#pmAvatar'), nm = $('#pmHeroName'), em = $('#pmHeroEmail');
+  if (av) av.textContent = initials;
+  if (nm) nm.textContent = full || 'My Account';
+  if (em) em.textContent = session.email || '';
+}
+function openProfileMenu(fromBack){
+  const menu = $('#profileMenu');
+  if (fromBack){
+    menu.classList.remove('park-left');          // was parked off-screen left -> slides in from the left
+  } else if (menu.classList.contains('park-left')){
+    // opened fresh (not via Back): clear any stale left-parking without animating
+    menu.style.transition = 'none';
+    menu.classList.remove('park-left');
+    void menu.offsetWidth;
+    menu.style.transition = '';
+  }
+  updatePmHero();
   $('#profileMenuBackdrop').classList.add('show');
   $('#profileMenu').classList.add('open');
 }
@@ -3042,6 +3087,7 @@ function toggleOrderItems(orderId){
 }
 
 function openOrdersView(){
+  claimMenuReturn('orders');
   ordersVisibleCount = ORDERS_PAGE_SIZE;
   renderOrdersView();
   syncOrders();
@@ -3055,6 +3101,7 @@ function closeOrdersView(){
   $('#ordersView').classList.remove('open');
   document.body.style.overflow = '';
   clearInterval(openOrdersView._timer);
+  if (backToMenuIfNeeded('orders')) return;
   returnToCheckoutIfNeeded();
 }
 
@@ -3306,7 +3353,20 @@ function splitFullName(full){
 }
 
 /* ============ Profile page ============ */
+// Fills the avatar / name / email block at the top of the Profile page.
+function updatePvHero(){
+  const session = getSession() || {};
+  const first = ($('#pvFirstName')?.value || session.firstName || session.name || '').trim();
+  const last = ($('#pvLastName')?.value || session.lastName || '').trim();
+  const full = `${first} ${last}`.trim();
+  const initials = (first.charAt(0) + last.charAt(0)).toUpperCase() || (session.email || '?').charAt(0).toUpperCase();
+  const av = $('#pvAvatar'), nm = $('#pvHeroName'), em = $('#pvHeroEmail');
+  if (av) av.textContent = initials;
+  if (nm) nm.textContent = full || 'My Profile';
+  if (em) em.textContent = session.email || 'Manage your details and account settings';
+}
 function openProfileView(){
+  claimMenuReturn('profile');
   const session = getSession() || {};
   populateOnboardAtolls();
   populatePvBusinessTypes();
@@ -3346,6 +3406,7 @@ function openProfileView(){
   $('#pvGstTin').value = session.gstTin || '';
   syncCurrencyToggleUI();
   initProfileNotifToggle();
+  updatePvHero();
   closeOtherFullScreenViews('profileView');
   $('#profileView').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3353,6 +3414,7 @@ function openProfileView(){
 function closeProfileView(){
   $('#profileView').classList.remove('open');
   document.body.style.overflow = '';
+  if (backToMenuIfNeeded('profile')) return;
   returnToCheckoutIfNeeded();
 }
 function saveProfileView(){
@@ -3426,6 +3488,7 @@ function saveProfileView(){
     gst_tin: pvAccountType === 'business' ? (gstTin || null) : null,
   }).then(()=>{
     applyLocally();
+    updatePvHero();
     showToast('Profile updated');
   }).catch(err=>{
     showToast(friendlyProfileError(err), null, 'error');
@@ -3575,22 +3638,78 @@ function animateAuthCardHeight(scrollEl, startHeight){
 let searchDebounceTimer = null;
 const SEARCH_LOADING_DELAY = 450; // ms — how long the skeleton shows before results render
 
+/* ============ Search helpers: remove (x) + jump to results ============ */
+// Shows the little (x) inside the web and mobile search boxes only while there is text.
+function syncSearchClear(){
+  const has = !!(($('#searchInput')?.value || '') || ($('#mobileSearchInput')?.value || ''));
+  const a = $('#searchClear'), b = $('#mobileSearchClear');
+  if (a) a.hidden = !has;
+  if (b) b.hidden = !has;
+}
+
+// Removes the search everywhere (both inputs, the filter, the "Results for" heading).
+function clearSearch(){
+  $('#searchInput').value = '';
+  $('#mobileSearchInput').value = '';
+  handleSearch('');                       // clears the debounce timer + shows every item again
+  syncSearchClear();
+  if ($('#mobileSearchPanel').classList.contains('open')){
+    renderMobileSearchBody('');
+    $('#mobileSearchInput').focus();
+  } else if (!window.matchMedia('(max-width: 720px)').matches){
+    $('#searchInput').focus();            // on mobile this would re-open the panel, so skip it
+  }
+}
+
+// On mobile the results sit below the banner / categories, so after a search bring the
+// "Results for ..." heading to the top (under the sticky search pill) instead of leaving
+// the person at the top of the page.
+function scrollToResults(){
+  const head = document.querySelector('.section-head');
+  if (!head) return;
+  let offset = 8;
+  const sticky = $('#heroSearchSticky');
+  if (sticky && sticky.offsetParent !== null) offset += sticky.offsetHeight;
+  const top = head.getBoundingClientRect().top + window.pageYOffset - offset;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+// Set when a search was submitted (Enter / suggestion tap / closing the panel) so the page
+// jumps to the results once they have actually rendered (not while the skeleton is showing,
+// which has a different height and made the scroll land in the wrong place).
+let scrollAfterSearchRender = false;
+let searchRenderPending = false;
+
 function handleSearch(value){
   const query = value.trim().toLowerCase();
   clearTimeout(searchDebounceTimer);
+  searchRenderPending = false;
 
   // Empty query (e.g. clearing the search box) — no need to fake a loading state.
   if (!query){
+    scrollAfterSearchRender = false;
     state.query = query;
     renderProducts();
     return;
   }
 
   renderSkeletons();
+  searchRenderPending = true;
   searchDebounceTimer = setTimeout(()=>{
+    searchRenderPending = false;
     state.query = query;
     renderProducts();
+    if (scrollAfterSearchRender){
+      scrollAfterSearchRender = false;
+      requestAnimationFrame(scrollToResults);
+    }
   }, SEARCH_LOADING_DELAY);
+}
+
+// Jump to the results: right away if they are already rendered, otherwise as soon as they are.
+function showSearchResults(){
+  if (searchRenderPending) scrollAfterSearchRender = true;
+  else setTimeout(scrollToResults, 80);   // after the panel closes and page scrolling is unlocked
 }
 
 const MAX_RECENT_SEARCHES = 8;
@@ -3621,7 +3740,8 @@ function commitMobileSearch(term){
   $('#searchInput').value = term;
   handleSearch(term);
   closeMobileSearch();
-  $('#productGrid').scrollIntoView({behavior:'smooth', block:'start'});
+  syncSearchClear();
+  showSearchResults();
 }
 
 function renderMobileSearchBody(rawValue){
@@ -3682,12 +3802,17 @@ function renderMobileSearchBody(rawValue){
 }
 
 function openMobileSearch(){
+  // The panel lives inside the navbar. If the navbar is currently slid away
+  // (scrolled down), the panel would slide off-screen with it and only its
+  // body would peek out — so bring the navbar back before opening.
+  $('.navbar')?.classList.remove('nav-hidden');
   $('#mobileSearchPanel').classList.add('open');
   $('#mobileSearchBackdrop').classList.add('show');
   document.body.style.overflow = 'hidden';
   const current = $('#searchInput').value || '';
   $('#mobileSearchInput').value = current;
   renderMobileSearchBody(current);
+  syncSearchClear();
   setTimeout(()=> $('#mobileSearchInput').focus(), 100);
 }
 
@@ -3735,7 +3860,9 @@ function initNavScroll(){
     const currentY = window.scrollY;
 
     const wasHidden = nav.classList.contains('nav-hidden');
-    const shouldHide = currentY > lastY && currentY > 4;
+    // Never hide the navbar while the search panel is open (it's a child of it).
+    const searchOpen = $('#mobileSearchPanel')?.classList.contains('open');
+    const shouldHide = !searchOpen && currentY > lastY && currentY > 4;
     if (shouldHide !== wasHidden){
       nav.classList.toggle('nav-hidden', shouldHide);
       // Hiding/showing the navbar only moves it (transform), it doesn't
@@ -3929,11 +4056,13 @@ function init(){
   $('#closeProfileMenu').addEventListener('click', closeProfileMenu);
   $('#profileMenuBackdrop').addEventListener('click', closeProfileMenu);
   $('#pmProfileBtn').addEventListener('click', ()=>{
-    closeProfileMenu();
+    parkProfileMenuLeft();
+    pendingMenuReturn = 'profile';
     openProfileView();
   });
   $('#pmOrdersBtn').addEventListener('click', ()=>{
-    closeProfileMenu();
+    parkProfileMenuLeft();
+    pendingMenuReturn = 'orders';
     openOrdersView();
   });
   $('#pmLogoutBtn').addEventListener('click', ()=>{
@@ -4178,7 +4307,9 @@ function init(){
     });
   });
 
-  $('#searchInput').addEventListener('input', e=> handleSearch(e.target.value));
+  $('#searchInput').addEventListener('input', e=>{ handleSearch(e.target.value); syncSearchClear(); });
+  $('#searchClear')?.addEventListener('click', clearSearch);
+  $('#mobileSearchClear')?.addEventListener('click', clearSearch);
   $('#searchInput').addEventListener('focus', e=>{
     // On mobile the inline pill is just a trigger — actual typing and live
     // results happen in the full-screen mobile search panel.
@@ -4189,8 +4320,14 @@ function init(){
   });
 
   $('#mobileSearchBtn').addEventListener('click', openMobileSearch);
-  $('#mobileSearchClose').addEventListener('click', closeMobileSearch);
-  $('#mobileSearchBackdrop').addEventListener('click', closeMobileSearch);
+  // Closing the panel with a search typed in (x or tapping outside) also jumps to the results.
+  const closeAndShowResults = ()=>{
+    const hasText = !!($('#mobileSearchInput').value || '').trim();
+    closeMobileSearch();
+    if (hasText) showSearchResults();
+  };
+  $('#mobileSearchClose').addEventListener('click', closeAndShowResults);
+  $('#mobileSearchBackdrop').addEventListener('click', closeAndShowResults);
   $('#mobileSearchInput').addEventListener('input', e=>{
     const value = e.target.value;
     renderMobileSearchBody(value);
@@ -4199,6 +4336,7 @@ function init(){
     // updating once they hit Enter or tap a suggestion.
     $('#searchInput').value = value;
     handleSearch(value);
+    syncSearchClear();
   });
   $('#mobileSearchInput').addEventListener('keydown', e=>{
     if (e.key === 'Enter') commitMobileSearch(e.target.value);
