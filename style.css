@@ -7246,3 +7246,7 @@ html[data-theme="dark"] .pm-theme-row .theme-btn .tt-thumb{transform:translate3d
 /* My accounts cards: square badges (no pills), spread across the full width */
 #profileView .ma-type,#profileView .ma-status{border-radius:0}
 .pv-accounts-card .ma-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+
+/* Guests always see the light theme — no day/night switch until they log in */
+html[data-auth="guest"] .pm-theme-group,
+html[data-auth="guest"] .profile-dropdown-theme{display:none !important;}

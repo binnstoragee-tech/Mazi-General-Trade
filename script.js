@@ -2282,6 +2282,7 @@ function mergeGuestCartIntoAccount(){
 }
 function setSession(data){
   localStorage.setItem('mazi_session', JSON.stringify(data));
+  if (window.MaziTheme) MaziTheme.apply(false); // logged in → apply the user's saved theme
   mergeGuestCartIntoAccount();
   state.recentSearches = loadRecentSearches();
   state.cart = loadCart();
@@ -2296,6 +2297,7 @@ function setSession(data){
 function clearSession(){
   stopOrdersLive();
   localStorage.removeItem('mazi_session');
+  if (window.MaziTheme) MaziTheme.apply(false); // logged out → back to light
   state.recentSearches = loadRecentSearches();
   state.cart = loadCart();
   refreshVisibleCurrency(); // re-renders product grid + open product detail so Add to Cart / Added-to-cart state resets back to the guest cart

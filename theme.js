@@ -6,12 +6,19 @@
   function get() { try { return localStorage.getItem(KEY) || 'system'; } catch (e) { return 'system'; } }
   function put(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
   function mode() { var m = get(); return (m === 'light' || m === 'dark') ? m : 'system'; }
-  function resolved() { var m = mode(); return m === 'system' ? (mq && mq.matches ? 'dark' : 'light') : m; }
+  /* Dark mode is only for signed-in shoppers. Guests (not logged in) always get the light theme,
+     even if their device is in dark mode. Login state = the 'mazi_session' the storefront saves. */
+  function loggedIn() { try { var s = JSON.parse(localStorage.getItem('mazi_session') || 'null'); return !!(s && (s.user || s.email || s.id || Object.keys(s).length)); } catch (e) { return false; } }
+  function resolved() {
+    if (!loggedIn()) return 'light';
+    var m = mode(); return m === 'system' ? (mq && mq.matches ? 'dark' : 'light') : m;
+  }
 
   function paint() {
     var h = document.documentElement, r = resolved();
     h.setAttribute('data-theme', r);
     h.setAttribute('data-mode', mode());
+    h.setAttribute('data-auth', loggedIn() ? 'user' : 'guest');
     var mt = document.querySelector('meta[name="theme-color"]');
     if (!mt) { mt = document.createElement('meta'); mt.name = 'theme-color'; document.head.appendChild(mt); }
     mt.content = r === 'dark' ? '#0A1020' : '#FFFFFF';
@@ -47,7 +54,7 @@
   }
 
   window.MaziTheme = {
-    mode: mode, resolved: resolved, apply: apply,
+    mode: mode, resolved: resolved, apply: apply, loggedIn: loggedIn,
     setMode: function (m) { put(m); apply(true); },
     setDark: function (on) { put(on ? 'dark' : 'light'); apply(true); }
   };
@@ -64,5 +71,5 @@
   document.addEventListener('change', function (e) {
     var t = e.target; if (t && t.matches && t.matches('[data-theme-switch]')) window.MaziTheme.setDark(t.checked);
   });
-  window.addEventListener('storage', function (e) { if (e.key === KEY) apply(true); });
+  window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === 'mazi_session') apply(true); });
 })();

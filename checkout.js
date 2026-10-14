@@ -215,7 +215,7 @@ if (Object.keys(cart).length === 0){
 if (session && window.MaziAPI){
   MaziAPI.getSession().then(sess=>{
     if (!sess){
-      localStorage.removeItem('mazi_session');
+      localStorage.removeItem('mazi_session'); if (window.MaziTheme) MaziTheme.apply(false);
       window.location.href = 'index.html?open=login&from=checkout';
     }
   }).catch(()=>{});
@@ -1030,7 +1030,7 @@ function init(){
           const merged = { ...sessionNow };
           if (nameChanged) merged.name = merged.firstName = name;
           if (mobileChanged) merged.mobile = normMobile;
-          localStorage.setItem('mazi_session', JSON.stringify(merged));
+          localStorage.setItem('mazi_session', JSON.stringify(merged)); if (window.MaziTheme) MaziTheme.apply(false);
           if (window.MaziAPI && MaziAPI.updateProfile){
             const patch = {};
             if (nameChanged) patch.name = name;
@@ -1043,7 +1043,7 @@ function init(){
     }).catch(err=>{
       resetBtn();
       if (err && err.code === 'NOT_AUTHENTICATED'){
-        localStorage.removeItem('mazi_session');
+        localStorage.removeItem('mazi_session'); if (window.MaziTheme) MaziTheme.apply(false);
         showSubmitError('Your login expired. Please log in again — your cart is saved.');
         setTimeout(()=>{ window.location.href = 'index.html?open=login&from=checkout'; }, 1800);
         return;
