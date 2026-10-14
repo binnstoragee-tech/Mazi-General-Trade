@@ -57,7 +57,7 @@
       var email = sess && sess.user && sess.user.email;
       if (!email) throw { message: 'Password change needs an account that signs in with email.' };
       // Check the current password first
-      return MaziAPI.client.auth.signInWithPassword({ email: email, password: cur }).then(function(res){
+      return MaziAPI.getCaptchaToken().then(function(cap){ return MaziAPI.client.auth.signInWithPassword({ email: email, password: cur, options: { captchaToken: cap } }); }).then(function(res){
         if (res && res.error) throw { message: 'Your current password is incorrect.' };
       });
     }).then(function(){

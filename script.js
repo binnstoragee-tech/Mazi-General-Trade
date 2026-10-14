@@ -213,7 +213,8 @@ let state = {
 };
 
 /* ---------- Checkout config ---------- */
-const GST_RATE = 0.08; // product prices already include GST — this is just the informational breakout
+let GST_RATE = 0.08; // product prices already include GST — this is just the informational breakout (live from Settings)
+let MALE_ISLANDS = ["Male'", "Hulhumale'"]; // "Male' area" islands (live from Settings)
 let ckMethod = 'pickup'; // 'pickup' | 'delivery' | 'boat'
 let ckSlipFile = null;
 let ckPickupDayIndex = 0;
@@ -222,7 +223,7 @@ let ckPickupDayIndex = 0;
 // Maldivian Rufiyaa is pegged to the US Dollar by the Maldives Monetary
 // Authority at MVR 15.42 = USD 1 — this is the standard peg rate used for
 // the shop's MVR -> USD display conversion.
-const USD_PER_MVR = 1 / 15.42;
+let USD_PER_MVR = 1 / 15.42; // live from Settings (MVR per 1 USD)
 function getCurrency(){
   return localStorage.getItem('mazi_currency') || 'MVR';
 }
@@ -1038,6 +1039,10 @@ function initBrandsTicker(){
   let dragStartPos = 0;
   let resumeTimer = null;
   let lastTime = null;
+  let inView = true;   // stop animating while the ticker is scrolled off-screen
+  if ('IntersectionObserver' in window){
+    new IntersectionObserver(es=>{ inView = es[0].isIntersecting; if (inView) lastTime = null; }).observe(viewport);
+  }
 
   function measure(){
     // The track markup has 4 duplicated sets of logos (A, B, C, D) so the
@@ -1046,7 +1051,7 @@ function initBrandsTicker(){
     setWidth = track.scrollWidth / 4 || 0;
   }
   function applyTransform(){
-    track.style.transform = `translateX(${pos}px)`;
+    track.style.transform = `translate3d(${pos}px,0,0)`;
   }
   function wrap(){
     if (setWidth <= 0) return;
@@ -1058,7 +1063,7 @@ function initBrandsTicker(){
     if (lastTime === null) lastTime = t;
     const dt = (t - lastTime) / 1000;
     lastTime = t;
-    if (!reduceMotion && !dragging && !hovering && !pausedAfterDrag){
+    if (!reduceMotion && inView && !dragging && !hovering && !pausedAfterDrag){
       pos -= SPEED * dt;
       wrap();
       applyTransform();
@@ -1387,7 +1392,7 @@ function productCardHtml(p){
   return `
     <div class="product-card" data-id="${p.id}">
       <div class="card-media">
-        <img class="card-img" src="${productImg(p)}" alt="${p.name}" loading="lazy" onerror="this.classList.add('img-missing')">
+        <img class="card-img" src="${productImg(p)}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.classList.add('img-missing')">
       </div>
       <div class="card-body">
         ${stockIndicatorHtml(p)}
@@ -1791,7 +1796,7 @@ function applyCartMaintenanceUI(){
     const n = document.createElement('div');
     n.id = 'cartMaintNote';
     n.setAttribute('role', 'status');
-    n.style.cssText = 'margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#fff7e0;border:1px solid #f0d27a;color:#6b4e00;font-size:13px;line-height:1.45;';
+    n.className = 'cart-maint-note'; n.style.cssText = 'margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#fff7e0;border:1px solid #f0d27a;color:#6b4e00;font-size:13px;line-height:1.45;';
     n.innerHTML = '<strong>Cart is under maintenance.</strong><br>Adding items and placing orders is temporarily unavailable. Please check back soon.';
     body.parentNode.insertBefore(n, body);
   }
@@ -3197,19 +3202,25 @@ const RECEIPT_SIZE = { page:'80mm auto', width:'80mm' };
 let _receiptOrderId = null;
 
 function receiptStoreInfo(){
+  const c = (window.MaziSite && MaziSite.cfg) || {};   // live from the staff Settings page
+  const t = v => (typeof v === 'string' && v.trim()) ? v.trim() : '';
   return {
-    name: 'MAZI General Trade',
-    addr: "Male', Republic of Maldives",
-    email: 'mazigeneraltrade@gmail.com',
+    name: t(c.store_name) || 'MAZI General Trade',
+    addr: t(c.store_addr) || "Male', Republic of Maldives",
+    email: t(c.store_email) || 'mazigeneraltrade@gmail.com',
+    phone: t(c.store_phone),
+    tin: t(c.store_gst_tin),
   };
 }
 
 function renderReceiptContent(order){
   const store = receiptStoreInfo();
   return `
-    <div class="receipt-store-name">${store.name}</div>
-    <div class="receipt-store-addr">${store.addr}</div>
-    <div class="receipt-store-addr">${store.email}</div>
+    <div class="receipt-store-name">${escapeHtml(store.name)}</div>
+    <div class="receipt-store-addr">${escapeHtml(store.addr)}</div>
+    ${store.phone ? `<div class="receipt-store-addr">${escapeHtml(store.phone)}</div>` : ''}
+    <div class="receipt-store-addr">${escapeHtml(store.email)}</div>
+    ${store.tin ? `<div class="receipt-store-addr">GST TIN: ${escapeHtml(store.tin)}</div>` : ''}
     <div class="receipt-divider"></div>
     <div class="receipt-meta-row"><span>Order #</span><span>${order.id}</span></div>
     <div class="receipt-meta-row"><span>Date</span><span>${formatOrderDate(order.placedAt)}</span></div>
@@ -3531,7 +3542,7 @@ function populateIslandSelect(selectId, atoll){
   sel.innerHTML = cities.map(c => `<option>${c}</option>`).join('');
 }
 function ckIsMaleIsland(island){
-  return island === "Male'" || island === "Hulhumale'";
+  return MALE_ISLANDS.indexOf(String(island || '').trim()) >= 0;
 }
 function renderDeliveryEstimate(){
   const island = $('#cdIsland').value;
@@ -3665,11 +3676,17 @@ function clearSearch(){
 // "Results for ..." heading to the top (under the sticky search pill) instead of leaving
 // the person at the top of the page.
 function scrollToResults(){
-  const head = document.querySelector('.section-head');
+  // NB: the first .section-head on the page is "Popular Products" — the results heading is the one holding #sectionTitle.
+  const head = $('#sectionTitle')?.closest('.section-head') || document.querySelector('.section-head:not(.popular-head)');
   if (!head) return;
   let offset = 8;
   const sticky = $('#heroSearchSticky');
-  if (sticky && sticky.offsetParent !== null) offset += sticky.offsetHeight;
+  if (sticky && sticky.offsetParent !== null){
+    offset += sticky.offsetHeight;                    // mobile: pill stays stuck at the top
+  } else {
+    const nav = $('.navbar');                         // desktop: the navbar stays up while the search box is focused
+    if (nav && !nav.classList.contains('nav-hidden')) offset += nav.offsetHeight;
+  }
   const top = head.getBoundingClientRect().top + window.pageYOffset - offset;
   window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
@@ -3699,7 +3716,8 @@ function handleSearch(value){
     searchRenderPending = false;
     state.query = query;
     renderProducts();
-    if (scrollAfterSearchRender){
+    const typingOnDesktop = !window.matchMedia('(max-width: 720px)').matches && document.activeElement === $('#searchInput');
+    if (scrollAfterSearchRender || typingOnDesktop){
       scrollAfterSearchRender = false;
       requestAnimationFrame(scrollToResults);
     }
@@ -3862,7 +3880,8 @@ function initNavScroll(){
     const wasHidden = nav.classList.contains('nav-hidden');
     // Never hide the navbar while the search panel is open (it's a child of it).
     const searchOpen = $('#mobileSearchPanel')?.classList.contains('open');
-    const shouldHide = !searchOpen && currentY > lastY && currentY > 4;
+    const typingSearch = document.activeElement && document.activeElement.id === 'searchInput';
+    const shouldHide = !searchOpen && !typingSearch && currentY > lastY && currentY > 4;
     if (shouldHide !== wasHidden){
       nav.classList.toggle('nav-hidden', shouldHide);
       // Hiding/showing the navbar only moves it (transform), it doesn't
@@ -3952,6 +3971,24 @@ function syncProductsFromServer(){
   }).catch(()=>{});
 }
 
+/* Settings saved by staff (GST, MVR/USD rate, Male' islands, free-delivery rule, store details)
+   reach this page live via site-config.js - no reload needed. */
+function applySiteConfig(cfg){
+  let money = false, islands = false;
+  const g = Number(cfg.gst_rate);
+  if (cfg.gst_rate != null && isFinite(g) && g >= 0 && g !== GST_RATE){ GST_RATE = g; money = true; }
+  const r = Number(cfg.mvr_per_usd);
+  if (r > 0 && 1 / r !== USD_PER_MVR){ USD_PER_MVR = 1 / r; money = true; }
+  if (Array.isArray(cfg.male_islands)){
+    const m = cfg.male_islands.map(String);
+    if (m.join('|') !== MALE_ISLANDS.join('|')){ MALE_ISLANDS = m; islands = true; }
+  }
+  const f = Number(cfg.free_delivery_over_mvr);
+  if (cfg.free_delivery_over_mvr != null && isFinite(f)) HERO_SLIDES[0].title = 'Free delivery on orders over MVR ' + f;
+  if (money) refreshVisibleCurrency();
+  if (islands && $('#cdIsland')) renderDeliveryEstimate();
+}
+
 function init(){
   purgeLegacyLocalOrders(); // orders saved only in the browser (old demo flow) were never received by the shop
 
@@ -3959,6 +3996,7 @@ function init(){
   renderHero();
   renderProducts();
   renderPopularProducts();
+  if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCurrencyToggleUI();
   updateCartUI();
   initNavScroll();
@@ -4308,6 +4346,7 @@ function init(){
   });
 
   $('#searchInput').addEventListener('input', e=>{ handleSearch(e.target.value); syncSearchClear(); });
+  $('#searchInput').addEventListener('keydown', e=>{ if (e.key === 'Enter' && e.target.value.trim()){ addRecentSearch(e.target.value); showSearchResults(); } });
   $('#searchClear')?.addEventListener('click', clearSearch);
   $('#mobileSearchClear')?.addEventListener('click', clearSearch);
   $('#searchInput').addEventListener('focus', e=>{

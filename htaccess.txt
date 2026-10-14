@@ -1,0 +1,68 @@
+Options -MultiViews -Indexes
+RewriteEngine On
+
+# Redirect direct .html requests to clean URLs.
+RewriteCond %{THE_REQUEST} \s/+index\.html(?:[\s?]|$) [NC]
+RewriteRule ^index\.html$ / [R=301,L]
+
+RewriteCond %{THE_REQUEST} \s/+(.+)\.html(?:[\s?]|$) [NC]
+RewriteRule ^(.+)\.html$ /$1 [R=301,L,NE]
+
+# Serve the matching .html file when a clean URL is requested.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+?)/?$ $1.html [L]
+
+# ------------------------------------------------------------------
+# SECURITY — huwag i-serve ang mga dev/project file
+# (schema, function names, at admin email ay nasa supabase/*.sql, README, API spec)
+# ------------------------------------------------------------------
+RedirectMatch 404 ^/(supabase|docs|archive|\.git)(/|$)
+<FilesMatch "\.(sql|md|log|zip|bak|orig|sh|env)$">
+  Require all denied
+</FilesMatch>
+
+# Always revalidate pages, scripts and styles so visitors never end up with
+# an old script.js paired with a new index.html (that mismatch breaks clicks).
+# Unchanged files still come back as a fast 304, so this costs almost nothing.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # ----------------------------------------------------------------
+  # SECURITY HEADERS
+  # ----------------------------------------------------------------
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+
+  # CSP — REPORT-ONLY muna: walang masisira, pero lalabas sa browser console
+  # (F12 -> Console) ang anumang lalabag. Kapag malinis na pagkatapos subukan
+  # ang shop, checkout, login, at /admin, palitan ang pangalan ng header sa
+  # "Content-Security-Policy" para ma-enforce.
+  #
+  # 'unsafe-inline' sa script-src ay pansamantala lang, dahil may inline
+  # onerror=/onload= at isang inline <script> sa admin.html. Kapag naalis
+  # na ang mga iyon, tanggalin din ang 'unsafe-inline' — doon lalakas ang
+  # proteksyon laban sa XSS.
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  # Anti-clickjacking (enforced na agad — walang kailangang subukan)
+  Header always set X-Frame-Options "DENY"
+
+  # ----------------------------------------------------------------
+  # ADMIN PAGE ONLY — enforced CSP (hindi report-only)
+  # Bawal ang script mula sa ibang site, bawal magpadala ng data sa ibang
+  # domain (connect-src), bawal i-embed, bawal ang plugin/object.
+  # Ang 'unsafe-inline' ay nandito pa dahil sa inline loader sa admin.html.
+  # ----------------------------------------------------------------
+  <FilesMatch "^admin\.html$">
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Header always set Cache-Control "no-store, no-cache, must-revalidate"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  </FilesMatch>
+</IfModule>

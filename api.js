@@ -110,6 +110,7 @@
     if (/email rate limit|over_email_send_rate_limit/i.test(raw) || err.code === 'over_email_send_rate_limit') {
       return fail('EMAIL_LIMIT', 'Our email limit was reached for now. Please try again in about an hour.');
     }
+    if (/captcha/i.test(raw)) return fail('CAPTCHA_FAILED', 'The security check failed. Refresh the page and try again.');
     if (/rate limit|too many/i.test(raw)) return fail('RATE_LIMITED', 'Too many attempts. Please wait a minute, then try again.');
     if (/Token has expired|invalid.*(token|code)|otp/i.test(raw)) return fail('INVALID_OTP', 'That code is incorrect or has expired.');
     if (/Failed to fetch|NetworkError|network/i.test(raw)) return fail('NETWORK', 'Connection problem. Please check your internet and try again.');
@@ -217,13 +218,69 @@
   }
 
   // ============================================================
+  // Bot protection (Cloudflare Turnstile) - OFF until a site key is set.
+  // Set  window.MAZI_TURNSTILE_SITEKEY  in supabase-config.js, then switch on
+  // CAPTCHA protection in Supabase (Authentication -> Attack Protection).
+  // With no key nothing changes. The widget is invisible unless Cloudflare
+  // decides a visitor needs to prove they are human.
+  // ============================================================
+  var TS_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+  var tsLoading = null;
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve();
+    if (tsLoading) return tsLoading;
+    tsLoading = new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = TS_URL; sc.async = true;
+      sc.onload = function () { resolve(); };
+      sc.onerror = function () { tsLoading = null; reject(fail('CAPTCHA_FAILED', 'The security check could not load. Check your connection and try again.')); };
+      document.head.appendChild(sc);
+    });
+    return tsLoading;
+  }
+  function getCaptchaToken() {
+    var key = String(window.MAZI_TURNSTILE_SITEKEY || '').trim();
+    if (!key) return Promise.resolve(undefined);
+    return loadTurnstile().then(function () {
+      return new Promise(function (resolve, reject) {
+        var host = document.getElementById('mazi-captcha');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'mazi-captcha';
+          host.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:2147483000';
+          document.body.appendChild(host);
+        }
+        var wid = null, settled = false;
+        function end(fn, v) {
+          if (settled) return; settled = true;
+          clearTimeout(tm);
+          try { if (wid != null) window.turnstile.remove(wid); } catch (e) {}
+          fn(v);
+        }
+        var tm = setTimeout(function () { end(reject, fail('CAPTCHA_FAILED', 'The security check timed out. Please try again.')); }, 60000);
+        try {
+          wid = window.turnstile.render(host, {
+            sitekey: key,
+            appearance: 'interaction-only',
+            callback: function (tok) { end(resolve, tok); },
+            'error-callback': function () { end(reject, fail('CAPTCHA_FAILED', 'The security check failed. Refresh the page and try again.')); },
+            'timeout-callback': function () { end(reject, fail('CAPTCHA_FAILED', 'The security check timed out. Please try again.')); }
+          });
+        } catch (e) { end(reject, fail('CAPTCHA_FAILED', 'The security check could not start. Refresh the page and try again.')); }
+      });
+    });
+  }
+
+  // ============================================================
   // Auth (free email + password; mobile is stored in the profile)
   // ============================================================
   function sendOtp(mobile) {
     return run(function () {
       var phone = normalizeMobile(mobile);
       if (phone.length < 8) throw fail('INVALID_CUSTOMER', 'Please enter a valid mobile number.');
-      return getClient().auth.signInWithOtp({ phone: phone }).then(unwrap).then(function () {
+      return getCaptchaToken().then(function (cap) {
+        return getClient().auth.signInWithOtp({ phone: phone, options: { captchaToken: cap } });
+      }).then(unwrap).then(function () {
         return { sent: true, mobile: phone };
       });
     });
@@ -270,8 +327,9 @@
 
   function signInWithPassword(email, password) {
     return run(function () {
-      return getClient().auth.signInWithPassword({ email: String(email).trim(), password: String(password) })
-        .then(unwrap).then(authResult);
+      return getCaptchaToken().then(function (cap) {
+        return getClient().auth.signInWithPassword({ email: String(email).trim(), password: String(password), options: { captchaToken: cap } });
+      }).then(unwrap).then(authResult);
     });
   }
 
@@ -304,10 +362,12 @@
 
   function signUpWithPassword(email, password, mobile, name, source) {
     return run(function () {
-      return getClient().auth.signUp({
-        email: String(email).trim(),
-        password: String(password),
-        options: { data: { mobile: mobile || null, name: name || null, source: source || 'storefront' }, emailRedirectTo: redirectUrl() }
+      return getCaptchaToken().then(function (cap) {
+        return getClient().auth.signUp({
+          email: String(email).trim(),
+          password: String(password),
+          options: { data: { mobile: mobile || null, name: name || null, source: source || 'storefront' }, emailRedirectTo: redirectUrl(), captchaToken: cap }
+        });
       }).then(unwrap).then(function (data) {
         // Supabase hides "already registered" (no error) and returns a user with no identities
         if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
@@ -326,10 +386,12 @@
   // Sends the confirmation email again (60 s cooldown enforced by Supabase)
   function resendConfirmation(email) {
     return run(function () {
-      return getClient().auth.resend({
-        type: 'signup',
-        email: String(email).trim(),
-        options: { emailRedirectTo: redirectUrl() }
+      return getCaptchaToken().then(function (cap) {
+        return getClient().auth.resend({
+          type: 'signup',
+          email: String(email).trim(),
+          options: { emailRedirectTo: redirectUrl(), captchaToken: cap }
+        });
       }).then(unwrap).then(function () { return { sent: true }; });
     });
   }
@@ -339,8 +401,9 @@
   // Supabase answers the same way whether or not the email has an account.
   function sendPasswordReset(email) {
     return run(function () {
-      return getClient().auth.resetPasswordForEmail(String(email).trim(), { redirectTo: redirectUrl() })
-        .then(unwrap).then(function () { return { sent: true }; });
+      return getCaptchaToken().then(function (cap) {
+        return getClient().auth.resetPasswordForEmail(String(email).trim(), { redirectTo: redirectUrl(), captchaToken: cap });
+      }).then(unwrap).then(function () { return { sent: true }; });
     });
   }
 
@@ -502,18 +565,29 @@
     });
   }
 
+  // "My Orders" = ONLY the signed-in account's own orders. The query used to rely on RLS
+  // alone, but RLS also lets staff/admin accounts read EVERY order — so a staff member
+  // browsing the store saw all walk-in (POS) sales and other customers' orders in their
+  // own My Orders. Walk-in sales have user_id = NULL, so this filter excludes them.
   function listOrders() {
     return run(function () {
-      return getClient().from('orders').select('*, order_items(*)')
-        .order('placed_at', { ascending: false }).then(unwrap)
-        .then(function (rows) { return (rows || []).map(normalizeOrder); });
+      return currentUserId().then(function (uid) {
+        if (!uid) return [];
+        return getClient().from('orders').select('*, order_items(*)')
+          .eq('user_id', uid).eq('order_type', 'online')
+          .order('placed_at', { ascending: false }).then(unwrap)
+          .then(function (rows) { return (rows || []).map(normalizeOrder); });
+      });
     });
   }
 
   function getOrder(id) {
     return run(function () {
-      return getClient().from('orders').select('*, order_items(*)').eq('id', id).maybeSingle()
-        .then(unwrap).then(normalizeOrder);
+      // own orders only (see listOrders) — never another account's, even for staff
+      return currentUserId().then(function (uid) {
+        return getClient().from('orders').select('*, order_items(*)').eq('id', id).eq('user_id', uid).maybeSingle()
+          .then(unwrap).then(normalizeOrder);
+      });
     });
   }
 
@@ -549,6 +623,18 @@
   function subscribeProducts(cb) {
     var channel = getClient().channel('products-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, function () { cb(); })
+      .subscribe();
+    return function unsubscribe() {
+      try { getClient().removeChannel(channel); } catch (e) {}
+    };
+  }
+
+  // Fires whenever a shared setting (app_config) is saved on the staff Settings page, so the
+  // storefront can re-read it and update itself live. Needs supabase/48_settings_live.sql run once
+  // (adds app_config to the realtime publication); site-config.js also polls as a fallback.
+  function subscribeConfig(cb) {
+    var channel = getClient().channel('config-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, function () { cb(); })
       .subscribe();
     return function unsubscribe() {
       try { getClient().removeChannel(channel); } catch (e) {}
@@ -591,11 +677,25 @@
   // ============================================================
   function adminListOrders(status) {
     return run(function () {
-      var q = getClient().from('orders').select('*, order_items(*)').order('placed_at', { ascending: false });
-      if (status) q = q.eq('status', status);
-      return q.then(unwrap).then(function (rows) {
-        return (rows || []).map(function (r) { var o = normalizeOrder(r); o.slipPath = r.payment_slip_path; o.userId = r.user_id; o.adminNote = r.admin_note; return o; });
-      });
+      function build(sel) {
+        var q = getClient().from('orders').select(sel).order('placed_at', { ascending: false });
+        if (status) q = q.eq('status', status);
+        return q.then(unwrap);
+      }
+      function mapRows(rows) {
+        return (rows || []).map(function (r) {
+          var o = normalizeOrder(r); o.slipPath = r.payment_slip_path; o.userId = r.user_id; o.adminNote = r.admin_note;
+          // who created it (staff who rang up a walk-in / POS sale)
+          var cr = r.creator;
+          o.createdBy = r.created_by || null;
+          o.createdByName = cr ? (cr.staff_name || cr.name || String(cr.email || '').split('@')[0] || '') : '';
+          return o;
+        });
+      }
+      // embed the creator's profile; if that join is ever refused, fall back to the plain list
+      return build('*, order_items(*), creator:profiles!orders_created_by_fkey(name,staff_name,email)')
+        .catch(function () { return build('*, order_items(*)'); })
+        .then(mapRows);
     });
   }
   function adminSetOrderStatus(id, status, extra) {
@@ -907,6 +1007,12 @@
       return getClient().rpc('admin_restore_customer', { p_id: id }).then(unwrap).then(normalizeCustomer);
     });
   }
+  // Permanently remove a customer that is already in History (needs 49_customer_purge.sql).
+  function adminPurgeCustomer(id) {
+    return run(function () {
+      return getClient().rpc('admin_purge_customer', { p_id: id }).then(unwrap);
+    });
+  }
 
   // Temporary (5 min) link to view a private payment slip
   function getSlipUrl(path) {
@@ -972,8 +1078,8 @@
     normalizeMobile: normalizeMobile,
     statusIndex: statusIndex,
     ORDER_STATUSES: ORDER_STATUSES,
-    getConfig: getConfig, listCategories: listCategories, listProducts: listProducts,
-    sendOtp: sendOtp, verifyOtp: verifyOtp, signInWithPassword: signInWithPassword,
+    getConfig: getConfig, subscribeConfig: subscribeConfig, listCategories: listCategories, listProducts: listProducts,
+    sendOtp: sendOtp, verifyOtp: verifyOtp, getCaptchaToken: getCaptchaToken, signInWithPassword: signInWithPassword,
     signUpWithPassword: signUpWithPassword, resendConfirmation: resendConfirmation,
     signInWithGoogle: signInWithGoogle,
     sendPasswordReset: sendPasswordReset, updatePassword: updatePassword, getSession: getSession, onAuthChange: onAuthChange, logout: logout,
@@ -997,6 +1103,7 @@
     adminSaveConfig: adminSaveConfig,
     adminListCustomers: adminListCustomers, adminCreateCustomer: adminCreateCustomer, adminUpdateCustomer: adminUpdateCustomer,
     adminCustomerDetail: adminCustomerDetail, adminReceiveCustomerPayment: adminReceiveCustomerPayment,
-    adminDeleteCustomer: adminDeleteCustomer, adminRestoreCustomer: adminRestoreCustomer
+    adminDeleteCustomer: adminDeleteCustomer, adminRestoreCustomer: adminRestoreCustomer,
+    adminPurgeCustomer: adminPurgeCustomer
   };
 })();

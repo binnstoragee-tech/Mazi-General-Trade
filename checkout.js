@@ -108,11 +108,12 @@ const ATOLLS = {
   'Seenu (Addu) (S)': ['Hithadhoo', 'Maradhoo', 'Feydhoo', 'Hulhudhoo'],
 };
 
-const GST_RATE = 0.08;
+let GST_RATE = 0.08;                          // live from Settings
+let MALE_ISLANDS = ["Male'", "Hulhumale'"];     // live from Settings
 
 // Maldivian Rufiyaa is pegged to the US Dollar at MVR 15.42 = USD 1 — same
 // peg rate used on the main shop page.
-const USD_PER_MVR = 1 / 15.42;
+let USD_PER_MVR = 1 / 15.42;                  // live from Settings (MVR per 1 USD)
 // Currency the shopper picked while browsing (mazi_currency, same key the
 // shop page's MVR/USD toggle writes to). Checkout carries that currency
 // through payment, summary and the bank details instead of forcing MVR.
@@ -583,7 +584,7 @@ function populateIslandSelect(selectId, atoll){
   sel.innerHTML = cities.map(c => `<option>${c}</option>`).join('');
 }
 function isMaleIsland(island){
-  return island === "Male'" || island === "Hulhumale'";
+  return MALE_ISLANDS.indexOf(String(island || '').trim()) >= 0;
 }
 function renderDeliveryEstimate(){
   const island = $('#coIsland').value;
@@ -824,6 +825,23 @@ function syncCheckoutProducts(){
    true = ordering is paused; anyone landing on checkout is sent back to the shop. */
 const CART_MAINTENANCE = true;
 
+/* Settings saved by staff reach this page live via site-config.js - no reload needed. */
+function applySiteConfig(cfg){
+  let changed = false;
+  const g = Number(cfg.gst_rate);
+  if (cfg.gst_rate != null && isFinite(g) && g >= 0 && g !== GST_RATE){ GST_RATE = g; changed = true; }
+  const r = Number(cfg.mvr_per_usd);
+  if (r > 0 && 1 / r !== USD_PER_MVR){ USD_PER_MVR = 1 / r; changed = true; }
+  if (Array.isArray(cfg.male_islands)){
+    const m = cfg.male_islands.map(String);
+    if (m.join('|') !== MALE_ISLANDS.join('|')){ MALE_ISLANDS = m; changed = true; }
+  }
+  if (!changed) return;
+  try { renderItems(); } catch(e){}
+  try { renderSummary(); } catch(e){}
+  try { if (coMethod === 'delivery' && $('#coIsland')) renderDeliveryEstimate(); } catch(e){}
+}
+
 function init(){
   if (CART_MAINTENANCE){ window.location.replace('index.html'); return; }
   if (!session || Object.keys(cart).length === 0) return;
@@ -832,6 +850,7 @@ function init(){
   renderItems();
   renderSummary();
   renderBankAccounts();
+  if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCheckoutProducts();
 
   coMethod = 'pickup';

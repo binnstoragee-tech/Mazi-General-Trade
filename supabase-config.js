@@ -10,3 +10,7 @@
    ============================================================ */
 window.SUPABASE_URL = 'https://fzxaonudfsfxtbmvejeu.supabase.co';
 window.SUPABASE_ANON_KEY = 'sb_publishable_gxMdOzLm22xdayWk0fUZag_ciEd81nG';
+
+/* Bot protection (Cloudflare Turnstile). Leave empty = OFF.
+   Paste ONLY the public SITE key here (never the secret key). */
+window.MAZI_TURNSTILE_SITEKEY = '';

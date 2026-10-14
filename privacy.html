@@ -12,7 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=20260921n">
+<script src="theme.js?v=20261014a"></script>
+<link rel="stylesheet" href="style.css?v=20261014d">
 </head>
 <body>
 
@@ -104,10 +105,10 @@
     <h2>9. Contact Us</h2>
     <p>If you have questions about this Privacy Policy or how your data is handled, reach out to us:</p>
     <div class="legal-contact">
-      <p>MAZI General Trade</p>
-      <p style="font-weight:400;color:var(--ink)">Male', Republic of Maldives</p>
-      <p style="font-weight:400"><a href="tel:+9609291600">+960 929 1600</a></p>
-      <p style="font-weight:400"><a href="mailto:mazigeneraltrade@gmail.com">mazigeneraltrade@gmail.com</a></p>
+      <p data-site="store_name">MAZI General Trade</p>
+      <p style="font-weight:400;color:var(--ink)" data-site="store_addr">Male', Republic of Maldives</p>
+      <p style="font-weight:400"><a href="tel:+9609291600" data-site-tel="store_phone">+960 929 1600</a></p>
+      <p style="font-weight:400"><a href="mailto:mazigeneraltrade@gmail.com" data-site-mail="store_email">mazigeneraltrade@gmail.com</a></p>
     </div>
   </div>
 
@@ -124,7 +125,7 @@
           <a href="https://www.facebook.com/share/1CDnWrEqWU/" target="_blank" rel="noopener" class="footer-social-link" aria-label="Facebook" title="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.9-5 5v3H6v4h3v4h4v-4h3.2l.8-4H13V9c0-.7.3-1 1-1z" fill="currentColor"/></svg></a>
           <a href="https://www.instagram.com/mazigeneraltrade?stkn=ZDV2M3hqdnM3ZW14" target="_blank" rel="noopener" class="footer-social-link" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.7" cy="6.5" r="1.1" fill="currentColor"/></svg></a>
           <a href="https://www.tiktok.com/@mazi.general.trad?_r=1&_t=ZS-99wRrGJlxm4" target="_blank" rel="noopener" class="footer-social-link" aria-label="TikTok" title="TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 3c.4 2.2 1.8 3.6 4 3.9v2.6c-1.4 0-2.8-.4-4-1.2v6.3c0 3-2.4 5.4-5.4 5.4S5.7 17.6 5.7 14.6c0-2.9 2.3-5.3 5.2-5.4v2.7c-1.4.1-2.5 1.3-2.5 2.7 0 1.5 1.2 2.7 2.7 2.7s2.8-1.2 2.8-2.7V3h2.6z" fill="currentColor"/></svg></a>
-          <a href="mailto:mazigeneraltrade@gmail.com" class="footer-social-link" aria-label="Email" title="Email"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="mailto:mazigeneraltrade@gmail.com" data-site-mail="store_email" class="footer-social-link" aria-label="Email" title="Email"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </div>
       </div>
 
@@ -158,9 +159,9 @@
       <div class="footer-col">
         <h4>Get in Touch</h4>
         <ul class="footer-contact">
-          <li>Male', Republic of Maldives</li>
-          <li><a href="tel:+9609291600">+960 929 1600</a></li>
-          <li><a href="mailto:mazigeneraltrade@gmail.com">mazigeneraltrade@gmail.com</a></li>
+          <li data-site="store_addr">Male', Republic of Maldives</li>
+          <li><a href="tel:+9609291600" data-site-tel="store_phone">+960 929 1600</a></li>
+          <li><a href="mailto:mazigeneraltrade@gmail.com" data-site-mail="store_email">mazigeneraltrade@gmail.com</a></li>
         </ul>
       </div>
     </div>
@@ -175,6 +176,10 @@
   </div>
 </footer>
 
+<script src="supabase.js" defer></script>
+<script src="supabase-config.js" defer></script>
+<script src="api.js?v=20261014a" defer></script>
+<script src="site-config.js?v=20261014a" defer></script>
 <script src="page-transitions.js" defer></script>
 
 </body>

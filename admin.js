@@ -39,6 +39,7 @@
     customers: [], customersError: null, editingCustomerId: null, custDetail: null, custMode: 'detail'
   };
   var knownIds = null, pollTimer = null, busy = false, menuEl = null, notifEl = null, pendingImageFile = null, lastPanelView = null;
+  var animStart = 0, animElapsed = 0, ANIM_MS = 1600; // entrance window (ms): a re-render inside it continues the animation instead of cutting it
 
   // Wipe everything the previous signed-in account loaded (lists, current page, search) so a
   // different account that signs in on the same page can never see the old account's screens.
@@ -362,6 +363,7 @@
     S.profile = profile;
     $('loginView').classList.add('hidden');
     $('appView').classList.remove('hidden');
+    startIdleGuard();
     $('meRole').textContent = isSuperAdmin(profile) ? 'Super Admin' : 'Staff';
     $('meName').textContent = displayName(profile);
     $('meAv').textContent = initials(displayName(profile));
@@ -449,7 +451,7 @@
   // "name" (First Name) field so editing Personal Details on the shop side never
   // changes what shows here — see 22_super_admin.sql.
   function displayName(p) {
-    if (isPrimarySuperAdmin(p)) return PRIMARY_SUPER_ADMIN_NAME;
+    if (isPrimarySuperAdmin(p)) return (p && p.staff_name) || PRIMARY_SUPER_ADMIN_NAME;
     return (p && (p.staff_name || p.name)) || ((p && p.email) || '').split('@')[0] || 'Staff';
   }
   function accountDisplayName(p) {
@@ -459,7 +461,35 @@
     return isPrimaryAdminAccount(p) ? PRIMARY_SUPER_ADMIN_MOBILE : (p && p.mobile) || '';
   }
 
+  /* ============ login spam guard (this browser) ============
+     After 5 wrong passwords the Sign In button locks for 30s, then 1m, 5m, 15m.
+     This only calms the form down. The real protection against bots is on the
+     server (Supabase rate limits + CAPTCHA), because a bot can skip this page. */
+  var LK_KEY = 'mazi_admin_login_lock', LK_STEPS = [30, 60, 300, 900], LK_FREE = 5, lkTimer = null;
+  function lkRead() { try { return JSON.parse(localStorage.getItem(LK_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function lkWrite(o) { try { localStorage.setItem(LK_KEY, JSON.stringify(o)); } catch (e) {} }
+  function lkLeft() { var o = lkRead(); return Math.max(0, Math.ceil(((o.until || 0) - Date.now()) / 1000)); }
+  function lkFmt(n) { return n >= 60 ? Math.floor(n / 60) + 'm ' + (n % 60 < 10 ? '0' : '') + (n % 60) + 's' : n + 's'; }
+  function lkTick() {
+    var btn = $('loginBtn'), left = lkLeft();
+    if (left <= 0) {
+      if (lkTimer) { clearInterval(lkTimer); lkTimer = null; }
+      if (btn) { btn.disabled = false; $('goLabel').textContent = 'Sign In'; }
+      setMsg(''); return;
+    }
+    if (btn) { btn.disabled = true; $('goLabel').textContent = 'Locked ' + lkFmt(left); }
+    setMsg('Too many wrong attempts. Try again in ' + lkFmt(left) + '.');
+  }
+  function lkStart() { lkTick(); if (!lkTimer && lkLeft() > 0) lkTimer = setInterval(lkTick, 1000); }
+  function lkFail() {
+    var o = lkRead(); o.n = (o.n || 0) + 1;
+    if (o.n >= LK_FREE) { o.until = Date.now() + LK_STEPS[Math.min(o.n - LK_FREE, LK_STEPS.length - 1)] * 1000; }
+    lkWrite(o); if (o.until && o.until > Date.now()) lkStart();
+  }
+  function lkClear() { try { localStorage.removeItem(LK_KEY); } catch (e) {} }
+
   function login() {
+    if (lkLeft() > 0) { lkStart(); return; }
     var email = $('email').value.trim(), pw = $('password').value;
     if (!email || !pw) { setMsg('Enter your email and password.'); return; }
     if (email.indexOf('@') < 0) { setMsg('Sign in with your e-mail address (like name@example.com), not a username.'); $('email').focus(); return; }
@@ -468,6 +498,7 @@
     // Clear any persisted Supabase session first so a previous staff account
     // cannot remain active while the user is signing in with another email.
     MaziAPI.logout().catch(function () {}).then(function () { return MaziAPI.signInWithPassword(email, pw); }).then(function (res) {
+      lkClear();
       if (isStaff(res.profile)) return showApp(res.profile);
       // Registered from admin.html but not approved yet: show the waiting screen.
       if (isPendingStaff(res.profile)) return showWaiting(res.profile);
@@ -476,8 +507,12 @@
       if (res.profile) return showRequestOffer(res.profile, false);
       return MaziAPI.logout().catch(function () {}).then(function () { showLogin('This account is not a staff account.'); });
     }).catch(function (e) {
-      setMsg(e.message || 'Could not sign in.');
-    }).then(function () { return finishAuthLoading(loadingStarted); }).then(function () { btn.disabled = false; $('goLabel').textContent = 'Sign In'; });
+      var m = String((e && e.message) || '');
+      if (/invalid login|invalid credentials|incorrect|wrong/i.test(m) || (e && (e.code === 'invalid_credentials' || e.code === 'AUTH_INVALID'))) lkFail();
+      setMsg(m || 'Could not sign in.');
+    }).then(function () { return finishAuthLoading(loadingStarted); }).then(function () {
+      if (lkLeft() > 0) { lkStart(); } else { btn.disabled = false; $('goLabel').textContent = 'Sign In'; }
+    });
   }
   function loginWithGoogle() {
     if (!window.MaziAPI || !MaziAPI.signInWithGoogle) {
@@ -687,6 +722,13 @@
       ? '<span class="pill amber src-pill">Walk-in</span>'
       : '<span class="pill src-pill">Online</span>';
   }
+  // Who rang up a walk-in / POS sale (staff name; "" for online orders)
+  function creatorName(o) {
+    if (!o || o.orderType !== 'walkin') return '';
+    if (S.profile && o.createdBy && o.createdBy === S.profile.id) return displayName(S.profile);
+    return o.createdByName || '';
+  }
+  function byStaffHtml(o) { var n = creatorName(o); return n ? '<small class="by-staff">by <b>' + esc(n) + '</b></small>' : ''; }
   function locationText(o) {
     var l = (o.customer && o.customer.location) || {}, m = o.customer && o.customer.method, out = [];
     if (m === 'pickup') {
@@ -740,7 +782,16 @@
     // look like a laggy double-animation.
     var freshMount = S.view !== lastPanelView;
     lastPanelView = S.view;
-    $('panel').classList.toggle('no-anim', !freshMount);
+    // A re-render (poll / data load) that lands while the entrance is still
+    // playing must not cut it off. `animEl` = seconds already played; new
+    // nodes start their animations that far in (negative delay), so it keeps
+    // flowing smoothly instead of snapping to the end.
+    var nowMs = Date.now(), animEl = 0;
+    if (freshMount) animStart = nowMs;
+    else if (nowMs - animStart < ANIM_MS) animEl = (nowMs - animStart) / 1000;
+    animElapsed = animEl;
+    $('panel').classList.toggle('no-anim', !freshMount && animEl === 0);
+    $('panel').style.setProperty('--el', animEl.toFixed(3) + 's');
 
     if (S.view === 'dashboard') renderDashboard(freshMount);
     else if (S.view === 'stock') renderStock();
@@ -761,14 +812,14 @@
     // Staff Access) without needing to know each view's markup. Only runs on
     // an actual category switch (freshMount); background polling never
     // replays it, so it stays smooth and never feels laggy.
-    if (freshMount) animatePanelEntrance();
+    if (freshMount || animEl > 0) animatePanelEntrance();
     if (S.drawerId) refreshDrawer();
   }
   function animatePanelEntrance() {
     var kids = $('panel').children;
     for (var i = 0; i < kids.length; i++) {
       kids[i].classList.add('rise-item');
-      kids[i].style.animationDelay = (Math.min(i, 4) * 0.045) + 's';
+      kids[i].style.animationDelay = (Math.min(i, 4) * 0.045 - animElapsed).toFixed(3) + 's';
     }
   }
 
@@ -792,6 +843,20 @@
       return '<button type="button" class="myear-tab' + (S.salesSource === d[0] ? ' active' : '') + '" data-sales-source="' + d[0] + '">' + d[1] + '</button>';
     }).join('') + '</div>';
   }
+  // Compact "ring" KPI tiles - colour = level (green on track / amber watch / red needs action)
+  function overviewRingsHtml(cards) {
+    var C = 163.4;
+    return '<div class="box ov-box"><h3>Overview' + srcSuffix() + '</h3><div class="rstats">' + cards.map(function (c) {
+      var p = c.pct > 0 ? Math.max(c.pct, 0.05) : 0;
+      return '<div class="rstat lv-' + c.lvl + '" role="button" tabindex="0" data-goto="' + c.g + '" aria-label="' + esc(c.label) + ': ' + c.val + '">' +
+        '<div class="rstat-ring"><svg class="rg" viewBox="0 0 64 64" aria-hidden="true"><circle class="rg-bg" cx="32" cy="32" r="26"/>' +
+        (p ? '<circle class="rg-fg" cx="32" cy="32" r="26" style="--p:' + (p * C).toFixed(1) + '"/>' : '') + '</svg>' +
+        '<span class="rstat-ico">' + c.ico + '</span></div>' +
+        '<b>' + c.val + '</b><small>' + c.label + '</small>' + c.delta + '</div>';
+    }).join('') + '</div>' +
+      '<div class="rlegend"><span class="lv-good"><i></i>On track</span><span class="lv-warn"><i></i>Watch</span><span class="lv-bad"><i></i>Needs action</span></div></div>';
+  }
+
   function renderDashboard(freshMount) {
     var orders = S.orders, today = ymd(Date.now()), yest = ymd(Date.now() - 86400000);
     // Orders still awaiting staff acceptance ('placed') are excluded from dashboard
@@ -824,11 +889,22 @@
     var dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
     var h = '<h1>Good ' + greetWord + (firstName ? ', ' + esc(firstName) : '') + '</h1>' +
       '<p class="lead">' + esc(dateStr) + ' · Store overview &amp; today\'s activity.</p>' + sourceTabsHtml();
-    h += '<div class="dstats">' + cards.map(function (c) {
-      return '<div class="dstat" role="button" tabindex="0" data-goto="' + c.g + '"><div class="dstat-top"><small>' + c.label + '</small><span class="dstat-ico ' + c.cls + '">' + c.ico + '</span></div><b>' + c.val + '</b>' + c.delta + '</div>';
-    }).join('') + '</div>';
+    // level colour code for the ring tiles: [fill 0..1, good|warn|bad|idle]
+    function cmpLv(cur, prev) { var ref = Math.max(cur, prev); return [ref ? cur / ref : 0, prev ? (cur >= prev ? 'good' : 'warn') : (cur ? 'good' : 'idle')]; }
+    function tierLv(n, warnAt, badAt, cap) { return [Math.min(n / cap, 1), n >= badAt ? 'bad' : (n >= warnAt ? 'warn' : 'good')]; }
+    var lvls = [
+      tierLv(activeCount, 5, 10, 10),          // Active Orders: 0-4 ok, 5-9 busy, 10+ backlog
+      cmpLv(todayRev, yestRev),                // Today's Revenue vs yesterday
+      cmpLv(todayOrders.length, yestOrders.length),
+      tierLv(lowStock, 1, 5, 10),              // Low Stock: 0 ok, 1-4 watch, 5+ act
+      tierLv(outStock, 1, 3, 5),               // Out of Stock: 0 ok, 1-2 watch, 3+ act
+      tierLv(pendingRefunds, 1, 3, 5)          // Pending Refunds: 0 ok, 1-2 watch, 3+ act
+    ];
+    cards.forEach(function (c, i) { c.pct = lvls[i][0]; c.lvl = lvls[i][1]; });
+
 
     h += '<div class="dgrid"><div>';
+    h += weeklyChartHtml(live);   // Weekly Performance sits at the top of the main column
 
     var qa = [
       { g: 'live:all', ico: ICON.bolt, t: 'Online Orders', s: num(activeCount) + ' need action' },
@@ -840,19 +916,20 @@
       return '<button type="button" class="qa-card" data-goto="' + a.g + '"><span class="qa-ico">' + a.ico + '</span><b>' + a.t + '</b><span>' + a.s + '</span></button>';
     }).join('') + '</div></div>';
 
-    h += weeklyChartHtml(live);
     h += monthlySalesHtml(orders.filter(srcOk));
     h += topSellingProductsHtml(live);
+    h += notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount);   // landscape strip right under Top Selling Products
     h += '</div><div>';
+    h += overviewRingsHtml(cards);
     h += activityFeedHtml();
-    h += notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount);
     h += '</div></div>';
 
     $('panel').innerHTML = h;
-    animateWeeklyChart(freshMount);
+    animateWeeklyChart(freshMount || animElapsed > 0, animElapsed);
   }
 
-  function animateWeeklyChart(freshMount) {
+  function animateWeeklyChart(freshMount, skip) {
+    skip = skip || 0;
     var wrap = document.querySelector('.chart-wrap');
     if (!wrap) return;
     var svg = wrap.querySelector('svg');
@@ -878,10 +955,10 @@
       // force reflow so the starting state is committed before transitioning
       line.getBoundingClientRect();
       requestAnimationFrame(function () {
-        line.style.transition = 'stroke-dashoffset 3s cubic-bezier(.4,0,.2,1)';
+        line.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1) ' + (-skip).toFixed(3) + 's';
         line.style.strokeDashoffset = '0';
-        if (area) { area.style.transition = 'opacity 1.8s ease-out 1s'; area.style.opacity = '1'; }
-        if (dot) { dot.style.transition = 'opacity .5s ease-out 2.7s'; dot.style.opacity = '1'; }
+        if (area) { area.style.transition = 'opacity .9s ease-out ' + (0.5 - skip).toFixed(3) + 's'; area.style.opacity = '1'; }
+        if (dot) { dot.style.transition = 'opacity .4s ease-out ' + (1.1 - skip).toFixed(3) + 's'; dot.style.opacity = '1'; }
       });
     }
   }
@@ -954,7 +1031,7 @@
     var dLabels = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' }); });
     var dFull = days.map(function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); });
 
-    return '<div class="box chart-wrap"><h3>Weekly Performance' + srcSuffix() + '</h3>' +
+    return '<div class="box chart-wrap wk-box"><h3>Weekly Performance' + srcSuffix() + '</h3>' +
       '<div class="chart-legend"><span><i style="background:var(--green-600)"></i>Revenue · last 7 days</span></div>' +
       waveChartHtml(vals, dFull, ordVals, 150) +
       '<div class="chart-days">' + dLabels.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>' +
@@ -1084,7 +1161,10 @@
     S.orders.filter(function (o) { return o.status !== 'placed'; }).slice().sort(function (a, b) { return b.placedAt - a.placedAt; }).slice(0, 5).forEach(function (o) {
       var c = o.customer || {};
       // clicking a "placed order" activity opens that exact order's drawer
-      items.push({ t: o.placedAt, ico: ICON.bag, cls: 'amber', text: '<b>' + esc(c.name || 'Customer') + '</b> placed order #' + esc(o.id), sub: esc(mvr(o.total)) + ' · ' + LABEL[o.status], attrs: 'data-open="' + esc(o.id) + '"' });
+      var who = creatorName(o);
+      items.push({ t: o.placedAt, ico: ICON.bag, cls: 'amber',
+        text: who ? '<b>' + esc(who) + '</b> created walk-in sale #' + esc(o.id) : '<b>' + esc(c.name || 'Customer') + '</b> placed order #' + esc(o.id),
+        sub: (who && c.name ? esc(c.name) + ' · ' : '') + esc(mvr(o.total)) + ' · ' + LABEL[o.status], attrs: 'data-open="' + esc(o.id) + '"' });
     });
     var REASON = { restock: 'Restocked', set: 'Stock set', order: 'Sold', cancel: 'Returned' };
     var REASON_CLS = { restock: 'blue', set: 'purple', order: 'green', cancel: 'red' };
@@ -1125,7 +1205,7 @@
     } else {
       notifBit = '<span>Get notified here when a new order comes in.</span><button type="button" class="btn primary sm" data-notif-enable>Enable alerts</button>';
     }
-    return '<div class="box" style="margin-top:16px"><h3>Notifications</h3><div class="alerts">' + body + '</div><div class="notif-card">' + notifBit + '</div></div>';
+    return '<div class="box notif-wide"><h3>Notifications</h3><div class="nw-body"><div class="alerts">' + body + '</div><div class="notif-card">' + notifBit + '</div></div></div>';
   }
 
   /* ---------- orders ---------- */
@@ -1135,7 +1215,7 @@
     var q = S.q.trim().toLowerCase();
     if (q) list = list.filter(function (o) {
       var c = o.customer || {};
-      return (o.id + ' ' + (c.name || '') + ' ' + (c.mobile || '')).toLowerCase().indexOf(q) >= 0;
+      return (o.id + ' ' + (c.name || '') + ' ' + (c.mobile || '') + ' ' + creatorName(o)).toLowerCase().indexOf(q) >= 0;
     });
     return list;
   }
@@ -1187,7 +1267,7 @@
       '<div class="c-id">#' + esc(o.id) + '<div style="margin-top:4px">' + sourcePill(o) + '</div></div>' +
       '<div class="c-name"><span class="av">' + esc(initials(c.name)) + '</span><span><b>' + esc(c.name) + '</b><small>' + esc(c.mobile) + ' · ' + esc(typeOf(o)) + '</small></span></div>' +
       '<div class="c-pay">' + (o.orderType === 'walkin'
-        ? '<span class="pill gray">At counter</span>'
+        ? '<span class="pill gray">At counter</span>' + byStaffHtml(o)
         : '<span class="pill">Slip</span> ' + esc(o.currency)) + '</div>' +
       '<div class="c-time"><b>' + esc(fmtShort(o.placedAt)) + '</b><small>' + esc(ago(o.placedAt)) + '</small></div>' +
       '<div class="c-type">' + esc(typeOf(o)) + '</div>' +
@@ -1216,7 +1296,21 @@
       '<div class="stat"><small>Fee still to confirm</small><b>' + tbc + '</b></div></div>' +
       '<div class="box"><h3>Best sellers</h3>' + (top.length ? top.map(function (t) {
         return '<div class="rank"><span>' + esc(t.name) + '</span><span><b>' + t.qty + '</b> units · ' + esc(mvr(t.amount)) + '</span></div>';
-      }).join('') : '<div class="empty" style="padding:16px">No sales in this range.</div>') + '</div>';
+      }).join('') : '<div class="empty" style="padding:16px">No sales in this range.</div>') + '</div>' + staffSalesHtml(live);
+  }
+  // Walk-in sales grouped by the staff member who rang them up
+  function staffSalesHtml(live) {
+    var by = {}, any = false;
+    live.forEach(function (o) {
+      var n = creatorName(o); if (!n) return;
+      any = true; by[n] = by[n] || { name: n, orders: 0, amount: 0 };
+      by[n].orders++; by[n].amount += o.total;
+    });
+    if (!any) return '';
+    var rows = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.amount - a.amount; });
+    return '<div class="box" style="margin-top:16px"><h3>Walk-in sales by staff</h3>' + rows.map(function (r) {
+      return '<div class="rank"><span>' + esc(r.name) + '</span><span><b>' + r.orders + '</b> sale' + (r.orders === 1 ? '' : 's') + ' · ' + esc(mvr(r.amount)) + '</span></div>';
+    }).join('') + '</div>';
   }
 
   /* ---------- stock ---------- */
@@ -1613,7 +1707,7 @@
           var m = String((e && e.message) || '');
           if (/CUSTOMER_HAS_PAYMENTS/i.test(m)) m = 'Cannot delete: this customer has payment records. Keep them in History to preserve the books.';
           else if (/CUSTOMER_NOT_DELETED/i.test(m)) m = 'Move the customer to History first.';
-          else if (/admin_purge_customer|schema cache|does not exist/i.test(m)) m = 'One-time setup needed: run 45_customer_purge.sql in Supabase SQL Editor.';
+          else if (/admin_purge_customer|schema cache|does not exist/i.test(m)) m = 'One-time setup needed: run 49_customer_purge.sql in Supabase SQL Editor.';
           else if (!m) m = 'Could not delete this customer.';
           toast(m, true);
         });
@@ -1677,7 +1771,8 @@
       '<div class="field"><label>Mobile</label><input class="inp" id="custMobile" value="' + esc(c.mobile || '') + '" maxlength="20"></div>' +
       '<div class="field"><label>Email</label><input class="inp" id="custEmail" value="' + esc(c.email || '') + '" maxlength="120"></div>' +
       '<div class="field"><label>Address</label><input class="inp" id="custAddress" value="' + esc(c.address || '') + '" maxlength="200"></div>' +
-      '<div class="field"><label>Tax Number</label><input class="inp" id="custTax" value="' + esc(c.taxNumber || '') + '" maxlength="40"></div>' +
+      '<label style="display:flex;align-items:center;gap:8px;margin:2px 0 14px;font-weight:600;font-size:12.5px;cursor:pointer"><input type="checkbox" id="custGst"' + (c.taxNumber ? ' checked' : '') + ' onchange="document.getElementById(\'custTaxField\').style.display=this.checked?\'\':\'none\'"> GST registered (company / business)</label>' +
+      '<div class="field" id="custTaxField"' + (c.taxNumber ? '' : ' style="display:none"') + '><label>GST TIN Number</label><input class="inp" id="custTax" value="' + esc(c.taxNumber || '') + '" maxlength="40" placeholder="e.g. 1234567GST501" autocomplete="off"></div>' +
       '<div class="field"><label>Credit Limit (MVR)</label><input class="inp" id="custCredit" type="number" min="0" step="0.01" value="' + esc(c.creditLimit || 0) + '"></div>' +
       '<div class="field"><label>Price Level</label><input class="inp" id="custPriceLevel" value="' + esc(c.priceLevel || '') + '" maxlength="60" placeholder="Optional reference label"></div>' +
       '<div class="field"><label>Note</label><input class="inp" id="custNote" value="' + esc(c.note || '') + '" maxlength="300"></div>' +
@@ -1804,9 +1899,17 @@
   function saveCustomer(id) {
     var name = $('custName').value.trim();
     if (!name) { toast('Enter a customer name.', true); $('custName').focus(); return; }
+    // GST: only kept when "GST registered" is ticked; a changed TIN must look like 1234567GST501
+    var gstOn = $('custGst') && $('custGst').checked;
+    var tin = gstOn ? $('custTax').value.trim().toUpperCase() : '';
+    if (gstOn) {
+      var prev = (findCustomer(id) || {}).taxNumber || '';
+      if (!tin) { toast('Enter the GST TIN number, or untick "GST registered".', true); $('custTax').focus(); return; }
+      if (tin !== prev && !/^\d{7}GST\d{3}$/.test(tin)) { toast('GST TIN format should look like 1234567GST501.', true); $('custTax').focus(); return; }
+    }
     var opts = {
       name: name, mobile: $('custMobile').value.trim(), email: $('custEmail').value.trim(),
-      address: $('custAddress').value.trim(), taxNumber: $('custTax').value.trim(),
+      address: $('custAddress').value.trim(), taxNumber: tin,
       creditLimit: Number($('custCredit').value || 0), priceLevel: $('custPriceLevel').value.trim(),
       note: $('custNote').value.trim()
     };
@@ -1853,15 +1956,15 @@
   /* ---------- staff display name (dashboard-only, not the shop profile name) ---------- */
   function openStaffNameModal() {
     var primary = isPrimarySuperAdmin(S.profile);
-    $('staffNameInput').value = primary ? PRIMARY_SUPER_ADMIN_NAME : ((S.profile && S.profile.staff_name) || '');
-    $('staffNameInput').readOnly = primary;
+    $('staffNameInput').value = (S.profile && S.profile.staff_name) || (primary ? PRIMARY_SUPER_ADMIN_NAME : '');
+    $('staffNameInput').readOnly = false;
     $('staffNameModal').classList.remove('hidden');
     setTimeout(function () { $('staffNameInput').focus(); }, 50);
   }
   function closeStaffNameModal() { $('staffNameModal').classList.add('hidden'); }
   function saveStaffName() {
-    if (isPrimarySuperAdmin(S.profile)) { closeStaffNameModal(); toast('MAZI General Trade profile is fixed for the dashboard'); return; }
     var v = $('staffNameInput').value.trim();
+    if (v === PRIMARY_SUPER_ADMIN_NAME && isPrimarySuperAdmin(S.profile)) v = '';   // same as the default -> clear the custom name
     MaziAPI.updateStaffName(v).then(function (p) {
       S.profile = p;
       $('meName').textContent = displayName(p); $('meAv').textContent = initials(displayName(p));
@@ -2055,6 +2158,7 @@
           '<div class="pos-quote-name">' + esc(q.id) + ' · ' + esc(q.customer.name || 'Walk-in customer') + '</div>' +
           '<div class="pos-row-meta">' + esc(mvr(q.total)) + ' · ' + q.items.length + ' item(s) · ' + esc(fmtDate(q.createdAt)) + '</div>' +
         '</div>' +
+        '<button type="button" class="btn neutral sm" data-pos-view-quote="' + esc(q.id) + '">View</button>' +
         '<button type="button" class="btn neutral sm" data-pos-print-quote="' + esc(q.id) + '">Print</button>' +
         '<button type="button" class="btn neutral sm" data-pos-download-quote="' + esc(q.id) + '">Download</button>' +
         '<button type="button" class="btn primary sm" data-pos-convert="' + esc(q.id) + '">Confirm sale</button>' +
@@ -2064,7 +2168,18 @@
   }
 
   var lastPosTotal = null;
-  function renderPos() {
+  // resetList = true only when the product list itself changed (new search) — then start from the top.
+  function renderPos(resetList) {
+    // remember where everything was scrolled, so Add / + / - / remove don't jump back to the top
+    var panelEl = $('panel');
+    var hadPos = !!(panelEl && panelEl.querySelector('.pos-wrap'));
+    var keep = null;
+    if (hadPos) {
+      var pl = panelEl.querySelector('.pos-list'), pc = panelEl.querySelector('.pos-cart');
+      keep = { list: pl ? pl.scrollTop : 0, cart: pc ? pc.scrollTop : 0, anc: [] };
+      for (var a = panelEl; a; a = a.parentElement) { if (a.scrollTop > 0) keep.anc.push([a, a.scrollTop]); }
+      keep.win = window.pageYOffset || 0;
+    }
     var total = posCartTotal();
     var bump = lastPosTotal !== null && total !== lastPosTotal;
     lastPosTotal = total;
@@ -2077,7 +2192,7 @@
         '</div>' +
         '<div class="pos-col">' +
           '<div class="pos-mode">' +
-            '<button type="button" class="' + (POS.mode === 'order' ? 'active' : '') + '" data-pos-mode="order">Confirmed order</button>' +
+            '<button type="button" class="' + (POS.mode === 'order' ? 'active' : '') + '" data-pos-mode="order">Order</button>' +
             '<button type="button" class="' + (POS.mode === 'quotation' ? 'active' : '') + '" data-pos-mode="quotation">Quotation only</button>' +
           '</div>' +
           '<div class="pos-cart">' + posCartHtml() + '</div>' +
@@ -2092,6 +2207,20 @@
       '</div>' +
       '<div class="box" style="margin-top:18px"><h3>Open quotations</h3>' + posQuotationsHtml() + '</div>';
     $('panel').innerHTML = h;
+    if (keep) {
+      var pl2 = panelEl.querySelector('.pos-list'), pc2 = panelEl.querySelector('.pos-cart');
+      if (pl2) {
+        // a re-render is not a new list: don't replay the fade-in on every row
+        if (!resetList) {
+          var rows = pl2.querySelectorAll('.rise-item');
+          for (var r = 0; r < rows.length; r++) rows[r].classList.remove('rise-item');
+        }
+        pl2.scrollTop = resetList ? 0 : keep.list;
+      }
+      if (pc2) pc2.scrollTop = keep.cart;
+      keep.anc.forEach(function (x) { x[0].scrollTop = x[1]; });
+      if (keep.win) window.scrollTo(0, keep.win);
+    }
   }
 
   function posSubmit() {
@@ -2136,7 +2265,7 @@
       POS.busy = false;
       toast(isQuote ? 'Quotation ' + result.id + ' created' : 'Sale ' + result.id + ' completed');
       if (isQuote) { openPrintable(buildQuotationDocHtml(result)); }
-      else { openPrintable(buildWalkinSlipHtml(result)); loadStock().then(render); loadOrders(true).then(render); loadCustomers(); }
+      else { if (S.profile) result.createdBy = S.profile.id; /* so the fresh receipt says who served */ openPrintable(buildWalkinSlipHtml(result)); loadStock().then(render); loadOrders(true).then(render); loadCustomers(); }
       posReset();
       renderPos();
       loadPosQuotations();
@@ -2188,6 +2317,31 @@
       var found = (rows || []).filter(function (x) { return x.id === id; })[0];
       if (found) cb(found); else toast('Quotation not found.', true);
     }).catch(function (e) { toast(e.message || 'Could not load quotation.', true); });
+  }
+  // View = the same quotation document as Print/Download, shown inside the admin (no print dialog)
+  function posViewExistingQuotation(id) {
+    withQuotation(id, function (q) {
+      var html = buildQuotationDocHtml(q).replace(/<script>window\.onload[\s\S]*?<\/script>/, '');
+      var old = document.getElementById('posQuoteView'); if (old) old.remove();
+      var m = document.createElement('div');
+      m.className = 'modal'; m.id = 'posQuoteView'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+      m.innerHTML = '<div class="box" style="max-width:720px">' +
+        '<h3>' + esc(q.id) + ' \u00B7 ' + esc((q.customer && q.customer.name) || 'Walk-in customer') + '</h3>' +
+        '<iframe id="posQuoteFrame" title="Quotation" style="width:100%;height:68vh;border:1px solid var(--line);background:#fff"></iframe>' +
+        '<div class="acts modal-footer"><button type="button" class="btn ghost" data-qv-close>Close</button>' +
+        '<button type="button" class="btn neutral" data-qv-print>Print</button>' +
+        '<button type="button" class="btn neutral" data-qv-download>Download</button></div></div>';
+      document.body.appendChild(m);
+      m.querySelector('#posQuoteFrame').srcdoc = html;
+      function close() { m.remove(); document.removeEventListener('keydown', onKey); }
+      function onKey(ev) { if (ev.key === 'Escape') close(); }
+      document.addEventListener('keydown', onKey);
+      m.addEventListener('click', function (ev) {
+        if (ev.target === m || ev.target.closest('[data-qv-close]')) { close(); return; }
+        if (ev.target.closest('[data-qv-print]')) { openPrintable(buildQuotationDocHtml(q)); return; }
+        if (ev.target.closest('[data-qv-download]')) { downloadQuotationPdf(q); return; }
+      });
+    });
   }
   function posPrintExistingQuotation(id) {
     withQuotation(id, function (q) { openPrintable(buildQuotationDocHtml(q)); });
@@ -2272,7 +2426,7 @@
     var cur = walk ? getDocCur() : (o.currency === 'USD' ? 'USD' : 'MVR');
     var fee = walk ? 0 : (Number(o.deliveryFee) || 0);
     var status = o.status === 'cancelled' ? 'Void' : (walk ? (credit ? 'Unpaid (on credit)' : 'Paid') : (LABEL[o.status] || capFirst(o.status)));
-    return { kind: (walk && !credit) ? 'receipt' : 'invoice', number: o.id, dateTs: o.placedAt, status: status,
+    return { kind: (walk && !credit) ? 'receipt' : 'invoice', number: o.id, dateTs: o.placedAt, status: status, servedBy: walk ? creatorName(o) : '',
       payment: walk ? (PM_LABEL[o.paymentMethod] || 'Cash') : 'Bank transfer', customer: o.customer || {},
       items: docItemLines(o.items, cur), totals: docTotals(o.total, o.gst, fee, cur), note: '', cur: cur };
   }
@@ -2305,6 +2459,7 @@
     var K = DOC_KINDS[m.kind], rows = [[K.numLabel, m.number], ['Date:', docDate(m.dateTs)]];
     if (m.kind === 'quotation') rows.push(['Valid Until:', docDate(m.validTs)]);
     if (m.payment) rows.push(['Payment:', m.payment]);
+    if (m.servedBy) rows.push(['Served by:', m.servedBy]);
     rows.push(['Status:', m.status]);
     return rows;
   }
@@ -2525,7 +2680,7 @@
   function downloadQuotationPdf(q) { downloadDocPdf(quotationModel(q), 'Quotation-' + q.id + '.pdf'); }
 
   function onPosClick(e) {
-    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-cur],[data-pos-pay],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote],[data-pos-download-quote]');
+    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-cur],[data-pos-pay],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote],[data-pos-download-quote],[data-pos-view-quote]');
     if (!t) return;
     var d = t.dataset;
     if (d.posAdd) { POS.cart[d.posAdd] = (POS.cart[d.posAdd] || 0) + 1; renderPos(); return; }
@@ -2542,6 +2697,7 @@
     if (d.posSubmit !== undefined) { posSubmit(); return; }
     if (d.posConvert) { posConvertQuotation(d.posConvert); return; }
     if (d.posVoid) { posVoidQuotation(d.posVoid); return; }
+    if (d.posViewQuote) { posViewExistingQuotation(d.posViewQuote); return; }
     if (d.posPrintQuote) { posPrintExistingQuotation(d.posPrintQuote); return; }
     if (d.posDownloadQuote) { posDownloadExistingQuotation(d.posDownloadQuote); return; }
   }
@@ -2557,7 +2713,7 @@
     }
     var t = e.target; if (!t || !t.id) return;
     if (t.id === 'posSearch') {
-      POS.q = t.value; renderPos();
+      POS.q = t.value; renderPos(true);
       var el = $('posSearch');
       if (el) { el.focus(); var v = el.value; el.value = ''; el.value = v; }
       return;
@@ -2697,6 +2853,39 @@
     $('confirmModal').classList.remove('hidden');
   }
   function closeConfirm() { $('confirmModal').classList.add('hidden'); }
+  /* ============ idle auto-logout (security) ============
+     If nobody touches the dashboard for IDLE_MAX_MS the staff session is signed out,
+     so a phone/PC left open can't be used by someone else. Real activity only
+     (mouse, keys, touch, scroll) - background polling does not count. */
+  var IDLE_MAX_MS = 30 * 60 * 1000, IDLE_WARN_MS = 60 * 1000;
+  var idle = { last: Date.now(), timer: null, warned: false, bound: false };
+  function idleTouch() { idle.last = Date.now(); idle.warned = false; }
+  function idleCheck() {
+    var av = $('appView');
+    if (!av || av.classList.contains('hidden')) { idleTouch(); return; }
+    var left = IDLE_MAX_MS - (Date.now() - idle.last);
+    if (left <= 0) {
+      idleTouch();
+      Promise.resolve().then(function () { return MaziAPI.logout(); }).catch(function () {}).then(function () {
+        showLogin('You were signed out after 30 minutes of inactivity.');
+      });
+    } else if (left <= IDLE_WARN_MS && !idle.warned) {
+      idle.warned = true;
+      toast('Signing out in 1 minute because of inactivity. Tap anywhere to stay signed in.');
+    }
+  }
+  function startIdleGuard() {
+    idleTouch();
+    if (!idle.bound) {
+      idle.bound = true;
+      ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (ev) {
+        window.addEventListener(ev, idleTouch, { passive: true, capture: true });
+      });
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) idleCheck(); });
+    }
+    if (!idle.timer) idle.timer = setInterval(idleCheck, 15000);
+  }
+
   function requestLogout() {
     showConfirm({
       title: 'Log out?',
@@ -2919,6 +3108,7 @@
     h += '<div class="sec"><h4>Customer</h4><div><b>' + esc(c.name || (wk ? 'Walk-in customer' : '')) + '</b></div>' +
       ((wk && !mobile) ? '' : '<div><a href="tel:' + esc(mobile) + '">' + esc(c.mobile) + '</a> · <a href="https://wa.me/' + esc(mobile.replace(/^\+/, '')) + '" target="_blank" rel="noopener">WhatsApp</a></div>') + '</div>';
     if (wk) {
+      if (creatorName(o)) h += '<div class="sec"><h4>Created by</h4><div><b>' + esc(creatorName(o)) + '</b> <span style="color:var(--ink-soft)">&middot; staff</span></div></div>';
       h += '<div class="sec"><h4>Sale</h4><div class="loc">Counter sale &middot; ' + (o.paymentMethod === 'credit' ? '<b style="color:var(--red)">on credit</b> (customer pays later)' : 'paid by ' + esc((PM_LABEL[o.paymentMethod] || 'cash').toLowerCase())) + '</div></div>';
     } else {
       h += '<div class="sec"><h4>' + esc(typeOf(o)) + '</h4><div class="loc">' + esc(locationText(o)) + '</div></div>';
@@ -3112,21 +3302,37 @@
     if (S.settingsError) {
       h += '<div class="note-banner">Shared settings could not be loaded, so the defaults are showing. If this keeps happening, run <code>supabase/47_app_settings.sql</code> in the Supabase SQL Editor and refresh.</div>';
     }
-    h += '<div class="set-grid">';
+    h += '<div class="set-grid set-top">';
 
     // ---- account
-    h += '<div class="box"><h3>Account</h3><p class="st-sub">The account you are signed in with.</p>' +
+    h += '<div class="box st-account"><h3>Account</h3><p class="st-sub">The account you are signed in with.</p>' +
       '<div class="st-acct"><div class="st-av">' + esc(initials(name)) + '</div><div style="min-width:0"><b>' + esc(name) + '</b>' +
       '<span class="st-mail">' + esc(email || '—') + '</span>' +
       '<span class="pill ' + (sup ? 'role-super' : 'role-staff') + '">' + (sup ? 'Super Admin' : 'Staff') + '</span></div></div>' +
-      '<div class="acts" style="margin-top:14px">' +
+      '<div class="acts">' +
       '<button type="button" class="btn ghost sm" data-open-staffname>Change dashboard name</button>' +
       '<button type="button" class="btn ghost sm" data-st-reset>Send password reset email</button>' +
       '<button type="button" class="btn ghost sm" data-st-logout>Log out</button></div></div>';
 
     // ---- this device
     var curNow = getDocCur(), pollNow = getPollMs();
-    h += '<div class="box"><h3>Alerts &amp; display</h3><p class="st-sub">Applies to this device only.</p>' +
+    var TM = window.MaziTheme, tmMode = TM ? TM.mode() : 'system', tmAcc = TM ? TM.accent() : 'green';
+    var THEME_ICO = {
+      system: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+      light: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+      dark: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>'
+    };
+    var ACC_SW = { green: ['Green', '#2F9375'], blue: ['Blue', '#2F5993'], violet: ['Violet', '#532F93'], rose: ['Rose', '#932F53'], orange: ['Orange', '#93572F'] };
+    var themeRows =
+      '<div class="set-row"><div><b>Theme</b><small>Match this device, or always use light or dark.</small></div>' +
+      '<div class="seg" role="group" aria-label="Theme">' + ['system', 'light', 'dark'].map(function (m) {
+        return '<button type="button" data-st-theme="' + m + '" class="' + (m === tmMode ? 'active' : '') + '" aria-pressed="' + (m === tmMode) + '">' + THEME_ICO[m] + (m === 'system' ? 'System' : m === 'light' ? 'Light' : 'Dark') + '</button>';
+      }).join('') + '</div></div>' +
+      '<div class="set-row"><div><b>Accent colour</b><small>Buttons, highlights and charts.</small></div>' +
+      '<div class="swatches" role="group" aria-label="Accent colour">' + Object.keys(ACC_SW).map(function (k) {
+        return '<button type="button" class="swatch' + (k === tmAcc ? ' active' : '') + '" data-st-accent="' + k + '" style="--sw:' + ACC_SW[k][1] + '" title="' + ACC_SW[k][0] + (k === 'green' ? ' (default)' : '') + '" aria-label="' + ACC_SW[k][0] + '" aria-pressed="' + (k === tmAcc) + '"></button>';
+      }).join('') + '</div></div>';
+    h += '<div class="box"><h3>Alerts &amp; display</h3><p class="st-sub">Applies to this device only.</p>' + themeRows +
       '<div class="set-row"><div><b>Alert sound</b><small>Play a beep when a new order or request arrives.</small></div>' +
       '<label class="sw"><input type="checkbox" data-st-sound' + (soundOn() ? ' checked' : '') + '><i></i></label></div>' +
       '<div class="set-row" id="stBnRow">' + bnRowInner() + '</div>' +
@@ -3144,7 +3350,7 @@
     h += '<div class="set-bar">' + (sup
       ? '<button type="button" class="btn primary" data-st-save>Save changes</button><button type="button" class="btn ghost" data-st-defaults>Reset to defaults</button><span class="st-lock">Shared by every staff account.</span>'
       : '<span class="st-lock">The settings below are shared by every staff account. Only a Super Admin can change them.</span>') + '</div>';
-    h += '<div class="set-grid">';
+    h += '<div class="set-grid set-grid-3">';
     h += '<div class="box"><h3>Business details</h3><p class="st-sub">Printed at the top of every quotation, invoice and receipt.</p>' +
       stField('st_store_name', 'Business name', CFG.store_name, { dis: dis }) +
       stField('st_store_addr', 'Address', CFG.store_addr, { dis: dis, max: 300 }) +
@@ -3431,6 +3637,7 @@
 
   function boot() {
     $('loginBtn').addEventListener('click', login);
+    if (lkLeft() > 0) lkStart();
     $('googleBtn').addEventListener('click', loginWithGoogle);
     $('stMainBtn').addEventListener('click', function () {
       if (W.offer) sendStaffRequest();
@@ -3519,8 +3726,8 @@
     (function () {
       var side = $('sideNav'), logoBtn = $('sideLogoBtn'), expandBtn = $('sideExpandBtn');
       if (!side || !logoBtn || !expandBtn) return;
-      var collapse = function () { side.classList.add('collapsed'); };
-      var expand = function () { side.classList.remove('collapsed'); };
+      var collapse = function () { side.classList.add('collapsed'); logoBtn.title = 'Expand sidebar'; };
+      var expand = function () { side.classList.remove('collapsed'); logoBtn.title = 'Collapse sidebar'; };
       logoBtn.addEventListener('click', function () { side.classList.contains('collapsed') ? expand() : collapse(); });
       logoBtn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); logoBtn.click(); } });
       expandBtn.addEventListener('click', function (e) { e.stopPropagation(); expand(); });
