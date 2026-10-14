@@ -1555,7 +1555,7 @@ window.MAZI_AUTH_STORAGE_KEY = 'mazi-staff-auth'; // staff login kept separate f
 /* Loads the scripts from /js (or, if you keep everything in one folder, from next to this page),
    and says on the login card what is wrong if something cannot load. */
 (function () {
-  var V = '20261014a', files = ['supabase', 'supabase-config', 'api', 'jspdf.umd.min', 'admin'], missing = [];
+  var V = '20261014b', files = ['supabase', 'supabase-config', 'api', 'jspdf.umd.min', 'admin'], missing = [];
   function say(t) { var m = document.getElementById('loginErr'); if (m && !m.textContent) { m.className = 'msg'; m.textContent = t; } }
   function tryLoad(urls, cb) {
     var u = urls.shift(); if (!u) return cb(false);

@@ -3700,7 +3700,7 @@
     });
 
     /* ---- Sign In <-> Create Account (sliding panel) ---- */
-    Array.prototype.forEach.call(document.querySelectorAll('[data-mode]'), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll('button[data-mode]'), function (b) {
       b.addEventListener('click', function () { setAuthMode(b.dataset.mode); });
     });
     $('signupBtn').addEventListener('click', signup);
