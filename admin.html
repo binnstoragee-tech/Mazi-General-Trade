@@ -570,6 +570,7 @@ input[type=number]{-moz-appearance:textfield}
 .pos-quote-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px dashed var(--line);font-size:12.5px;transition:background .15s}
 .pos-quote-row:last-child{border-bottom:0}
 .pos-quote-row:hover{background:var(--gray-50)}
+.pos-quote-more{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 10px 2px;font-size:12px;color:var(--ink-soft)}
 .pos-quote-name{font-weight:500}
 @media (max-width:860px){.pos-wrap{grid-template-columns:1fr}.pos-list{max-height:60vh}.pos-cart{max-height:260px}}
 
@@ -814,6 +815,10 @@ a{color:var(--accent-ink)}
 .pos-disc .inp{width:84px;padding:4px 8px;font-size:12px;height:auto;text-align:right}
 .pos-disc select.inp{width:72px;text-align:left;padding:4px 6px}
 .pos-disc em{font-style:normal;color:var(--red);font-weight:600;white-space:nowrap}
+.pos-disc-cur{font-size:11px;font-weight:600;color:var(--ink-soft);letter-spacing:.04em}
+/* cart row icon buttons: perfectly centred (beats the global .btn.sm padding !important) */
+.pos-cart-row .pos-ic-btn{width:28px !important;height:28px !important;min-width:28px;padding:0 !important;display:inline-flex !important;align-items:center;justify-content:center;line-height:1;flex:none}
+.pos-cart-row .pos-ic-btn svg{width:15px;height:15px;display:block;margin:0}
 .pos-search-row{display:flex;align-items:stretch;gap:8px}
 .pos-search-row .pos-cur-switch{margin:0;padding:4px;gap:4px;width:auto;flex:none;flex-wrap:nowrap}
 .pos-search-row .pos-cur-switch button[data-pos-cur]{min-width:0;padding:0 14px}
@@ -1753,6 +1758,40 @@ html .sw input:focus-visible+i{outline:2px solid var(--ui-switch-on)}
 .pos-cur-menu .pc-check{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:0}
 .pos-cur-menu button.active .pc-check{opacity:1}
 @media (prefers-reduced-motion:reduce){.pos-cur-menu,.pos-cur-trigger .pc-chev{transition:none}}
+
+/* Minimize / expand on the activity log boxes */
+.box.log .log-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.box.log .log-head h3{margin:0}
+.box.log .log-min{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s}
+.box.log .log-min:hover{background:var(--hover,#eef0ef);color:var(--ink)}
+.box.log .log-min svg{transition:transform .2s ease}
+.box.log.is-min .log-min svg{transform:rotate(180deg)}
+.box.log.is-min .log-body{display:none}
+.box.log.is-min .log-head{margin-bottom:0}
+
+
+
+/* space between Overview and Activity Feed (they were touching) */
+.dgrid>div>.ov-box+.feed-box,.dgrid>div>.ov-box+.box{margin-top:var(--gap,16px)}
+
+/* Activity Feed: 5 rows by default; the header button shows the rest */
+.feed-box:not(.feed-all) .feed-extra{display:none}
+.feed-box .feed-row small b{color:var(--ink);font-weight:600}
+.feed-box .feed-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.feed-box .feed-head h3{margin:0}
+.feed-min{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s}
+.feed-min:hover{background:var(--gray-50);color:var(--ink)}
+.feed-min svg{transition:transform .2s ease;transform:rotate(180deg)}
+.feed-box.feed-all .feed-min svg{transform:none}
+.feed-box .feed{overflow-x:hidden}
+.feed-box.feed-all .feed{max-height:min(60vh,520px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+/* wide layout: when expanded, the feed grows down to line up with the bottom of the Notifications box */
+@container panel (min-width:900px){
+  .dgrid>div:last-child{align-self:stretch;display:flex;flex-direction:column}
+  .dgrid>div:last-child>.feed-box.feed-all{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+  .dgrid>div:last-child>.feed-box.feed-all .feed-body{flex:1 1 auto;position:relative;min-height:220px}
+  .dgrid>div:last-child>.feed-box.feed-all .feed{position:absolute;inset:0;max-height:none}
+}
 </style>
 </head>
 <body>

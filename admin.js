@@ -920,6 +920,41 @@
   }
 
   /* ============ render ============ */
+  // Staff account behind a stock change (stock_log.by_user). Customers (online orders) aren't staff -> ''.
+  function staffNameById(id) {
+    if (!id) return '';
+    if (S.profile && S.profile.id === id) return fullStaffName(S.profile);
+    var pools = [S.staffList || [], S.accounts || []];
+    for (var i = 0; i < pools.length; i++) {
+      for (var j = 0; j < pools[i].length; j++) { if (pools[i][j] && pools[i][j].id === id) return fullStaffName(pools[i][j]); }
+    }
+    return '';
+  }
+
+  /* ---- Minimize / expand for the activity log boxes (remembered per browser) ---- */
+  var LOGMIN_KEY = 'mazi_admin_logmin';
+  function logMinState() { try { return JSON.parse(localStorage.getItem(LOGMIN_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function logBoxOpen(key, title) {
+    var min = !!logMinState()[key];
+    return '<div class="box log' + (min ? ' is-min' : '') + '" data-logbox="' + key + '">' +
+      '<div class="log-head"><h3>' + esc(title) + '</h3>' +
+      '<button type="button" class="log-min" data-log-toggle="' + key + '" aria-expanded="' + (min ? 'false' : 'true') + '" aria-label="' + (min ? 'Expand' : 'Minimize') + '" title="' + (min ? 'Expand' : 'Minimize') + '">' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></div>' +
+      '<div class="log-body">';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-log-toggle]');
+    if (!b) return;
+    var key = b.getAttribute('data-log-toggle'), box = b.closest('.box.log');
+    if (!box) return;
+    var min = box.classList.toggle('is-min');
+    b.setAttribute('aria-expanded', min ? 'false' : 'true');
+    b.setAttribute('aria-label', min ? 'Expand' : 'Minimize');
+    b.title = min ? 'Expand' : 'Minimize';
+    var st = logMinState(); st[key] = min ? 1 : 0;
+    try { localStorage.setItem(LOGMIN_KEY, JSON.stringify(st)); } catch (err) {}
+  });
+
   function render() {
     // Staff (non-Super-Admin) accounts can never be on Customers / Accounts / Staff Access, whatever state is left over.
     if (SUPER_ONLY_VIEWS.indexOf(S.view) >= 0 && !isSuperAdmin(S.profile)) { S.view = 'dashboard'; S.accounts = []; }
@@ -1538,9 +1573,11 @@
     return '<div class="box" style="margin-top:16px"><h3>Top Customers' + srcSuffix() + '</h3><p class="topprod-lead">Top 10 biggest spenders · ' + esc(rangeLbl) + '</p>' + tabs + body + '</div>';
   }
 
+  var FEED_SHOW = 5;
+  function feedAllOpen() { try { return localStorage.getItem('mazi_admin_feedall') === '1'; } catch (e) { return false; } }
   function activityFeedHtml() {
     var items = [];
-    S.orders.filter(function (o) { return o.status !== 'placed'; }).slice().sort(function (a, b) { return b.placedAt - a.placedAt; }).slice(0, 5).forEach(function (o) {
+    S.orders.filter(function (o) { return o.status !== 'placed'; }).slice().sort(function (a, b) { return b.placedAt - a.placedAt; }).slice(0, 20).forEach(function (o) {
       var c = o.customer || {};
       // clicking a "placed order" activity opens that exact order's drawer
       var who = creatorName(o);
@@ -1550,21 +1587,40 @@
     });
     var REASON = { restock: 'Restocked', set: 'Stock set', order: 'Sold', cancel: 'Returned' };
     var REASON_CLS = { restock: 'blue', set: 'purple', order: 'green', cancel: 'red' };
-    (S.log || []).slice(0, 5).forEach(function (l) {
+    (S.log || []).slice(0, 40).forEach(function (l) {
       var name = (l.products && l.products.name) || l.product_id;
       // clicking a stock activity jumps to the Stock page, already filtered to
       // this exact product and the tab matching its current stock level
       var afterQty = l.qty_after;
       var stockTab = afterQty == null ? 'all' : (afterQty <= 0 ? 'out' : (afterQty <= LOW_STOCK_MAX ? 'low' : 'in'));
       var attrs = 'data-goto="stock:' + stockTab + '" data-goto-q="' + esc(name) + '"';
-      items.push({ t: new Date(l.created_at).getTime(), ico: ICON.box, cls: REASON_CLS[l.reason] || '', text: esc(REASON[l.reason] || l.reason) + ' <b>' + esc(name) + '</b>', sub: (l.change >= 0 ? '+' : '') + l.change + ' → ' + num(l.qty_after), attrs: attrs });
+      var by = staffNameById(l.by_user);
+      items.push({ t: new Date(l.created_at).getTime(), ico: ICON.box, cls: REASON_CLS[l.reason] || '', text: esc(REASON[l.reason] || l.reason) + ' <b>' + esc(name) + '</b>', sub: (l.change >= 0 ? '+' : '') + l.change + ' → ' + num(l.qty_after) + (by ? ' · by <b>' + esc(by) + '</b>' : ''), attrs: attrs });
     });
     items.sort(function (a, b) { return b.t - a.t; });
-    items = items.slice(0, 6);
-    return '<div class="box"><h3>Activity Feed</h3><div class="feed">' + (items.length ? items.map(function (it) {
-      return '<div class="feed-row" role="button" tabindex="0" ' + it.attrs + '><span class="feed-ico ' + (it.cls || '') + '">' + it.ico + '</span><div><p>' + it.text + '</p><small>' + it.sub + ' · ' + esc(ago(it.t)) + '</small></div></div>';
-    }).join('') : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div></div>';
+    items = items.slice(0, 50);
+    var open = feedAllOpen();
+    var rows = items.map(function (it, i) {
+      return '<div class="feed-row' + (i >= FEED_SHOW ? ' feed-extra' : '') + '" role="button" tabindex="0" ' + it.attrs + '><span class="feed-ico ' + (it.cls || '') + '">' + it.ico + '</span><div><p>' + it.text + '</p><small>' + it.sub + ' · ' + esc(ago(it.t)) + '</small></div></div>';
+    }).join('');
+    var canMore = items.length > FEED_SHOW;
+    var btn = canMore ? '<button type="button" class="feed-min" data-feed-min aria-expanded="' + open + '" aria-label="' + (open ? 'Minimize' : 'Show all') + '" title="' + (open ? 'Minimize' : 'Show all (' + items.length + ')') + '">' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>' : '';
+    return '<div class="box feed-box' + (open && canMore ? ' feed-all' : '') + '" data-feed-total="' + items.length + '">' +
+      '<div class="feed-head"><h3>Activity Feed</h3>' + btn + '</div>' +
+      '<div class="feed-body"><div class="feed">' + (items.length ? rows : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div></div></div>';
   }
+  document.addEventListener('click', function (e) {
+    var m = e.target.closest('[data-feed-min]');
+    if (!m) return;
+    var box = m.closest('.feed-box'); if (!box) return;
+    var all = box.classList.toggle('feed-all');
+    m.setAttribute('aria-expanded', all ? 'true' : 'false');
+    m.setAttribute('aria-label', all ? 'Minimize' : 'Show all');
+    m.title = all ? 'Minimize' : 'Show all (' + box.getAttribute('data-feed-total') + ')';
+    if (!all) { var f = box.querySelector('.feed'); if (f) f.scrollTop = 0; }
+    try { localStorage.setItem('mazi_admin_feedall', all ? '1' : '0'); } catch (err) {}
+  });
 
   function notifPanelHtml(lowStock, outStock, pendingRefunds, freshCount) {
     var alerts = [];
@@ -1927,21 +1983,21 @@
     }
 
     var REASON = { restock: 'Added', set: 'Total set', order: 'Sold', cancel: 'Returned (cancel)' };
-    h += '<div class="box log"><h3>Recent stock activity</h3>' + (S.log.length ? S.log.map(function (l) {
+    h += logBoxOpen('stock', 'Recent stock activity') + (S.log.length ? S.log.map(function (l) {
       var name = (l.products && l.products.name) || l.product_id;
       return '<div class="logrow"><span>' + esc(REASON[l.reason] || l.reason) + ' · ' + esc(name) + (l.order_id ? ' · #' + esc(l.order_id) : '') +
-        '</span><span><span class="' + (l.change >= 0 ? 'plus' : 'minus') + '">' + (l.change >= 0 ? '+' : '') + l.change + '</span> → ' + num(l.qty_after) + ' · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
-    }).join('') : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div>';
+        '</span><span><span class="' + (l.change >= 0 ? 'plus' : 'minus') + '">' + (l.change >= 0 ? '+' : '') + l.change + '</span> → ' + num(l.qty_after) + (staffNameById(l.by_user) ? ' · <b>' + esc(staffNameById(l.by_user)) + '</b>' : '') + ' · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
+    }).join('') : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div></div>';
 
     var EFIELD = { name: 'Name', pack: 'Pack', unit: 'Unit', price: 'Price', icon: 'Icon', active: 'Visibility' };
-    h += '<div class="box log"><h3>Recent edits</h3>' + (S.editLog.length ? S.editLog.map(function (l) {
+    h += logBoxOpen('edits', 'Recent edits') + (S.editLog.length ? S.editLog.map(function (l) {
       var name = (l.products && l.products.name) || l.product_id;
       var who = (l.profiles && (l.profiles.name || l.profiles.email)) || 'Admin';
       var fromV = l.field === 'price' ? mvr(l.old_value) : (l.old_value || '—');
       var toV = l.field === 'price' ? mvr(l.new_value) : (l.new_value || '—');
       return '<div class="logrow"><span>' + esc(EFIELD[l.field] || l.field) + ' · ' + esc(name) +
         '</span><span>' + esc(fromV) + ' → ' + esc(toV) + ' · <b>' + esc(who) + '</b> · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
-    }).join('') : '<div class="empty" style="padding:14px">No edits yet.</div>') + '</div>';
+    }).join('') : '<div class="empty" style="padding:14px">No edits yet.</div>') + '</div></div>';
     // keep whatever the staff was typing in the Qty boxes while the list refreshes
     var typed = {}, focusId = document.activeElement && document.activeElement.id;
     Array.prototype.forEach.call($('panel').querySelectorAll('.s-add input'), function (i) { if (i.value) typed[i.id] = i.value; });
@@ -2553,7 +2609,8 @@
   }
 
   /* ============ Walk-in / POS (needs supabase/36_walkin_pos.sql) ============ */
-  var POS = { cart: {}, mode: 'order', name: '', mobile: '', note: '', q: '', quotations: [], busy: false, customerId: '', customerText: '', payment: 'cash', disc: {} };
+  var POS_QUOTE_PREVIEW = 5;
+  var POS = { quotesAll: false, cart: {}, mode: 'order', name: '', mobile: '', note: '', q: '', quotations: [], busy: false, customerId: '', customerText: '', payment: 'cash', disc: {} };
 
   function posReset() { POS.cart = {}; POS.mode = 'order'; POS.name = ''; POS.mobile = ''; POS.note = ''; POS.q = ''; POS.busy = false; POS.customerId = ''; POS.customerText = ''; POS.payment = 'cash'; POS.disc = {}; }
 
@@ -2609,7 +2666,7 @@
 
   function loadPosQuotations() {
     MaziAPI.adminListQuotations().then(function (rows) {
-      POS.quotations = (rows || []).filter(function (q) { return q.status === 'open'; }).slice(0, 20);
+      POS.quotations = (rows || []).filter(function (q) { return q.status === 'open'; }).slice(0, 200);
       if (S.view === 'pos') renderPos();
     }).catch(function () { POS.quotations = []; if (S.view === 'pos') renderPos(); });
   }
@@ -2621,7 +2678,7 @@
     if (!d || !p || !(Number(d.value) > 0)) return 0;
     var gross = Number(p.price || 0) * (POS.cart[id] || 0);
     var amt = d.type === 'percent' ? gross * Math.min(Number(d.value), 100) / 100
-            : d.type === 'usd' ? Number(d.value) * MVR_PER_USD : Number(d.value);   // USD is converted to MVR
+            : getDocCur() === 'USD' ? Number(d.value) * MVR_PER_USD : Number(d.value);   // follows the POS currency; USD is converted to MVR
     return Math.round(Math.min(amt, gross) * 100 + 1e-7) / 100;
   }
   function posDiscDefaultType() { return getDocCur() === 'USD' ? 'usd' : 'amount'; }
@@ -2694,28 +2751,31 @@
       var name = p ? productDisplayName(p.name) : id;
       var price = p ? Number(p.price || 0) : 0;
       var qty = POS.cart[id];
-      var dsc = POS.disc[id] || {}, disc = posLineDisc(id), dtype = dsc.type || posDiscDefaultType();
+      var dsc = POS.disc[id] || {}, disc = posLineDisc(id);
       var discHtml = '<div class="pos-disc"><span>Disc</span>' +
         '<input class="inp" inputmode="decimal" placeholder="0" data-pos-disc="' + esc(id) + '" value="' + (Number(dsc.value) > 0 ? esc(String(dsc.value)) : '') + '">' +
-        '<select class="inp" data-pos-disc-type="' + esc(id) + '"><option value="amount"' + (dtype !== 'usd' ? ' selected' : '') + '>MVR</option><option value="usd"' + (dtype === 'usd' ? ' selected' : '') + '>USD</option></select>' +
+        '<span class="pos-disc-cur">' + getDocCur() + '</span>' +
         '<em class="pos-disc-amt">' + (disc > 0 ? '− ' + esc(posMoney(disc)) : '') + '</em></div>';
       return '<div class="pos-cart-row" data-pos-row="' + esc(id) + '">' +
         '<div style="flex:1;min-width:0">' +
           '<div class="pos-row-name">' + esc(name) + '</div>' +
           '<div class="pos-row-meta">' + esc(posMoney(price)) + ' each</div>' +
         '</div>' +
-        '<button type="button" class="btn ghost sm" style="width:26px;height:26px;padding:0" data-pos-dec="' + esc(id) + '">−</button>' +
+        '<button type="button" class="btn ghost sm pos-ic-btn" data-pos-dec="' + esc(id) + '">−</button>' +
         '<input class="inp" style="width:48px;text-align:center;padding:4px" data-pos-qty="' + esc(id) + '" value="' + qty + '">' +
-        '<button type="button" class="btn ghost sm" style="width:26px;height:26px;padding:0" data-pos-inc="' + esc(id) + '">+</button>' +
+        '<button type="button" class="btn ghost sm pos-ic-btn" data-pos-inc="' + esc(id) + '">+</button>' +
         '<div class="pos-line-total" style="width:84px;text-align:right;font-weight:500;font-size:12.5px">' + posLineTotalInner(id) + '</div>' +
-        '<button type="button" class="btn danger sm" style="width:26px;height:26px;padding:0" data-pos-remove="' + esc(id) + '">' + ICON.trash + '</button>' + discHtml +
+        '<button type="button" class="btn danger sm pos-ic-btn" aria-label="Remove item" data-pos-remove="' + esc(id) + '">' + ICON.trash + '</button>' + discHtml +
       '</div>';
     }).join('');
   }
 
   function posQuotationsHtml() {
-    if (!POS.quotations.length) return '<div class="pos-cart-empty">No open quotations.</div>';
-    return POS.quotations.map(function (q) {
+    var all = POS.quotations || [];
+    if (!all.length) return '<div class="pos-cart-empty">No open quotations.</div>';
+    var more = all.length > POS_QUOTE_PREVIEW;
+    var list = (more && !POS.quotesAll) ? all.slice(0, POS_QUOTE_PREVIEW) : all;
+    var rows = list.map(function (q) {
       return '<div class="pos-quote-row">' +
         '<div style="flex:1;min-width:0">' +
           '<div class="pos-quote-name">' + esc(q.id) + ' · ' + esc(q.customer.name || 'Walk-in customer') + '</div>' +
@@ -2728,6 +2788,11 @@
         '<button type="button" class="btn danger sm" data-pos-void="' + esc(q.id) + '">Void</button>' +
       '</div>';
     }).join('');
+    if (more) {
+      rows += '<div class="pos-quote-more"><span>Showing ' + list.length + ' of ' + all.length + '</span>' +
+        '<button type="button" class="btn neutral sm" data-pos-quotes-toggle>' + (POS.quotesAll ? 'Show less' : 'View all (' + all.length + ')') + '</button></div>';
+    }
+    return rows;
   }
 
   var lastPosTotal = null;
@@ -3243,7 +3308,7 @@
   function downloadQuotationPdf(q) { downloadDocPdf(quotationModel(q), 'Quotation-' + q.id + '.pdf'); }
 
   function onPosClick(e) {
-    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-cur],[data-pos-cur-toggle],[data-pos-pay],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote],[data-pos-download-quote],[data-pos-view-quote]');
+    var t = e.target.closest('[data-pos-add],[data-pos-inc],[data-pos-dec],[data-pos-remove],[data-pos-mode],[data-pos-cur],[data-pos-cur-toggle],[data-pos-pay],[data-pos-submit],[data-pos-convert],[data-pos-void],[data-pos-print-quote],[data-pos-download-quote],[data-pos-view-quote],[data-pos-quotes-toggle]');
     if (!t) return;
     var d = t.dataset;
     if (d.posAdd) { POS.cart[d.posAdd] = (POS.cart[d.posAdd] || 0) + 1; renderPos(); return; }
@@ -3256,11 +3321,21 @@
     if (d.posRemove) { delete POS.cart[d.posRemove]; delete POS.disc[d.posRemove]; renderPos(); return; }
     if (d.posMode) { POS.mode = d.posMode; renderPos(); return; }
     if (d.posCurToggle !== undefined) { var dd = $('posCurDD'); if (dd) { var o = !dd.classList.contains('open'); dd.classList.toggle('open', o); t.setAttribute('aria-expanded', o); } return; }
-    if (d.posCur) { setDocCur(d.posCur); renderPos(); return; }
+    if (d.posCur) {
+      var prevCur = getDocCur();
+      if (prevCur !== d.posCur) {
+        Object.keys(POS.disc).forEach(function (k) {
+          var dv = POS.disc[k]; if (!dv || !(Number(dv.value) > 0) || dv.type === 'percent') return;
+          dv.value = Math.round((d.posCur === 'USD' ? dv.value / MVR_PER_USD : dv.value * MVR_PER_USD) * 100) / 100;
+        });
+      }
+      setDocCur(d.posCur); renderPos(); return;
+    }
     if (d.posPay) { if (!t.disabled) { POS.payment = d.posPay; renderPos(); } return; }
     if (d.posSubmit !== undefined) { posSubmit(); return; }
     if (d.posConvert) { posConvertQuotation(d.posConvert); return; }
     if (d.posVoid) { posVoidQuotation(d.posVoid); return; }
+    if (d.posQuotesToggle !== undefined) { POS.quotesAll = !POS.quotesAll; renderPos(); return; }
     if (d.posViewQuote) { posViewExistingQuotation(d.posViewQuote); return; }
     if (d.posPrintQuote) { posPrintExistingQuotation(d.posPrintQuote); return; }
     if (d.posDownloadQuote) { posDownloadExistingQuotation(d.posDownloadQuote); return; }
@@ -3293,12 +3368,6 @@
       var id = t.dataset.posQty, v = parseInt(t.value, 10);
       if (!isFinite(v) || v <= 0) { delete POS.cart[id]; delete POS.disc[id]; } else POS.cart[id] = Math.min(v, 99999);
       renderPos();
-    }
-    if (t && t.dataset && t.dataset.posDiscType !== undefined) {
-      var did = t.dataset.posDiscType, cur = POS.disc[did] || { type: posDiscDefaultType(), value: 0 };
-      cur.type = t.value === 'usd' ? 'usd' : 'amount';
-      POS.disc[did] = cur;
-      posRefreshLine(did);
     }
     if (t && t.dataset && t.dataset.posDisc !== undefined) {   // tidy the typed number (2 decimals) when leaving the box
       var d2 = POS.disc[t.dataset.posDisc];
