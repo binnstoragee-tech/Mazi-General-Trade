@@ -230,6 +230,22 @@ function renderContact(){
   $('#coName').value = name !== 'there' ? name : '';
   $('#coMobile').value = s.mobile || '';
   renderBusinessInfo();
+  startAccountsLive();
+}
+
+/* Live: when staff approve / reject a business account (or the login's accounts change in any other
+   way) the "Order as" list updates by itself — no reload. Needs supabase/59_realtime_everything.sql;
+   the focus / tab-visible refresh below is the fallback if realtime is off. */
+let coShopsUnsub = null, coShopsTimer = null;
+function refreshAccountsSoon(){
+  clearTimeout(coShopsTimer);
+  coShopsTimer = setTimeout(()=>{ if (!document.hidden) renderBusinessInfo(); }, 300);
+}
+function startAccountsLive(){
+  if (coShopsUnsub || !window.MaziAPI || !MaziAPI.subscribeShops) return;
+  try{ coShopsUnsub = MaziAPI.subscribeShops(refreshAccountsSoon); }catch(e){}
+  document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) refreshAccountsSoon(); });
+  window.addEventListener('pagehide', ()=>{ try{ if (coShopsUnsub) coShopsUnsub(); }catch(e){} coShopsUnsub = null; });
 }
 
 /* Accounts: show every business / extra account of this login in the Contact box
@@ -262,6 +278,15 @@ function renderBusinessInfo(){
 
   const shops = MaziAPI.listShops ? MaziAPI.listShops().catch(()=>[]) : Promise.resolve([]);
   shops.then(list=>{
+    const bizAll = (list || []).filter(x => x.account_type === 'business');
+    const bizApproved = bizAll.filter(x => x.status === 'approved');
+    if (bizAll.length){
+      // Has a business account -> show the "Order as" picker (Personal / each business account).
+      // Only APPROVED business accounts can be picked; with none approved yet, Personal is used.
+      renderAccountPicker(box, list, bizApproved);
+      return;
+    }
+    coAccount = null;
     if (list && list.length){
       show(list.map(x=>({
         name: x.name, status: x.status,
@@ -272,6 +297,60 @@ function renderBusinessInfo(){
     } else {
       fromProfile().then(show);
     }
+  });
+}
+
+/* ---------- "Order as" account picker ----------
+   Logins with an APPROVED business account choose, per order, whether it is a Personal order
+   or one for a business account (the server prices + tags the order by that choice).
+   First time: nothing is preselected and Place Order asks them to pick. After that the last
+   choice is remembered (still changeable here). */
+let coAccount = null;            // null = not chosen yet | 'personal' | <shop uuid>
+const CO_ACCOUNT_KEY = 'mazi_active_shop';
+function renderAccountPicker(box, allShops, bizApproved){
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const sess = getSession() || {};
+  const personalName = joinName(sess.firstName, sess.lastName) || sess.name || 'My personal account';
+  let saved = null;
+  try{ saved = localStorage.getItem(CO_ACCOUNT_KEY); }catch(e){}
+  const validIds = ['personal'].concat(bizApproved.map(x=>x.id));
+  // nothing approved yet -> Personal is the only possible choice (so it is preselected, no prompt)
+  coAccount = !bizApproved.length ? 'personal' : ((saved && validIds.indexOf(saved) !== -1) ? saved : null);
+
+  const opt = (id, title, sub, badge, disabled) => `
+    <label class="co-acct${disabled ? ' is-disabled' : ''}${coAccount === id ? ' is-selected' : ''}">
+      <input type="radio" name="coAccount" value="${esc(id)}" ${coAccount === id ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <span class="co-acct-dot" aria-hidden="true"></span>
+      <span class="co-acct-body">
+        <span class="co-acct-title">${esc(title)}${badge || ''}</span>
+        ${sub ? `<span class="co-acct-sub">${esc(sub)}</span>` : ''}
+      </span>
+    </label>`;
+  const bizOpts = (allShops || []).filter(x => x.account_type === 'business').map(x=>{
+    const ok = x.status === 'approved';
+    const place = [x.city, x.atoll].filter(Boolean).join(', ');
+    const gst = x.gst_exempt ? 'Not GST registered' : (x.gst_tin ? `GST TIN: ${x.gst_tin}` : '');
+    const sub = ['Business' + (x.business_type ? ' · ' + x.business_type : ''), gst, place].filter(Boolean).join(' · ');
+    const badge = ok ? '' : `<span class="co-biz-badge is-pending">${x.status === 'rejected' ? 'Not approved' : 'Pending approval'}</span>`;
+    return opt(x.id, x.name, sub, badge, !ok);
+  }).join('');
+
+  box.innerHTML = `
+    <div class="co-acct-head">Order as <small>Choose which account this order is for</small></div>
+    <div class="co-acct-list" id="coAcctList" role="radiogroup" aria-label="Order as">
+      ${opt('personal', personalName, 'Personal / Residential', '', false)}
+      ${bizOpts}
+    </div>
+    ${bizApproved.length ? '' : '<div class="co-acct-note">Your business account can be used for orders once it is approved. Until then, this order is placed as Personal.</div>'}
+    <div class="co-acct-error" id="coAcctError" hidden>Please choose which account you are ordering with.</div>`;
+  box.hidden = false;
+
+  $('#coAcctList').addEventListener('change', e=>{
+    const r = e.target.closest('input[name="coAccount"]'); if (!r) return;
+    coAccount = r.value;
+    try{ localStorage.setItem(CO_ACCOUNT_KEY, coAccount); }catch(err){}
+    document.querySelectorAll('#coAcctList .co-acct').forEach(l=> l.classList.toggle('is-selected', l.querySelector('input').checked));
+    $('#coAcctError').hidden = true;
   });
 }
 
@@ -641,7 +720,10 @@ function placeOrder(customer){
     method: customer.method,
     location: customer.location,
     slipPath: path,
-    termsAccepted: true
+    termsAccepted: true,
+    // 'personal' or a business account id (only set when this login has an approved business account)
+    account: coAccount ? (coAccount === 'personal' ? 'personal' : 'business') : undefined,
+    shopId: (coAccount && coAccount !== 'personal') ? coAccount : undefined
   })).then(order => {
     // keep a local copy so "My Orders" shows it instantly
     order.notifiedIdx = 0;
@@ -821,9 +903,23 @@ function syncCheckoutProducts(){
   }).catch(()=>{});
 }
 
+// Live: when staff change a product in /admin (price, name, photo, stock, hide/show) this page
+// refreshes right away instead of only when it was opened. Display only - the order total is
+// always computed on the server. Needs products + live_ping in the realtime publication.
+let checkoutProductsTimer = null;
+function startCheckoutProductsLive(){
+  if (!window.MaziAPI || !MaziAPI.subscribeProducts) return;
+  try{
+    MaziAPI.subscribeProducts(function(){
+      clearTimeout(checkoutProductsTimer);
+      checkoutProductsTimer = setTimeout(syncCheckoutProducts, 400);
+    });
+  }catch(e){}
+}
+
 /* ---------- CART MAINTENANCE SWITCH (keep same value as script.js) ----------
    true = ordering is paused; anyone landing on checkout is sent back to the shop. */
-const CART_MAINTENANCE = true;
+const CART_MAINTENANCE = false;
 
 /* Settings saved by staff reach this page live via site-config.js - no reload needed. */
 function applySiteConfig(cfg){
@@ -852,6 +948,7 @@ function init(){
   renderBankAccounts();
   if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCheckoutProducts();
+  startCheckoutProductsLive();
 
   coMethod = 'pickup';
   coPickupDayIndex = 0;
@@ -985,6 +1082,14 @@ function init(){
     $('#coTermsField').classList.toggle('has-error', !termsOk);
     $('#coTermsError').style.display = termsOk ? 'none' : 'block';
 
+    const needAcct = !!$('#coAcctList');
+    const acctOk = !needAcct || !!coAccount;
+    if (needAcct) $('#coAcctError').hidden = acctOk;
+
+    if (!acctOk){
+      $('#coContactBusiness').scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
     if (!nameOk || !mobileOk || !methodOk || !slipOk || !termsOk){
       const firstError = document.querySelector('.co-field.has-error, .co-upload.error, #coTermsField.has-error');
       if (firstError) firstError.scrollIntoView({behavior:'smooth', block:'center'});

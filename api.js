@@ -47,12 +47,12 @@
     INVALID_STATUS: 'Invalid order status.',
     INVALID_REFUND_STATUS: 'Invalid refund status.',
     NOT_FOUND: 'That account could not be found.',
-    CANNOT_REMOVE_SELF: 'You cannot remove your own staff access.',
+    CANNOT_REMOVE_SELF: 'You cannot remove your own admin access.',
     CANNOT_REMOVE_PRIMARY_SUPER_ADMIN: 'The primary Super Admin account cannot be removed.',
     LAST_SUPER_ADMIN: 'There must always be at least one Super Admin — make another account Super Admin first.',
-    STOREFRONT_ACCOUNT: 'This is a shop account that has not requested staff access.',
-    NOT_A_STAFF_REQUEST: 'This account has no pending staff-access request.',
-    ALREADY_STAFF: 'This account already has staff access.',
+    STOREFRONT_ACCOUNT: 'This is a shop account that has not requested admin access.',
+    NOT_A_STAFF_REQUEST: 'This account has no pending admin-access request.',
+    ALREADY_STAFF: 'This account already has admin access.',
     CUSTOMER_NOT_FOUND: 'That customer could not be found.',
     NAME_REQUIRED: 'Enter a customer name.',
     INVALID_PAYMENT_METHOD: 'Choose a valid payment method.',
@@ -159,7 +159,15 @@
       total: Number(o.total),
       currency: o.currency || 'MVR',
       refundStatus: o.refund_status || 'none',
+      // tracking info (columns exist after supabase/52_*.sql; null before that)
+      statusUpdatedAt: o.status_updated_at ? new Date(o.status_updated_at).getTime() : null,
+      shippedAt: o.shipped_at ? new Date(o.shipped_at).getTime() : null,
+      deliveredAt: o.delivered_at ? new Date(o.delivered_at).getTime() : null,
+      paymentStatus: o.payment_status || null,
+      trackingNo: o.tracking_no || '',
+      courier: o.courier || '',
       orderType: o.order_type || 'online',
+      shopId: o.shop_id || null,   // business account this order was placed with (null = Personal)
       customerId: o.customer_id || null,
       paymentMethod: o.payment_method || (o.order_type === 'walkin' ? 'cash' : 'transfer'),
       customer: {
@@ -313,7 +321,14 @@
   }
 
   function authResult(data) {
-    return getProfile().then(function (profile) {
+    // Same rule as the Google path: a profile-read failure must not turn a valid login into an error.
+    var profileFailed = false;
+    return getProfile().catch(function (e) {
+      profileFailed = true;
+      if (window.console) console.error('Login: could not load profile:', e && e.message, e);
+      return null;
+    }).then(function (profile) {
+      if (profileFailed) return { user: data.user, profile: null, isNewUser: false };
       // Auth is the source of truth for the signed-in email. Older profile rows
       // can retain a previous email because ensure_profile() does not overwrite
       // an existing profiles.email value.
@@ -560,6 +575,9 @@
           terms_accepted: opts.termsAccepted === true,
           payment_slip_path: slipPath
         };
+        // which account the order is for: 'personal' (residential pricing) or a business account (shop_id)
+        if (opts.shopId) { payload.shop_id = opts.shopId; payload.account = 'business'; }
+        else if (opts.account === 'personal') { payload.account = 'personal'; }
         return getClient().rpc('create_order', { payload: payload }).then(unwrap).then(normalizeOrder);
       });
     });
@@ -576,7 +594,27 @@
         return getClient().from('orders').select('*, order_items(*)')
           .eq('user_id', uid).eq('order_type', 'online')
           .order('placed_at', { ascending: false }).then(unwrap)
-          .then(function (rows) { return (rows || []).map(normalizeOrder); });
+          .then(function (rows) {
+            var list = (rows || []).map(normalizeOrder);
+            if (!list.length) return list;
+            // Per-step timestamps for the tracking timeline. Optional: if the
+            // order_status_history table isn't there yet, the card falls back
+            // to placed/updated times and still works.
+            return getClient().from('order_status_history')
+              .select('order_id,status,note,created_at')
+              .in('order_id', list.map(function (o) { return o.id; }))
+              .order('created_at', { ascending: true })
+              .then(function (res) {
+                var by = {};
+                if (res && !res.error && res.data) {
+                  res.data.forEach(function (h) {
+                    (by[h.order_id] = by[h.order_id] || []).push({ status: h.status, note: h.note || '', at: new Date(h.created_at).getTime() });
+                  });
+                }
+                list.forEach(function (o) { o.history = by[o.id] || []; });
+                return list;
+              }, function () { list.forEach(function (o) { o.history = []; }); return list; });
+          });
       });
     });
   }
@@ -621,8 +659,12 @@
   // change and hands off to the caller (script.js re-pulls via listProducts,
   // which is subject to normal RLS so hidden products never leak).
   function subscribeProducts(cb) {
+    // 'products' announces edits; 'live_ping' (touched by a trigger on every product change,
+    // see 59_realtime_everything.sql) also announces a product being HIDDEN, which realtime
+    // cannot send for the products table itself because the row is no longer visible to shoppers.
     var channel = getClient().channel('products-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, function () { cb(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_ping' }, function () { cb(); })
       .subscribe();
     return function unsubscribe() {
       try { getClient().removeChannel(channel); } catch (e) {}
@@ -638,6 +680,28 @@
       .subscribe();
     return function unsubscribe() {
       try { getClient().removeChannel(channel); } catch (e) {}
+    };
+  }
+
+  // Business accounts (public.shops), live. A shopper (default) hears only about THEIR OWN
+  // accounts (approved / rejected by staff); pass {all:true} from the admin dashboard to hear about
+  // every account (new requests). cb(payload) gets the realtime payload. Needs 59_realtime_everything.sql.
+  // Returns an unsubscribe function.
+  function subscribeShops(cb, opts) {
+    var channel = null, stopped = false;
+    function go(filter) {
+      if (stopped) return;
+      var spec = { event: '*', schema: 'public', table: 'shops' };
+      if (filter) spec.filter = filter;
+      channel = getClient().channel('shops-live-' + Math.random().toString(36).slice(2, 8))
+        .on('postgres_changes', spec, function (payload) { try { cb(payload); } catch (e) {} })
+        .subscribe();
+    }
+    if (opts && opts.all) go(null);
+    else currentUserId().then(function (uid) { go('user_id=eq.' + uid); }).catch(function () {});
+    return function unsubscribe() {
+      stopped = true;
+      try { if (channel) getClient().removeChannel(channel); } catch (e) {}
     };
   }
 
@@ -675,6 +739,35 @@
   // ============================================================
   // Staff / admin (only works for profiles with is_admin = true)
   // ============================================================
+  // Adds, to every ONLINE order: o.ownerProfile (the login's profile when it is a staff/admin
+  // account) and o.handledByProfile (the staff member who last moved the order forward, from
+  // order_status_history.actor_id). Best effort: if anything fails the list is returned as is.
+  function attachOrderActors(list) {
+    var online = list.filter(function (o) { return o.orderType !== 'walkin'; });
+    if (!online.length) return Promise.resolve(list);
+    return Promise.all([
+      getClient().from('order_status_history').select('order_id,status,actor_id,created_at')
+        .order('created_at', { ascending: false }).limit(5000).then(unwrap),
+      getClient().from('profiles').select('id,name,last_name,staff_name,email,is_admin,is_super_admin').eq('is_admin', true).then(unwrap),
+      // the login that CREATED each online order (staff or shopper) so the Staff filter can list them
+      (function () {
+        var ids = {}; online.forEach(function (o) { if (o.userId) ids[o.userId] = 1; });
+        ids = Object.keys(ids);
+        if (!ids.length) return Promise.resolve([]);
+        return getClient().from('profiles').select('id,name,last_name,staff_name,email,is_admin,is_super_admin').in('id', ids).then(unwrap).catch(function () { return []; });
+      })()
+    ]).then(function (res) {
+      var staff = {}; (res[1] || []).forEach(function (p) { staff[p.id] = p; });
+      var owners = {}; (res[2] || []).forEach(function (p) { owners[p.id] = p; });
+      var last = {};
+      (res[0] || []).forEach(function (r) {            // newest first: the first hit per order is the latest
+        if (r.status === 'placed' || !r.actor_id || !staff[r.actor_id] || last[r.order_id]) return;
+        last[r.order_id] = staff[r.actor_id];
+      });
+      online.forEach(function (o) { o.ownerProfile = staff[o.userId] || owners[o.userId] || null; o.handledByProfile = last[o.id] || null; });
+      return list;
+    }).catch(function () { return list; });
+  }
   function adminListOrders(status) {
     return run(function () {
       function build(sel) {
@@ -687,17 +780,27 @@
           var o = normalizeOrder(r); o.slipPath = r.payment_slip_path; o.userId = r.user_id; o.adminNote = r.admin_note;
           // who created it (staff who rang up a walk-in / POS sale)
           var cr = r.creator;
+          o.account = r.shop ? { name: r.shop.name, type: r.shop.account_type, businessType: r.shop.business_type,
+                                 gst: r.shop.gst_exempt ? 'Not GST registered' : (r.shop.gst_tin || '') } : null;
           o.createdBy = r.created_by || null;
-          o.createdByName = cr ? (cr.staff_name || cr.name || String(cr.email || '').split('@')[0] || '') : '';
+          o.deletedAt = r.deleted_at ? new Date(r.deleted_at).getTime() : null;
+          o.createdByName = cr ? (cr.staff_name || [cr.name, cr.last_name].filter(Boolean).join(' ').trim() || String(cr.email || '').split('@')[0] || '') : '';
           return o;
         });
       }
-      // embed the creator's profile; if that join is ever refused, fall back to the plain list
-      return build('*, order_items(*), creator:profiles!orders_created_by_fkey(name,staff_name,email)')
+      var CR = 'creator:profiles!orders_created_by_fkey(name,last_name,staff_name,email)';
+      var SH = 'shop:shops!orders_shop_id_fkey(name,account_type,business_type,gst_tin,gst_exempt)';
+      // embed the creator + the business account; if a join is ever refused, fall back step by step
+      return build('*, order_items(*), ' + CR + ', ' + SH)
+        .catch(function () { return build('*, order_items(*), ' + CR); })
         .catch(function () { return build('*, order_items(*)'); })
-        .then(mapRows);
+        .then(mapRows)
+        .then(attachOrderActors);
     });
   }
+  function adminTrashOrder(id) { return run(function () { return getClient().rpc('admin_trash_order', { p_id: id }).then(unwrap); }); }
+  function adminRestoreOrder(id) { return run(function () { return getClient().rpc('admin_restore_order', { p_id: id }).then(unwrap); }); }
+  function adminPurgeOrder(id) { return run(function () { return getClient().rpc('admin_purge_order', { p_id: id }).then(unwrap); }); }
   function adminSetOrderStatus(id, status, extra) {
     extra = extra || {};
     return run(function () {
@@ -740,6 +843,13 @@
       return getClient().rpc('admin_list_accounts').then(unwrap).then(function (r) { return r || []; });
     });
   }
+  // Every approved staff account (id + names only). Any staff login may read this: the
+  // profiles_select policy lets admins read all profiles. Feeds the Orders "Created by" filter.
+  function listStaffProfiles() {
+    return run(function () {
+      return getClient().from('profiles').select('id,name,last_name,staff_name,email,is_admin,is_super_admin').eq('is_admin', true).then(unwrap).then(function (r) { return r || []; });
+    });
+  }
   function adminSetStaffAccess(userId, isAdmin) {
     return run(function () {
       return getClient().rpc('admin_set_staff_access', { p_user: userId, p_is_admin: !!isAdmin }).then(unwrap);
@@ -777,9 +887,10 @@
   // ---- stock control (needs supabase/08_stock.sql) ----
   function adminListProducts() {
     return run(function () {
-      return getClient().from('products')
-        .select('id,name,pack,unit,price,stock,stock_qty,active,category_id,icon,image_url')
-        .order('name').then(unwrap);
+      function q(cols) { return getClient().from('products').select(cols).order('name').then(unwrap); }
+      var base = 'id,name,pack,unit,price,stock,stock_qty,active,category_id,icon,image_url';
+      // deleted_at needs 61_recycle_bin_products.sql; fall back so the Stock page works before it is run
+      return q(base + ',deleted_at').catch(function () { return q(base); });
     });
   }
   // opts: { add: 24 }  -> +24 units   |   { set: 100 } -> exactly 100 units
@@ -791,6 +902,12 @@
         p_add: opts.add == null ? null : Math.trunc(opts.add),
         p_set: opts.set == null ? null : Math.trunc(opts.set)
       }).then(unwrap);
+    });
+  }
+  // One step: every (non-deleted) product gets this stock. Needs supabase/62_admin_set_all_stock.sql.
+  function adminSetAllStock(qty) {
+    return run(function () {
+      return getClient().rpc('admin_set_all_stock', { p_qty: Math.trunc(qty) }).then(unwrap);
     });
   }
   function adminListStockLog(limit) {
@@ -846,6 +963,8 @@
       return getClient().rpc('admin_delete_product', { p_product_id: productId }).then(unwrap);
     });
   }
+  function adminRestoreProduct(id) { return run(function () { return getClient().rpc('admin_restore_product', { p_product_id: id }).then(unwrap); }); }
+  function adminPurgeProduct(id) { return run(function () { return getClient().rpc('admin_purge_product', { p_product_id: id }).then(unwrap); }); }
   // ============================================================
   // Walk-in POS (needs supabase/36_walkin_pos.sql)
   // Admin-only: create a walk-in sale directly, or a quotation first.
@@ -1036,8 +1155,11 @@
   }
   function listShops() {
     return run(function () {
-      return getClient().from('shops').select('*').order('created_at', { ascending: true })
-        .then(unwrap).then(function (rows) { return rows || []; });
+      // Only THIS login's own accounts. RLS alone is not enough: staff/admin logins can read
+      // every shop (policy shops_select_admin), so we must filter by user_id here too.
+      return currentUserId().then(function (uid) {
+        return getClient().from('shops').select('*').eq('user_id', uid).order('created_at', { ascending: true });
+      }).then(unwrap).then(function (rows) { return rows || []; });
     });
   }
   function addShop(f) {
@@ -1083,19 +1205,20 @@
     signUpWithPassword: signUpWithPassword, resendConfirmation: resendConfirmation,
     signInWithGoogle: signInWithGoogle,
     sendPasswordReset: sendPasswordReset, updatePassword: updatePassword, getSession: getSession, onAuthChange: onAuthChange, logout: logout,
-    listShops: listShops, addShop: addShop, updateShop: updateShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
+    listShops: listShops, subscribeShops: subscribeShops, addShop: addShop, updateShop: updateShop, getActiveShopId: getActiveShopId, setActiveShopId: setActiveShopId,
     getProfile: getProfile, claimAdminSignup: claimAdminSignup, updateProfile: updateProfile, updateStaffName: updateStaffName, completeOnboarding: completeOnboarding, deleteAccount: deleteAccount,
     uploadPaymentSlip: uploadPaymentSlip, createOrder: createOrder, listOrders: listOrders, getOrder: getOrder,
     cancelOrder: cancelOrder, subscribeOrders: subscribeOrders, subscribeAdminOrders: subscribeAdminOrders, subscribeProducts: subscribeProducts, subscribeProfiles: subscribeProfiles,
     adminListOrders: adminListOrders, adminSetOrderStatus: adminSetOrderStatus,
+    adminTrashOrder: adminTrashOrder, adminRestoreOrder: adminRestoreOrder, adminPurgeOrder: adminPurgeOrder,
     adminListShops: adminListShops, adminSetShopStatus: adminSetShopStatus, adminListProfileChanges: adminListProfileChanges,
-    adminListAccounts: adminListAccounts, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
+    adminListAccounts: adminListAccounts, listStaffProfiles: listStaffProfiles, adminSetStaffAccess: adminSetStaffAccess, adminSetSuperAdmin: adminSetSuperAdmin,
     adminDeleteSignupRequest: adminDeleteSignupRequest,
     requestStaffAccess: requestStaffAccess, cancelStaffRequest: cancelStaffRequest, adminDeclineStaffRequest: adminDeclineStaffRequest,
     adminSetBusinessVerified: adminSetBusinessVerified, getSlipUrl: getSlipUrl,
-    adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminListStockLog: adminListStockLog,
+    adminListProducts: adminListProducts, adminAdjustStock: adminAdjustStock, adminSetAllStock: adminSetAllStock, adminListStockLog: adminListStockLog,
     adminUpdateProduct: adminUpdateProduct, adminAddProduct: adminAddProduct, adminListProductEditLog: adminListProductEditLog,
-    adminDeleteProduct: adminDeleteProduct,
+    adminDeleteProduct: adminDeleteProduct, adminRestoreProduct: adminRestoreProduct, adminPurgeProduct: adminPurgeProduct,
     uploadProductImage: uploadProductImage,
     adminCreateWalkinOrder: adminCreateWalkinOrder, adminCreateQuotation: adminCreateQuotation,
     adminConvertQuotation: adminConvertQuotation, adminVoidQuotation: adminVoidQuotation,

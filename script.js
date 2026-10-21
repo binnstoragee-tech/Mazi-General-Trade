@@ -46,7 +46,7 @@ const CATEGORIES = [
            (customers see a "under maintenance" notice).
    false = everything works normally again.
    Keep this the same value in script.js and checkout.js. */
-const CART_MAINTENANCE = true;
+const CART_MAINTENANCE = false;
 
 /* ---------- Product data ---------- */
 const PRODUCTS = [
@@ -235,6 +235,33 @@ function setCurrency(cur){
   syncCurrencyToggleUI();
   refreshVisibleCurrency();
 }
+/* Currency switch with a short loading state (2s) and a success toast.
+   Used by the MVR/USD pill (navbar, profile dropdown, mobile menu, product page).
+   setCurrency() itself stays instant for restores/other callers. */
+let currencySwitching = false;
+const CURRENCY_SWITCH_MS = 2000;
+const TOAST_SPINNER = '<svg viewBox="0 0 24 24" fill="none" class="toast-spin"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-opacity=".35" stroke-width="3"/><path d="M20 12a8 8 0 0 0-8-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+function switchCurrencyWithLoading(cur){
+  if (cur !== 'MVR' && cur !== 'USD') return;
+  if (currencySwitching || cur === getCurrency()) return;
+  currencySwitching = true;
+  const btns = $$('[data-currency="' + cur + '"]');
+  btns.forEach(b => b.classList.add('cur-loading'));
+  $$('.currency-toggle, .pv-currency').forEach(t => t.classList.add('is-switching'));
+
+  showToast('Changing currency…', 'Switching prices to ' + cur, 'info');
+  const ic = $('#toast .toast-icon');
+  if (ic) ic.innerHTML = TOAST_SPINNER;
+  clearTimeout(showToast._timer); // keep the loading toast up until we finish
+
+  setTimeout(()=>{
+    setCurrency(cur);
+    btns.forEach(b => b.classList.remove('cur-loading'));
+    $$('.currency-toggle, .pv-currency').forEach(t => t.classList.remove('is-switching'));
+    currencySwitching = false;
+    showToast('Currency changed', 'Now showing prices in ' + cur, 'success');
+  }, CURRENCY_SWITCH_MS);
+}
 // MVR currency icon markup — replaces the plain "MVR" text everywhere a
 // price is shown.
 const MVR_ICON = '<img class="cur-icon" src="img/mvr-icon-black.png" alt="MVR">';
@@ -267,11 +294,110 @@ function escapeHtml(str){
 }
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+/* Profile page → "Preferred currency": same dropdown look as the Theme row (icon + value + chevron),
+   opening a small MVR / USD menu with an icon on each option and a check on the active one.
+   Menu lives on <body> so nothing clips it. */
+function initProfileCurrencyDropdown(){
+  const trg = document.getElementById('pvCurTrigger');
+  if (!trg || trg._curDrop) return;
+  const chk = '<svg class="th-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const menu = document.createElement('div');
+  menu.className = 'theme-menu cur-menu cur-drop'; menu.setAttribute('role','menu'); menu.setAttribute('aria-label','Preferred currency');
+  menu.innerHTML =
+    '<button type="button" role="menuitemradio" data-currency="MVR"><span class="cur-opt"><span class="cur-opt-ico"><img class="cur-icon" src="img/mvr-icon-black.png" alt=""></span><span>MVR</span></span>'+chk+'</button>'+
+    '<button type="button" role="menuitemradio" data-currency="USD"><span class="cur-opt"><span class="cur-opt-ico"><span class="cur-glyph" aria-hidden="true">$</span></span><span>USD</span></span>'+chk+'</button>';
+  document.body.appendChild(menu);
+  trg._curDrop = menu;
+  const place = ()=>{
+    const r = trg.getBoundingClientRect(), gap = 8, vw = innerWidth, vh = innerHeight;
+    menu.style.left = '0px'; menu.style.top = '0px';
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    let x = r.right - w, y = r.bottom + gap;
+    if (y + h > vh - gap) y = r.top - h - gap;
+    menu.style.left = Math.max(gap, Math.min(x, vw - w - gap)) + 'px';
+    menu.style.top = Math.max(gap, Math.min(y, vh - h - gap)) + 'px';
+  };
+  const open = ()=>{
+    if (window.MaziTheme && MaziTheme.close) MaziTheme.close();
+    $$('.cur-menu.open').forEach(m => m.classList.remove('open'));
+    syncCurrencyToggleUI(); place();
+    menu.classList.add('open'); trg.setAttribute('aria-expanded','true');
+    const a = menu.querySelector('.active') || menu.querySelector('button'); if (a) a.focus({ preventScroll:true });
+  };
+  const close = (refocus)=>{
+    if (!menu.classList.contains('open')) { trg.setAttribute('aria-expanded','false'); return; }
+    menu.classList.remove('open'); trg.setAttribute('aria-expanded','false');
+    if (refocus) trg.focus({ preventScroll:true });
+  };
+  trg.addEventListener('click', e=>{ e.preventDefault(); menu.classList.contains('open') ? close() : open(); });
+  menu.addEventListener('click', e=>{
+    const b = e.target.closest('[data-currency]'); if (!b) return;
+    close(true); switchCurrencyWithLoading(b.dataset.currency);
+  });
+  document.addEventListener('click', e=>{ if (!menu.contains(e.target) && !trg.contains(e.target)) close(); });
+  document.addEventListener('keydown', e=>{
+    if (!menu.classList.contains('open')) return;
+    if (e.key === 'Escape'){ e.preventDefault(); close(true); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = Array.from(menu.querySelectorAll('button')); let i = items.indexOf(document.activeElement);
+    i = e.key === 'ArrowDown' ? (i + 1) % items.length : (i <= 0 ? items.length - 1 : i - 1);
+    items[i].focus();
+  });
+  addEventListener('resize', ()=> close());
+  document.addEventListener('scroll', e=>{ if (!menu.contains(e.target)) close(); }, true);
+}
+
+/* Profile dropdown → "Currency" row. Hover (or keyboard focus) pops a small MVR / USD menu beside the row,
+   same look as the Theme menu; it disappears when the cursor leaves. Menu lives on <body> because the
+   dropdown clips its children (overflow:hidden). */
+function initProfileCurrencyMenu(){
+  const row = document.getElementById('pdCurRow');
+  if (!row || row._curMenu) return;
+  const chk = '<svg class="th-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const menu = document.createElement('div');
+  menu.className = 'theme-menu cur-menu'; menu.setAttribute('role','menu'); menu.setAttribute('aria-label','Currency');
+  menu.innerHTML =
+    '<button type="button" role="menuitemradio" data-currency="MVR"><span>MVR</span>'+chk+'</button>'+
+    '<button type="button" role="menuitemradio" data-currency="USD"><span>USD</span>'+chk+'</button>';
+  document.body.appendChild(menu);
+  row._curMenu = menu;
+  let timer = null;
+  const place = ()=>{
+    const r = row.getBoundingClientRect(), gap = 8, vw = innerWidth, vh = innerHeight;
+    menu.style.left = '0px'; menu.style.top = '0px';
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    let x = r.left - w - gap; if (x < gap) x = r.right + gap;
+    let y = r.top - 6; y = Math.max(gap, Math.min(y, vh - h - gap));
+    menu.style.left = Math.min(x, vw - w - gap) + 'px'; menu.style.top = y + 'px';
+  };
+  const open = ()=>{ clearTimeout(timer); if (window.MaziTheme && MaziTheme.close) MaziTheme.close(); syncCurrencyToggleUI(); place(); menu.classList.add('open'); row.setAttribute('aria-expanded','true'); };
+  const close = ()=>{ clearTimeout(timer); menu.classList.remove('open'); row.setAttribute('aria-expanded','false'); };
+  const later = ()=>{ clearTimeout(timer); timer = setTimeout(close, 160); };
+  row.addEventListener('mouseenter', open);
+  row.addEventListener('mouseleave', later);
+  row.addEventListener('focus', open);
+  row.addEventListener('click', open);
+  menu.addEventListener('mouseenter', ()=> clearTimeout(timer));
+  menu.addEventListener('mouseleave', later);
+  menu.addEventListener('click', e=>{
+    const b = e.target.closest('[data-currency]'); if (!b) return;
+    close(); switchCurrencyWithLoading(b.dataset.currency);
+  });
+  document.addEventListener('keydown', e=>{ if (e.key === 'Escape') close(); });
+  document.addEventListener('click', e=>{ if (!menu.contains(e.target) && !row.contains(e.target)) close(); });
+  addEventListener('resize', close);
+  const dd = document.getElementById('profileDropdown');
+  if (dd) new MutationObserver(()=>{ if (!dd.classList.contains('open')) close(); }).observe(dd, {attributes:true, attributeFilter:['class']});
+  syncCurrencyToggleUI();
+}
+
 function syncCurrencyToggleUI(){
   const cur = getCurrency();
   $$('[data-currency]').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.currency === cur);
   });
+  $$('[data-currency-current]').forEach(el=>{ el.textContent = cur; });
   positionCurrencyThumbs();
 }
 // Slides the glass thumb behind whichever currency button is active.
@@ -935,7 +1061,7 @@ function renderCategoryNav(){
     btn.addEventListener('click', ()=>{
       setCategory(btn.dataset.cat);
       $$('[data-cat]').forEach(b=> b.classList.toggle('active', b.dataset.cat === state.category));
-      renderProducts();
+      renderProductsLoading();
       closeMenu();
     });
   });
@@ -1214,9 +1340,9 @@ function getFilteredProducts(){
 
 function stockMeta(p){
   if (p.stock === 'out') return { cls: 'out-stock', label: 'Out of Stock' };
-  if (p.stock === 'low') return { cls: 'low-stock', label: 'Low Stock' };
+  if (p.stock === 'low') return { cls: 'low-stock', label: 'Low stock' };
   if (p.stock === 'untracked') return { cls: '', label: '' };
-  return { cls: 'in-stock', label: 'In Stock' };
+  return { cls: 'in-stock', label: 'In stock' };
 }
 
 // Renders the stock-status pill, or nothing at all for 'untracked' products —
@@ -1238,6 +1364,10 @@ function shareButtonHtml(id){
   </button>`;
 }
 
+function buyButtonHtml(id, q){
+  return `<button class="pd-buy-btn" type="button" data-buy-id="${id}" data-qty="${q}">Buy now</button>`;
+}
+
 function cardActionHtml(p, opts){
   opts = opts || {};
   const detailed = !!opts.detailed;
@@ -1252,7 +1382,7 @@ function cardActionHtml(p, opts){
         <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         Added to cart
       </span>
-    </button>${shareBtn}${rowClose}`;
+    </button>${detailed ? buyButtonHtml(p.id, qty) : ''}${shareBtn}${rowClose}`;
   }
   if (p.stock === 'out'){
     return `${rowOpen}<button class="card-add card-add-disabled" disabled>
@@ -1278,7 +1408,7 @@ function cardActionHtml(p, opts){
       <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       Added to cart
     </span>
-  </button>${shareBtn}${rowClose}`;
+  </button>${detailed ? buyButtonHtml(p.id, pendingQty) : ''}${shareBtn}${rowClose}`;
 }
 
 // Shareable deep link for one product — opened via handleOpenParam() on load
@@ -1343,6 +1473,11 @@ function bindCardSlot(slot){
     });
   }
 
+  const buyBtn = slot.querySelector && slot.querySelector('.pd-buy-btn');
+  if (buyBtn){
+    buyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); buyNow(buyBtn.dataset.buyId, parseInt(buyBtn.dataset.qty || '1', 10), buyBtn); });
+  }
+
   const removeLink = slot.classList && slot.classList.contains('card-remove-link') ? slot : slot.querySelector && slot.querySelector('.card-remove-link');
   if (removeLink){
     removeLink.addEventListener('click', (e)=>{ e.stopPropagation(); removeFromCart(removeLink.dataset.id); });
@@ -1392,6 +1527,7 @@ function productCardHtml(p){
   return `
     <div class="product-card" data-id="${p.id}">
       <div class="card-media">
+        <span class="img-skel" aria-hidden="true"></span>
         <img class="card-img" src="${productImg(p)}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.classList.add('img-missing')">
       </div>
       <div class="card-body">
@@ -1516,20 +1652,55 @@ function renderPopularProducts(){
   grid.innerHTML = picks.map(p => productCardHtml(p)).join('');
   $$('.card-action-slot', grid).forEach(bindCardSlot);
   bindProductCardClicks(grid);
+  markLoadedImages(grid);
 }
 
-function renderSkeletons(count = 6){
+function renderSkeletons(count = 8){
   $('#emptyState').hidden = true;
   $('#productGrid').style.display = 'grid';
   $('#productGrid').innerHTML = Array.from({length: count}).map(() => `
-    <div class="skeleton-card">
+    <div class="skeleton-card" aria-hidden="true">
       <div class="skeleton-media"></div>
       <div class="skeleton-body">
+        <div class="skeleton-line sm"></div>
         <div class="skeleton-line"></div>
         <div class="skeleton-line short"></div>
+        <div class="skeleton-btn"></div>
       </div>
     </div>
   `).join('');
+}
+
+// Product photos: the soft skeleton tile sits on top of each photo until it has really loaded
+// (lazy images load as you scroll to them). Handled once for the whole page, so it also
+// covers cards that are re-rendered later.
+function markImgLoaded(img){
+  const box = img && img.parentNode;
+  if (box && box.classList && (box.classList.contains('card-media') || box.classList.contains('pd-media'))){
+    box.classList.add('is-loaded');
+  }
+}
+document.addEventListener('load',  e => { if (e.target && e.target.tagName === 'IMG') markImgLoaded(e.target); }, true);
+document.addEventListener('error', e => { if (e.target && e.target.tagName === 'IMG') markImgLoaded(e.target); }, true);
+// Safety net for images that finished before the listener could see them.
+function markLoadedImages(root){
+  (root || document).querySelectorAll('.card-media .card-img, .pd-media img').forEach(img => {
+    if (img.complete) markImgLoaded(img);
+  });
+}
+
+// Shows the skeleton grid for a moment, then the real products. Used for the first load / reload
+// and when switching category — not for silent refreshes (stock / currency), which update in place.
+let catalogLoadTimer = null;
+const CATALOG_LOADING_DELAY = 380;
+function renderProductsLoading(delay){
+  clearTimeout(catalogLoadTimer);
+  renderProducts();                       // updates the heading + result count right away
+  renderSkeletons(8);                     // …while the grid itself shows the skeleton
+  catalogLoadTimer = setTimeout(()=>{
+    catalogLoadTimer = null;
+    renderProducts();
+  }, delay == null ? CATALOG_LOADING_DELAY : delay);
 }
 
 function renderProducts(){
@@ -1547,12 +1718,14 @@ function renderProducts(){
 
   $$('#productGrid .card-action-slot').forEach(bindCardSlot);
   bindProductCardClicks($('#productGrid'));
+  markLoadedImages($('#productGrid'));
 }
 
 /* ============ Product detail view ============ */
 function renderProductDetail(p){
   $('#productDetailCard').innerHTML = `
     <div class="pd-media">
+      <span class="img-skel" aria-hidden="true"></span>
       <img src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')" onclick="openImageQuickView('${productImg(p)}','${p.name.replace(/'/g,"\\'")}')">
     </div>
     <div class="pd-info">
@@ -1570,6 +1743,7 @@ function renderProductDetail(p){
       <div class="pd-actions card-action-slot" data-id="${p.id}">${cardActionHtml(p, { detailed: true })}</div>
     </div>
   `;
+  markLoadedImages($('#productDetailCard'));
   bindCardSlot($('#productDetailCard .pd-actions'));
 }
 
@@ -1637,22 +1811,115 @@ function shuffleArray(arr){
   return a;
 }
 
-function openProductView(id){
-  const p = PRODUCTS.find(p=>p.id===id);
-  if (!p) return;
-  state.currentProductId = id;
+/* ===== Product view navigation stack =====
+   Tapping a Similar/Other product from inside the product page now goes
+   one level deeper. Back (arrow, phone back button, browser back) steps
+   back through each product in order, restoring the scroll position, and
+   only after the first product does it return to wherever the customer
+   came from (home, category, search, etc.). Each level is a history
+   entry, so the phone's back gesture behaves the same as the arrow. */
+const pvNav = { stack: [], scroll: [], ignorePop: false };
+
+function pvIsOpen(){
+  const el = $('#productView');
+  return !!(el && el.classList.contains('open'));
+}
+// Snapshot of the product page as it looks right now, so a product-to-product
+// move can slide exactly like the first open/close does.
+function pvGhost(el, z){
+  const g = el.cloneNode(true);
+  g.removeAttribute('id');
+  g.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+  g.setAttribute('aria-hidden', 'true');
+  g.inert = true;
+  g.classList.add('open', 'pv-ghost');
+  g.style.cssText = 'transition:none;transform:translateX(0);pointer-events:none;z-index:' + z + ';';
+  document.body.appendChild(g);
+  g.scrollTop = el.scrollTop;
+  return g;
+}
+function pvClearGhosts(){
+  document.querySelectorAll('.pv-ghost').forEach(g=>g.remove());
+}
+// dir: 'forward' (new product slides in from the right) or 'back'
+// (current product slides out to the right). Same motion as open/close.
+function pvShow(id, scrollTop, dir){
+  const p = PRODUCTS.find(p=>String(p.id)===String(id));
+  if (!p) return false;
+  const el = $('#productView');
+  const animate = !!dir && pvIsOpen();
+  pvClearGhosts();
+  const ghost = animate ? pvGhost(el, dir === 'back' ? 211 : 209) : null;
+  state.currentProductId = p.id;
   renderProductDetail(p);
   renderSimilarProducts(p);
   renderOtherProducts(p);
   closeOtherFullScreenViews('productView');
-  $('#productView').classList.add('open');
+  el.classList.add('open');
   document.body.style.overflow = 'hidden';
-  $('#productView').scrollTop = 0;
+  el.scrollTop = scrollTop || 0;
+  if (ghost){
+    const dur = 400;
+    if (dir === 'forward'){
+      el.style.transition = 'none';
+      el.style.transform = 'translateX(100%)';
+      void el.offsetWidth;
+      el.style.transition = '';
+      el.style.transform = '';
+    } else {
+      void ghost.offsetWidth;
+      ghost.style.transition = 'transform .4s var(--ease-glass)';
+      ghost.style.transform = 'translateX(100%)';
+    }
+    setTimeout(()=>ghost.remove(), dur + 60);
+  }
+  return true;
 }
-function closeProductView(){
-  $('#productView').classList.remove('open');
+function openProductView(id){
+  const p = PRODUCTS.find(p=>String(p.id)===String(id));
+  if (!p) return;
+  const el = $('#productView');
+  if (pvIsOpen() && pvNav.stack.length){
+    // Going deeper: remember where we were scrolled on the current product.
+    pvNav.scroll[pvNav.stack.length - 1] = el.scrollTop;
+    pvNav.stack.push(p.id);
+    pvNav.scroll.push(0);
+    history.pushState({ mziPv: pvNav.stack.length }, '');
+  } else {
+    pvNav.stack = [p.id];
+    pvNav.scroll = [0];
+    history.pushState({ mziPv: 1 }, '');
+  }
+  pvShow(p.id, 0, pvNav.stack.length > 1 ? 'forward' : null);
+}
+// Fully hides the view without touching history (used by popstate/resets).
+function pvHideNow(){
+  pvClearGhosts();
+  const el = $('#productView');
+  if (el) el.classList.remove('open');
   document.body.style.overflow = '';
+  pvNav.stack = [];
+  pvNav.scroll = [];
 }
+// Back arrow: one step back. History drives the actual change.
+function closeProductView(){
+  if (history.state && history.state.mziPv){
+    history.back();
+  } else {
+    pvHideNow();
+  }
+}
+window.addEventListener('popstate', (e)=>{
+  if (pvNav.ignorePop){ pvNav.ignorePop = false; return; }
+  const depth = e.state && e.state.mziPv;
+  if (depth && pvNav.stack.length >= depth){
+    pvNav.stack.length = depth;
+    pvNav.scroll.length = depth;
+    pvShow(pvNav.stack[depth - 1], pvNav.scroll[depth - 1] || 0, 'back');
+  } else if (pvIsOpen() || pvNav.stack.length){
+    pvHideNow();
+  }
+});
 
 // Full, uncropped image — opened by tapping the product photo, since
 // .pd-media/.card-media use object-fit:cover and can crop tall/wide shots.
@@ -1771,6 +2038,18 @@ function bindImageQuickViewZoom(){
   wrap.addEventListener('pointerleave', endPointer);
 }
 
+// "Rise" mode: panels opened from the bottom nav slide UP from the bottom edge and
+// slide back DOWN when closed. Every other way of opening them keeps the normal
+// slide-from-the-right. The class is flipped with transitions switched off so the
+// panel never animates between the two resting positions.
+function setRise(el, on){
+  if (!el || el.classList.contains('open') || el.classList.contains('rise') === on) return;
+  el.style.transition = 'none';
+  el.classList.toggle('rise', on);
+  void el.offsetWidth;
+  el.style.transition = '';
+}
+
 // Only one full-screen .profile-view panel (Profile / My Orders / Product
 // detail) should be open at a time — they all share the same z-index, and
 // #productView sits later in the DOM, so if it's left open it silently
@@ -1779,7 +2058,18 @@ function closeOtherFullScreenViews(exceptId){
   ['profileView','ordersView','productView'].forEach(id=>{
     if (id === exceptId) return;
     const el = $('#' + id);
-    if (el) el.classList.remove('open');
+    if (!el) return;
+    if (id === 'productView' && el.classList.contains('open')){
+      // Another full-screen view is taking over: drop the product trail
+      // and its history entries so Back doesn't land on stale products.
+      const d = pvNav.stack.length;
+      pvNav.stack = []; pvNav.scroll = [];
+      if (d && history.state && history.state.mziPv){
+        pvNav.ignorePop = true;
+        history.go(-d);
+      }
+    }
+    el.classList.remove('open');
   });
 }
 
@@ -1802,6 +2092,32 @@ function applyCartMaintenanceUI(){
   }
   const cb = $('#checkoutBtn');
   if (cb){ cb.disabled = true; cb.textContent = 'Under maintenance'; }
+}
+
+// "Buy now" (product page): make sure the item is in the cart, then go straight to checkout.
+// Same login rule as the cart's Checkout button.
+function buyNow(id, qty, btn){
+  if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
+  if (!getSession()){
+    showToast('Please log in to place your order', null, 'info');
+    openLogin();
+    return;
+  }
+  if (!state.cart[id]){
+    state.cart[id] = Math.max(1, qty || 1);
+    delete state.pendingQty[id];
+    saveCart();
+    updateCartUI();
+  }
+  // Smooth hand-off: button turns into a spinner, then the page fades out before checkout opens.
+  if (btn && btn.isConnected && !btn.classList.contains('is-buying')){
+    btn.classList.add('is-buying');
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<span class="buy-spin" aria-hidden="true"></span><span class="buy-label">Checking out</span>';
+  }
+  document.body.classList.add('is-checkout-leaving');
+  setTimeout(()=> { document.body.classList.add('is-buy-leaving'); }, 380);
+  setTimeout(()=> { window.location.href = 'checkout.html'; }, 780);
 }
 
 function addToCart(id, qty){
@@ -2338,21 +2654,61 @@ function toggleProfileDropdown(dropdown){
 function closeProfileDropdown(){
   $$('.profile-dropdown').forEach(d=> d.classList.remove('open'));
 }
-// Mobile-only currency dropdown (replaces the old hamburger/menu button —
-// the "Categories" menu is already reachable from the bottom nav on mobile).
-function toggleCurrencyDropdown(){
-  const wrap = $('#navbarCurrencyWrap');
-  if (!wrap) return;
-  const isOpen = wrap.classList.toggle('open');
-  const btn = $('#navHamburgerBtn');
-  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+// Header currency button (mobile + guest desktop): a currency icon that opens the same small
+// MVR / USD menu as the profile page — an icon and name on each option, a check on the active one.
+// Menu lives on <body> so the header can never clip it.
+let navCurMenu = null;
+function buildNavCurMenu(){
+  if (navCurMenu) return navCurMenu;
+  const chk = '<svg class="th-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const menu = document.createElement('div');
+  menu.className = 'theme-menu cur-menu cur-drop'; menu.setAttribute('role','menu'); menu.setAttribute('aria-label','Currency');
+  menu.innerHTML =
+    '<button type="button" role="menuitemradio" data-currency="MVR"><span class="cur-opt"><span class="cur-opt-ico"><img class="cur-icon" src="img/mvr-icon-black.png" alt=""></span><span>MVR</span></span>'+chk+'</button>'+
+    '<button type="button" role="menuitemradio" data-currency="USD"><span class="cur-opt"><span class="cur-opt-ico"><span class="cur-glyph" aria-hidden="true">$</span></span><span>USD</span></span>'+chk+'</button>';
+  document.body.appendChild(menu);
+  menu.addEventListener('click', e=>{
+    const b = e.target.closest('[data-currency]'); if (!b) return;
+    closeCurrencyDropdown(true); switchCurrencyWithLoading(b.dataset.currency);
+  });
+  document.addEventListener('keydown', e=>{
+    if (!menu.classList.contains('open')) return;
+    if (e.key === 'Escape'){ e.preventDefault(); closeCurrencyDropdown(true); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = Array.from(menu.querySelectorAll('button')); let k = items.indexOf(document.activeElement);
+    k = e.key === 'ArrowDown' ? (k + 1) % items.length : (k <= 0 ? items.length - 1 : k - 1);
+    items[k].focus();
+  });
+  addEventListener('resize', ()=> closeCurrencyDropdown());
+  navCurMenu = menu;
+  return menu;
 }
-function closeCurrencyDropdown(){
-  const wrap = $('#navbarCurrencyWrap');
-  if (!wrap) return;
-  wrap.classList.remove('open');
-  const btn = $('#navHamburgerBtn');
-  if (btn) btn.setAttribute('aria-expanded', 'false');
+function toggleCurrencyDropdown(){
+  const wrap = $('#navbarCurrencyWrap'), btn = $('#navHamburgerBtn');
+  if (!wrap || !btn) return;
+  const menu = buildNavCurMenu();
+  if (wrap.classList.contains('open')){ closeCurrencyDropdown(); return; }
+  if (window.MaziTheme && MaziTheme.close) MaziTheme.close();
+  $$('.cur-menu.open').forEach(m => m.classList.remove('open'));
+  syncCurrencyToggleUI();
+  // place under the button; stay inside the screen; flip above if there is no room below
+  const r = btn.getBoundingClientRect(), gap = 8, vw = innerWidth, vh = innerHeight;
+  menu.style.left = '0px'; menu.style.top = '0px';
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  let x = r.left, y = r.bottom + gap;
+  if (y + h > vh - gap) y = r.top - h - gap;
+  menu.style.left = Math.max(gap, Math.min(x, vw - w - gap)) + 'px';
+  menu.style.top = Math.max(gap, Math.min(y, vh - h - gap)) + 'px';
+  menu.classList.add('open');
+  wrap.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+}
+function closeCurrencyDropdown(refocus){
+  const wrap = $('#navbarCurrencyWrap'), btn = $('#navHamburgerBtn');
+  if (navCurMenu) navCurMenu.classList.remove('open');
+  if (wrap) wrap.classList.remove('open');
+  if (btn){ btn.setAttribute('aria-expanded', 'false'); if (refocus === true) btn.focus({ preventScroll:true }); }
 }
 // When Profile / My Orders is opened from the mobile account menu, Back should go
 // back to that menu (where the person came from) instead of dropping to the store.
@@ -2386,8 +2742,9 @@ function updatePmHero(){
   if (nm) nm.textContent = full || 'My Account';
   if (em) em.textContent = session.email || '';
 }
-function openProfileMenu(fromBack){
+function openProfileMenu(fromBack, fromBottom){
   const menu = $('#profileMenu');
+  if (fromBack !== true) setRise(menu, fromBottom === true);
   if (fromBack){
     menu.classList.remove('park-left');          // was parked off-screen left -> slides in from the left
   } else if (menu.classList.contains('park-left')){
@@ -2584,16 +2941,54 @@ function orderStepDotContent(done){
     : '';
 }
 
+// "Mar 8, 12:04pm"
+function formatStepTime(ts){
+  const d = new Date(ts);
+  const date = d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ap = h >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return `${date}, ${h}:${m}${ap}`;
+}
+
+// When did this order reach step i? Uses the status history when the shop's
+// database has it, otherwise the order's own timestamps. null = unknown/not yet.
+function orderStepTime(order, i){
+  const idx = orderStatusIndex(order);
+  if (i > idx) return null;
+  const key = ORDER_STEPS[i].key;
+  const h = (order.history || []).find(x => x.status === key);
+  if (h) return h.at;
+  if (i === 0) return order.placedAt;
+  if (key === 'delivery' && order.shippedAt) return order.shippedAt;
+  if (key === 'delivered' && order.deliveredAt) return order.deliveredAt;
+  if (i === idx && order.statusUpdatedAt) return order.statusUpdatedAt;
+  return null;
+}
+function orderCancelledTime(order){
+  const h = (order.history || []).filter(x => x.status === 'cancelled').pop();
+  return h ? h.at : (order.statusUpdatedAt || null);
+}
+
 function renderOrderStatus(order){
   const idx = orderStatusIndex(order);
+  const last = ORDER_STEPS.length - 1;
   return ORDER_STEPS.map((step, i)=>{
-    const done = i < idx || (i === idx && idx === ORDER_STEPS.length-1);
+    const done = i < idx || (i === idx && idx === last);
     const active = i === idx && !done;
     const cls = done ? 'done' : (active ? 'active' : '');
+    const t = orderStepTime(order, i);
+    const sub = (done || active) ? (t ? formatStepTime(t) : (active ? 'In progress' : '')) : 'Waiting...';
     return `
-      <div class="order-step ${cls}">
-        <div class="order-step-dot">${done ? orderStepDotContent(true) : (i+1)}</div>
-        <div class="order-step-label">${step.label}</div>
+      <div class="ot-step ${cls}">
+        <div class="ot-rail">
+          <span class="ot-line l ${i <= idx ? 'on' : ''}"></span>
+          <span class="ot-dot">${done ? orderStepDotContent(true) : ''}</span>
+          <span class="ot-line r ${i < idx ? 'on' : ''}"></span>
+        </div>
+        <div class="ot-label">${step.label}</div>
+        <div class="ot-time">${sub}</div>
       </div>
     `;
   }).join('');
@@ -2921,6 +3316,7 @@ function cancelOrder(orderId){
     const i = orders.findIndex(o=> o.id === orderId);
     updated.notifiedIdx = i >= 0 ? (orders[i].notifiedIdx || 0) : 0;
     updated.badgeUnseen = false;
+    if (i >= 0 && !updated.history) updated.history = orders[i].history || [];
     if (i >= 0) orders[i] = updated; else orders.unshift(updated);
     saveOrders(orders);
     renderOrdersView();
@@ -3037,26 +3433,25 @@ function renderOrdersView(){
             <span class="label">Order Total</span>
             <span class="value">${fmtCur(order.total, order.currency || 'MVR')}</span>
           </div>
-          ${order.status === 'delivered' ? `
-            <div class="order-receipt-row">
-              <button type="button" class="order-receipt-btn" data-receipt-order="${order.id}">
-                <svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-12.5V2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                View Receipt
-              </button>
-            </div>
-          ` : ''}
           ${order.cancelled ? `
-            <div class="order-cancelled-note">This order was cancelled.${order.refundStatus === 'pending' ? ' Your refund is being processed by our team.' : (order.refundStatus === 'refunded' ? ' Your refund has been sent.' : '')}</div>
+            <div class="order-cancelled-note">${(()=>{ const ct = orderCancelledTime(order); return `<strong>Order cancelled</strong>${ct ? ' · ' + formatStepTime(ct) : ''}`; })()}<br>${order.refundStatus === 'pending' ? 'Your refund is being processed by our team.' : (order.refundStatus === 'refunded' ? 'Your refund has been sent.' : 'This order was cancelled.')}</div>
           ` : `
-            <div class="order-steps">
+            <div class="order-track">
               ${renderOrderStatus(order)}
             </div>
           `}
-          ${showCancelButton(order) ? `
-            <div class="order-cancel-row">
-              <button type="button" class="order-cancel-btn" data-cancel-order="${order.id}" ${canCancelOrder(order) ? '' : 'disabled'}>Cancel Order</button>
-            </div>
-          ` : ''}
+          <div class="order-actions">
+            <button type="button" class="oa-btn" data-order-details="${order.id}">View details</button>
+            ${showCancelButton(order) ? `
+              <button type="button" class="oa-btn danger" data-cancel-order="${order.id}" ${canCancelOrder(order) ? '' : 'disabled'}>Cancel Order</button>
+            ` : ''}
+            ${order.status === 'delivered' ? `
+              <button type="button" class="oa-btn" data-receipt-order="${order.id}">View Receipt</button>
+            ` : ''}
+            ${(order.status === 'delivered' || order.cancelled) ? `
+              <button type="button" class="oa-btn primary" data-reorder="${order.id}">Buy Again</button>
+            ` : ''}
+          </div>
         </div>
       `;
       }).join('')}
@@ -3080,6 +3475,161 @@ function renderOrdersView(){
   $$('[data-receipt-order]').forEach(btn=>{
     btn.addEventListener('click', ()=> openReceiptModal(btn.dataset.receiptOrder));
   });
+  $$('[data-order-details]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openOrderDetails(btn.dataset.orderDetails));
+  });
+  $$('[data-reorder]').forEach(btn=>{
+    btn.addEventListener('click', ()=> reorderFromOrder(btn.dataset.reorder));
+  });
+  // keep an open details popup in step with live status changes
+  if (_odOrderId && $('#odModal') && $('#odModal').classList.contains('open')) renderOrderDetails(_odOrderId);
+}
+
+/* ============ Order details popup ============ */
+let _odOrderId = null;
+const OD_METHOD_LABEL = { pickup:'Store pickup', delivery:'Delivery', boat:'Boat delivery' };
+const OD_PAY_LABEL = { transfer:'Bank transfer / QR', cash:'Cash', credit:'Credit' };
+const OD_PAYSTATUS_LABEL = { unpaid:'Unpaid', pending:'Awaiting verification', paid:'Paid', rejected:'Payment rejected', refunded:'Refunded' };
+
+function odRows(rows){
+  return rows.filter(r => r[1] !== undefined && r[1] !== null && String(r[1]).trim() !== '')
+    .map(r => `<div class="od-row"><span>${r[0]}</span><span>${escapeHtml(String(r[1]))}</span></div>`).join('');
+}
+
+function renderOrderDetails(orderId){
+  const order = getOrders().find(o => o.id === orderId);
+  if (!order) return;
+  _odOrderId = orderId;
+  const cur = order.currency || 'MVR';
+  const c = order.customer || {};
+  const loc = c.location || {};
+  const method = c.method || 'pickup';
+
+  $('#odSub').innerHTML = `#${escapeHtml(order.id)} &middot; ${formatOrderDate(order.placedAt)}`;
+
+  // vertical timeline
+  const idx = orderStatusIndex(order);
+  const last = ORDER_STEPS.length - 1;
+  const noteFor = key => ((order.history || []).filter(h => h.status === key).pop() || {}).note || '';
+  let tl;
+  if (order.cancelled){
+    const ct = orderCancelledTime(order);
+    tl = `
+      <div class="od-tl-item done"><span class="od-tl-dot"></span><div><b>Order Placed</b><small>${formatStepTime(order.placedAt)}</small></div></div>
+      <div class="od-tl-item cancelled"><span class="od-tl-dot"></span><div><b>Cancelled</b><small>${ct ? formatStepTime(ct) : ''}</small></div></div>`;
+  } else {
+    tl = ORDER_STEPS.map((s, i)=>{
+      const done = i < idx || (i === idx && idx === last);
+      const active = i === idx && !done;
+      const t = orderStepTime(order, i);
+      const note = noteFor(s.key);
+      return `<div class="od-tl-item ${done ? 'done' : (active ? 'active' : '')}"><span class="od-tl-dot"></span><div><b>${s.label}</b><small>${(done || active) ? (t ? formatStepTime(t) : 'In progress') : 'Waiting...'}</small>${note && (done || active) ? `<em>${escapeHtml(note)}</em>` : ''}</div></div>`;
+    }).join('');
+  }
+
+  // where it goes
+  let where = '';
+  if (method === 'pickup'){
+    where = odRows([['Store', loc.store], ['Pickup day', loc.day], ['Note', loc.note]]);
+  } else if (method === 'boat'){
+    where = odRows([['Boat', loc.boatName], ['Boat contact', loc.boatContact], ['Departure', loc.boatDeparture],
+      ['Receiver', loc.customerName], ['Receiver contact', loc.customerContact], ['Island', [loc.islandName, loc.islandCode].filter(Boolean).join(' · ')],
+      ['Address', loc.address], ['Note', loc.note]]);
+  } else {
+    where = odRows([['Address', loc.address], ['Note', loc.note]]);
+  }
+
+  const feeText = method === 'pickup' ? 'Free' : (order.deliveryFee == null ? 'To be confirmed' : (order.deliveryFee === 0 ? 'Free' : fmtCur(order.deliveryFee, cur)));
+  const items = order.items.map(it => `
+    <div class="order-item-row">
+      <div class="order-item-media"><img src="${productImg(PRODUCTS.find(p=>p.id===it.id) || it)}" alt="" onerror="this.classList.add('img-missing')"></div>
+      <div class="order-item-info">
+        <div class="order-item-name">${toDisplayName(it.name)}</div>
+        <div class="order-item-meta">${escapeHtml(it.pack || '')} · Qty ${it.qty}</div>
+      </div>
+      <div class="order-item-price">${fmtCur(it.price*it.qty, cur)}</div>
+    </div>`).join('');
+
+  const refund = order.refundStatus === 'pending' ? 'Refund in progress' : (order.refundStatus === 'refunded' ? 'Refunded' : '');
+
+  $('#odBody').innerHTML = `
+    <div class="od-sec">
+      <div class="od-sec-head"><h4>Order status</h4>${orderStatusBadge(order)}</div>
+      <div class="od-tl">${tl}</div>
+      ${(order.trackingNo || order.courier) ? `<div class="od-rows">${odRows([['Courier', order.courier], ['Tracking no.', order.trackingNo]])}</div>` : ''}
+    </div>
+    <div class="od-sec">
+      <div class="od-sec-head"><h4>Items (${order.items.reduce((s,it)=>s+it.qty,0)})</h4></div>
+      <div class="od-items">${items}</div>
+    </div>
+    <div class="od-sec">
+      <div class="od-sec-head"><h4>${method === 'pickup' ? 'Pickup' : 'Delivery'}</h4><span class="od-tag">${OD_METHOD_LABEL[method] || escapeHtml(method)}</span></div>
+      <div class="od-rows">${odRows([['Name', c.name], ['Mobile', c.mobile]])}${where}</div>
+    </div>
+    <div class="od-sec">
+      <div class="od-sec-head"><h4>Payment</h4></div>
+      <div class="od-rows">${odRows([['Method', OD_PAY_LABEL[order.paymentMethod] || order.paymentMethod], ['Status', OD_PAYSTATUS_LABEL[order.paymentStatus] || ''], ['Refund', refund]])}</div>
+      <div class="od-summary">
+        <div class="od-row"><span>Subtotal</span><span>${fmtCur(order.subtotal, cur)}</span></div>
+        <div class="od-row"><span>Delivery fee</span><span>${feeText}</span></div>
+        ${order.gst ? `<div class="od-row"><span>GST</span><span>${fmtCur(order.gst, cur)}</span></div>` : ''}
+        <div class="od-row total"><span>Total</span><span>${fmtCur(order.total, cur)}</span></div>
+      </div>
+    </div>`;
+
+  $('#odFoot').innerHTML = `
+    <button type="button" class="oa-btn" data-od-copy>Copy order no.</button>
+    ${order.status === 'delivered' ? `<button type="button" class="oa-btn" data-od-receipt>View Receipt</button>` : ''}
+    ${showCancelButton(order) ? `<button type="button" class="oa-btn danger" data-od-cancel ${canCancelOrder(order) ? '' : 'disabled'}>Cancel Order</button>` : ''}
+    ${(order.status === 'delivered' || order.cancelled) ? `<button type="button" class="oa-btn primary" data-od-reorder>Buy Again</button>` : ''}`;
+}
+
+function openOrderDetails(orderId){
+  renderOrderDetails(orderId);
+  if (_odOrderId !== orderId) return;
+  $('#odBody').scrollTop = 0;
+  $('#odBackdrop').classList.add('show');
+  $('#odModal').classList.add('open');
+}
+function closeOrderDetails(){
+  $('#odBackdrop').classList.remove('show');
+  $('#odModal').classList.remove('open');
+}
+
+function reorderFromOrder(orderId){
+  const order = getOrders().find(o => o.id === orderId);
+  if (!order) return;
+  let added = 0;
+  order.items.forEach(it => {
+    if (PRODUCTS.find(p => p.id === it.id)){ addToCart(it.id, it.qty); added++; }
+  });
+  if (!added){ showToast('These items are no longer available', null, 'error'); return; }
+  closeOrderDetails();
+  showToast('Items added to your cart');
+  closeOrdersView();
+  openCart();
+}
+
+function wireOrderDetails(){
+  $('#odCloseBtn').addEventListener('click', closeOrderDetails);
+  $('#odBackdrop').addEventListener('click', closeOrderDetails);
+  $('#odFoot').addEventListener('click', e=>{
+    const b = e.target.closest('button');
+    if (!b || b.disabled || !_odOrderId) return;
+    if (b.hasAttribute('data-od-copy')){
+      const done = ()=> showToast('Order number copied');
+      if (navigator.clipboard) navigator.clipboard.writeText(_odOrderId).then(done, done); else done();
+    } else if (b.hasAttribute('data-od-receipt')){
+      closeOrderDetails(); openReceiptModal(_odOrderId);
+    } else if (b.hasAttribute('data-od-cancel')){
+      closeOrderDetails(); openCancelOrderConfirm(_odOrderId);
+    } else if (b.hasAttribute('data-od-reorder')){
+      reorderFromOrder(_odOrderId);
+    }
+  });
+  document.addEventListener('keydown', e=>{
+    if (e.key === 'Escape' && $('#odModal').classList.contains('open')) closeOrderDetails();
+  });
 }
 
 function toggleOrderItems(orderId){
@@ -3093,8 +3643,9 @@ function toggleOrderItems(orderId){
   label.textContent = expanded ? 'See less' : `See ${hiddenCount} more item${hiddenCount!==1?'s':''}`;
 }
 
-function openOrdersView(){
+function openOrdersView(fromBottom){
   claimMenuReturn('orders');
+  setRise($('#ordersView'), fromBottom === true);
   ordersVisibleCount = ORDERS_PAGE_SIZE;
   renderOrdersView();
   syncOrders();
@@ -3200,8 +3751,50 @@ function toggleOcItems(){
 }
 
 /* ============ Receipt (view / print / save as PDF) ============ */
-const RECEIPT_SIZE = { page:'80mm auto', width:'80mm' };
+/* Same layout as the receipt the staff print from the admin panel: A5 page,
+   store logo + details, Bill To, items table, Subtotal / GST / Total, terms
+   and signature lines. All sizes are in em so the on-screen preview is
+   readable on a phone while print / download keep the true A5 sizes. */
+const RECEIPT_PAGE_CSS = '@page{ size:A5 portrait; margin:7mm 8mm; }';
+const RECEIPT_LOGO = 'img/icon-192.png';
 let _receiptOrderId = null;
+
+const RECEIPT_DOC_CSS = `
+.rc-doc{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9px;line-height:1.4;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rc-doc *{box-sizing:border-box;}
+.rc-doc table{border-collapse:collapse;}
+.rc-top{width:100%;} .rc-top td{vertical-align:top;padding:0;}
+.rc-logo{width:13mm;height:13mm;min-width:40px;min-height:40px;object-fit:contain;display:block;border-radius:0;}
+.rc-bn{font-size:1.4em;font-weight:700;margin-bottom:1px;} .rc-bi{font-size:.95em;line-height:1.38;}
+.rc-dm{text-align:right;line-height:1.45;white-space:nowrap;} .rc-dt{font-size:1.75em;font-weight:700;letter-spacing:.02em;margin-bottom:3px;line-height:1.1;}
+.rc-rule{border-top:1px solid #111;margin:8px 0 9px;}
+.rc-lbl{font-size:.95em;} .rc-cn{font-weight:600;font-size:1.15em;}
+.rc-items{width:100%;margin-top:9px;}
+.rc-items tr{page-break-inside:avoid;}
+.rc-items th,.rc-items td{border:.5px solid #111;padding:4px 4px;vertical-align:top;}
+.rc-items{font-size:.95em;}
+.rc-items th{font-weight:600;text-align:left;} .rc-items td{font-weight:400;}
+.rc-items .r{text-align:right;white-space:nowrap;} .rc-items .c{text-align:center;width:2.4em;}
+.rc-sku{font-size:.88em;color:#444;margin-top:1px;}
+.rc-doc .cur-icon{height:.82em;width:auto;vertical-align:-.04em;margin-right:1px;}
+.rc-end{page-break-inside:avoid;break-inside:avoid;}
+.rc-tot{margin:8px 0 0 auto;min-width:62%;} .rc-tot td{padding:2px 0 2px 14px;font-size:1.06em;white-space:nowrap;} .rc-tot .r{text-align:right;}
+.rc-tot .grand td{font-size:1.25em;font-weight:700;padding-top:4px;}
+.rc-terms{margin-top:10px;border-top:1px solid #111;padding-top:5px;font-size:.95em;} .rc-terms b{display:block;font-size:1em;font-weight:600;margin-bottom:2px;}
+.rc-sigs{width:100%;margin-top:13mm;} .rc-sigs td{width:46%;border-top:.5px solid #111;text-align:center;padding-top:3px;} .rc-sigs td.gap{width:8%;border-top:0;}
+@media print{ .rc-doc{font-size:8.5px;} }
+`;
+
+function ensureReceiptStyles(){
+  if (document.getElementById('receiptDocStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'receiptDocStyle';
+  // The receipt is always a white paper document, even in dark mode.
+  s.textContent = RECEIPT_DOC_CSS +
+    '#receiptPaper.receipt-paper{width:100%;max-width:560px;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#111;padding:18px 14px;}' +
+    '@media print{ #receiptPaper.receipt-paper{max-width:none;padding:0;} }';
+  document.head.appendChild(s);
+}
 
 function receiptStoreInfo(){
   const c = (window.MaziSite && MaziSite.cfg) || {};   // live from the staff Settings page
@@ -3210,61 +3803,87 @@ function receiptStoreInfo(){
     name: t(c.store_name) || 'MAZI General Trade',
     addr: t(c.store_addr) || "Male', Republic of Maldives",
     email: t(c.store_email) || 'mazigeneraltrade@gmail.com',
-    phone: t(c.store_phone),
+    phone: t(c.store_phone) || '+960 929 1600',
     tin: t(c.store_gst_tin),
   };
 }
 
-function renderReceiptContent(order){
+function receiptDocDate(ts){ const d = new Date(ts); return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear(); }
+
+function renderReceiptContent(order, logoSrc){
   const store = receiptStoreInfo();
-  return `
-    <div class="receipt-store-name">${escapeHtml(store.name)}</div>
-    <div class="receipt-store-addr">${escapeHtml(store.addr)}</div>
-    ${store.phone ? `<div class="receipt-store-addr">${escapeHtml(store.phone)}</div>` : ''}
-    <div class="receipt-store-addr">${escapeHtml(store.email)}</div>
-    ${store.tin ? `<div class="receipt-store-addr">GST TIN: ${escapeHtml(store.tin)}</div>` : ''}
-    <div class="receipt-divider"></div>
-    <div class="receipt-meta-row"><span>Order #</span><span>${order.id}</span></div>
-    <div class="receipt-meta-row"><span>Date</span><span>${formatOrderDate(order.placedAt)}</span></div>
-    <div class="receipt-meta-row"><span>Status</span><span>${order.cancelled ? 'Cancelled' : ORDER_STEPS[orderStatusIndex(order)].label}</span></div>
-    <div class="receipt-divider"></div>
-    <div class="receipt-items">
-      ${order.items.map(it => `
-        <div class="receipt-item">
-          <div class="receipt-item-name">${toDisplayName(it.name)}</div>
-          <div class="receipt-item-sub">
-            <span>${it.pack} &times; ${it.qty} @ ${fmtCur(it.price, order.currency || 'MVR')}</span>
-            <span>${fmtCur(it.price * it.qty, order.currency || 'MVR')}</span>
-          </div>
-        </div>
-      `).join('')}
+  const cur = order.currency || 'MVR';
+  const rate = (typeof GST_RATE === 'number' && GST_RATE >= 0) ? GST_RATE : 0.08;
+  const fee = Number(order.deliveryFee) || 0;
+  const gst = Number(order.gst) || 0;
+  const total = Number(order.total) || 0;
+  const net = Math.round((total - gst - fee) * 100) / 100;
+  const status = order.cancelled ? 'Cancelled' : ORDER_STEPS[orderStatusIndex(order)].label;
+  const payment = (typeof OD_PAY_LABEL !== 'undefined' && OD_PAY_LABEL[order.paymentMethod]) || '';
+  const c = order.customer || {};
+  const logo = logoSrc || RECEIPT_LOGO;
+
+  const meta = [
+    ['Order #:', order.id],
+    ['Date:', receiptDocDate(order.placedAt)],
+    payment ? ['Payment:', payment] : null,
+    ['Status:', status],
+  ].filter(Boolean).map(r => `<div>${escapeHtml(r[0])} ${escapeHtml(r[1])}</div>`).join('');
+
+  const rows = order.items.map((it, i) => {
+    const qty = Number(it.qty) || 0;
+    const inc = Number(it.price) || 0;                 // GST-included unit price, as stored
+    const disc = Number(it.discount) || 0;
+    let pack = it.pack ? String(it.pack) : '';
+    const name = toDisplayName(it.name);
+    if (pack && name.toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(pack.toLowerCase().replace(/[^a-z0-9]/g, '')) >= 0) pack = '';
+    const sub = [it.id ? 'SKU: ' + it.id : '', pack].filter(Boolean).join(' · ');
+    const unit = it.unit ? ' ' + String(it.unit).toLowerCase() : '';
+    return `<tr><td class="c">${i + 1}</td>
+      <td>${escapeHtml(name)}${sub ? `<div class="rc-sku">${escapeHtml(sub)}</div>` : ''}</td>
+      <td class="r">${escapeHtml(qty + unit)}</td>
+      <td class="r">${fmtCur(inc / (1 + rate), cur)}</td>
+      <td class="r">${disc.toFixed(2)}</td>
+      <td class="r">${fmtCur(inc * qty - disc, cur)}</td></tr>`;
+  }).join('');
+
+  const totals = [
+    ['Subtotal', net],
+    ['Tax (GST ' + Math.round(rate * 100) + '%)', gst],
+    fee > 0 ? ['Delivery Fee', fee] : null,
+    ['Total', total, true],
+  ].filter(Boolean).map(r => `<tr class="${r[2] ? 'grand' : ''}"><td>${escapeHtml(r[0])}</td><td class="r">${fmtCur(r[1], cur)}</td></tr>`).join('');
+
+  return `<div class="rc-doc">
+    <table class="rc-top"><tr>
+      <td style="width:15mm;min-width:48px"><img class="rc-logo" src="${escapeHtml(logo)}" alt="" onerror="this.style.display='none'"></td>
+      <td><div class="rc-bn">${escapeHtml(store.name)}</div>
+        <div class="rc-bi">${escapeHtml(store.addr)}${store.phone ? `<br>Tel: ${escapeHtml(store.phone)}` : ''}<br>Email: ${escapeHtml(store.email)}${store.tin ? `<br><b>GST TIN: ${escapeHtml(store.tin)}</b>` : ''}</div></td>
+      <td class="rc-dm" style="width:44%;padding-left:6px"><div class="rc-dt">RECEIPT</div>${meta}</td>
+    </tr></table>
+    <div class="rc-rule"></div>
+    <div class="rc-lbl">Bill To</div>
+    <div class="rc-cn">${escapeHtml(c.name || 'Walk-In Customer')}</div>
+    ${c.mobile ? `<div class="rc-lbl">${escapeHtml(c.mobile)}</div>` : ''}
+    <table class="rc-items"><thead><tr><th class="c">#</th><th>Item Description</th><th class="r">Qty</th><th class="r">Unit Price</th><th class="r">Disc</th><th class="r">Total</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="rc-end">
+      <table class="rc-tot">${totals}</table>
+      <div class="rc-terms"><b>TERMS &amp; CONDITIONS</b>
+        <div>Please check and accept the goods. If the goods are not in good condition, do not accept them and call us${store.phone ? ' on ' + escapeHtml(store.phone) : ''}.</div>
+        <div>Thank you for shopping with ${escapeHtml(store.name)}.</div></div>
+      <table class="rc-sigs"><tr><td>Authorized Signature</td><td class="gap"></td><td>Received By</td></tr></table>
     </div>
-    <div class="receipt-divider"></div>
-    <div class="receipt-total-row">
-      <span>Total</span>
-      <span>${fmtCur(order.total, order.currency || 'MVR')}</span>
-    </div>
-    <div class="receipt-divider"></div>
-    <div class="receipt-footer">Thank you for shopping with us!</div>
-    <div class="receipt-footer-small">This is a computer-generated receipt.</div>
-  `;
+  </div>`;
 }
 
+// The receipt now lays out like a normal A5 page, so there is nothing to
+// scale — just make sure no leftover transform / fixed height remains.
 function fitReceiptPaper(){
-  const scroll = $('#receiptPreviewScroll');
   const wrap = $('#receiptPaperWrap');
   const paper = $('#receiptPaper');
-  if (!scroll || !paper) return;
+  if (!paper) return;
   paper.style.transform = 'none';
-  const availWidth = scroll.clientWidth - 24; // account for scroll padding
-  const naturalWidth = paper.offsetWidth;
-  const naturalHeight = paper.offsetHeight;
-  // Thermal receipts are physically tiny, so scale them UP to
-  // comfortably fill the preview instead of showing true-to-life mm size,
-  // capped so it never blows up into blurry oversized text.
-  const scale = Math.min(2.4, availWidth / naturalWidth);
-  paper.style.transform = `scale(${scale})`;
-  wrap.style.height = (naturalHeight * scale) + 'px';
+  if (wrap) wrap.style.height = 'auto';
 }
 
 function openReceiptModal(orderId){
@@ -3272,6 +3891,7 @@ function openReceiptModal(orderId){
   const order = orders.find(o=> o.id === orderId);
   if (!order) return;
   _receiptOrderId = orderId;
+  ensureReceiptStyles();
   $('#receiptContent').innerHTML = renderReceiptContent(order);
   requestAnimationFrame(fitReceiptPaper);
   $('#receiptBackdrop').classList.add('show');
@@ -3292,36 +3912,29 @@ function printReceipt(){
     styleTag.id = 'receiptPrintStyle';
     document.head.appendChild(styleTag);
   }
-  styleTag.textContent = `@page{ size:${RECEIPT_SIZE.page}; margin:2mm; }`;
+  styleTag.textContent = RECEIPT_PAGE_CSS;
   window.print();
 }
 
 function buildReceiptStandaloneHtml(order){
+  const logo = new URL(RECEIPT_LOGO, location.href).href;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Receipt - Order #${order.id}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt - Order #${escapeHtml(order.id)}</title>
 <style>
-  @page{ size:${RECEIPT_SIZE.page}; margin:2mm; }
+  ${RECEIPT_PAGE_CSS}
   *{box-sizing:border-box;}
-  body{margin:0;background:#F8F7F2;font-family:'Courier New',Courier,monospace;color:#16211C;display:flex;justify-content:center;padding:24px 12px;}
-  .receipt-paper{background:#fff;width:${RECEIPT_SIZE.width};max-width:100%;box-shadow:0 2px 10px rgba(15,58,46,.14);padding:18px 16px;}
-  .receipt-store-name{font-size:14px;font-weight:700;text-align:center;letter-spacing:.02em;}
-  .receipt-store-addr{font-size:10.5px;text-align:center;color:#5C6B63;margin-top:2px;}
-  .receipt-divider{border-top:1px dashed #b9b6a9;margin:10px 0;}
-  .receipt-meta-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;}
-  .receipt-items{display:flex;flex-direction:column;gap:8px;}
-  .receipt-item-name{font-size:11.5px;font-weight:700;}
-  .receipt-item-sub{display:flex;justify-content:space-between;font-size:11px;color:#5C6B63;margin-top:1px;}
-  .receipt-total-row{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;}
-  .receipt-footer{font-size:11.5px;text-align:center;font-weight:700;margin-top:2px;}
-  .receipt-footer-small{font-size:9.5px;text-align:center;color:#5C6B63;margin-top:3px;}
-  @media print{ body{background:#fff;padding:0;} .receipt-paper{box-shadow:none;margin:0 auto;} }
+  body{margin:0;background:#F8F7F2;display:flex;justify-content:center;padding:24px 12px;}
+  .receipt-paper{background:#fff;width:100%;max-width:560px;box-shadow:0 2px 10px rgba(15,58,46,.14);padding:18px 14px;}
+  ${RECEIPT_DOC_CSS}
+  @media print{ body{background:#fff;padding:0;} .receipt-paper{box-shadow:none;max-width:none;padding:0;} }
 </style>
 </head>
 <body>
-  <div class="receipt-paper">${renderReceiptContent(order)}</div>
+  <div class="receipt-paper">${renderReceiptContent(order, logo).replace(/src="img\//g, 'src="' + new URL('img/', location.href).href)}</div>
 </body>
 </html>`;
 }
@@ -3575,7 +4188,7 @@ function buildLoginSuccessParticles(){
   const wrap = $('#lsParticles');
   if (!wrap) return;
   wrap.innerHTML = '';
-  const colors = ['#2E8C6C', '#3FA57F', '#164B3B', '#E9C46A', '#BFE3D2'];
+  const colors = ['#164B3B', '#2E8C6C', '#3FA57F', '#E9C46A', '#F1D88F'];
   const count = 16;
   for (let i = 0; i < count; i++){
     const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
@@ -3586,7 +4199,7 @@ function buildLoginSuccessParticles(){
     p.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
     p.style.setProperty('--rot', Math.round(Math.random() * 360) + 'deg');
     p.style.setProperty('--size', (5 + Math.random() * 5).toFixed(1) + 'px');
-    p.style.setProperty('--delay', (0.62 + Math.random() * 0.12).toFixed(2) + 's');
+    p.style.setProperty('--delay', (1.55 + Math.random() * 0.12).toFixed(2) + 's');
     p.style.background = colors[i % colors.length];
     wrap.appendChild(p);
   }
@@ -3610,7 +4223,7 @@ function showLoginSuccess(name, isNew){
   root.setAttribute('aria-hidden', 'false');
 
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  loginSuccessTimer = setTimeout(hideLoginSuccess, reduce ? 1400 : 2800);
+  loginSuccessTimer = setTimeout(hideLoginSuccess, reduce ? 1400 : 3800);
 }
 function hideLoginSuccess(){
   const root = $('#loginSuccess');
@@ -3996,7 +4609,7 @@ function init(){
 
   renderCategoryNav();
   renderHero();
-  renderProducts();
+  renderProductsLoading(520);
   renderPopularProducts();
   if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCurrencyToggleUI();
@@ -4117,7 +4730,7 @@ function init(){
       e.preventDefault();
       setCategory(link.dataset.footerCat);
       renderCategoryNav();
-      renderProducts();
+      renderProductsLoading();
       window.scrollTo({top:0, behavior:'smooth'});
     });
   });
@@ -4131,6 +4744,7 @@ function init(){
   $('#logoutCancelBtn').addEventListener('click', closeLogoutConfirm);
   $('#logoutConfirmBackdrop').addEventListener('click', closeLogoutConfirm);
 
+  wireOrderDetails();
   $('#receiptCloseBtn').addEventListener('click', closeReceiptModal);
   $('#receiptBackdrop').addEventListener('click', closeReceiptModal);
   $('#receiptDownloadBtn').addEventListener('click', downloadReceipt);
@@ -4186,15 +4800,14 @@ function init(){
   // phase to also catch scrolling inside the Orders / Profile / Product views.
   document.addEventListener('scroll', e=>{
     const t = e.target;
-    if (t && t.nodeType === 1 && t.closest && t.closest('.profile-dropdown, .navbar-currency-dropdown')) return;
+    if (t && t.nodeType === 1 && t.closest && t.closest('.profile-dropdown, .cur-drop')) return;
     if (document.querySelector('.profile-dropdown.open, #navbarCurrencyWrap.open')){
       closeProfileDropdown();
       closeCurrencyDropdown();
     }
   }, { passive:true, capture:true });
-  // Tapping MVR/USD inside the mobile currency dropdown switches the
-  // currency but must NOT close the dropdown — only tapping the
-  // hamburger icon again or tapping outside (handled above) closes it.
+  // Picking MVR/USD in the header currency menu switches the currency and closes the menu;
+  // tapping the currency icon again or tapping outside (handled above) also closes it.
 
   const heroSearchBar = $('#heroSearchBar');
   if (heroSearchBar) heroSearchBar.addEventListener('click', openMobileSearch);
@@ -4217,7 +4830,7 @@ function init(){
     btn.addEventListener('click', ()=>{
       setCategory(btn.dataset.cat);
       renderCategoryNav();
-      renderProducts();
+      renderProductsLoading();
       scrollToCatalog();
     });
   });
@@ -4230,7 +4843,7 @@ function init(){
   if (popularViewAllBtn) popularViewAllBtn.addEventListener('click', ()=>{
     setCategory('all');
     renderCategoryNav();
-    renderProducts();
+    renderProductsLoading();
     scrollToCatalog();
   });
 
@@ -4330,11 +4943,13 @@ function init(){
   $('#authPasswordInput').addEventListener('input', clearAuthErrors);
   $('#authMobileInput').addEventListener('input', clearAuthErrors);
   $$('.pv-currency-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=> setCurrency(btn.dataset.currency));
+    btn.addEventListener('click', ()=> switchCurrencyWithLoading(btn.dataset.currency));
   });
   $$('.currency-toggle-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=> setCurrency(btn.dataset.currency));
+    btn.addEventListener('click', ()=> switchCurrencyWithLoading(btn.dataset.currency));
   });
+  initProfileCurrencyMenu();
+  initProfileCurrencyDropdown();
   $('#loginSuccess').addEventListener('click', hideLoginSuccess);
 
   $$('[data-eye-toggle]').forEach(btn=>{
@@ -4395,11 +5010,11 @@ function init(){
       if ($('#mobileMenu').classList.contains('open')) closeMenu();
       setBottomNavActive(action);
       if (action==='profile'){
-        if (getSession()) openProfileMenu();
+        if (getSession()) openProfileMenu(false, true);
         else openLogin();
       }
       else if (action==='home') window.scrollTo({top:0, behavior:'smooth'});
-      else if (action==='orders') openOrdersView();
+      else if (action==='orders') openOrdersView(true);
     });
   });
 
@@ -4426,20 +5041,44 @@ function init(){
    they aren't. INITIAL_SESSION is emitted to every subscriber exactly
    once, right after the client finishes initializing, no matter when it
    subscribed — so it's a reliable fallback that always fires. */
+let googleLandingBusy = false;
 function bindGoogleAuthLanding(){
   if (!window.MaziAPI || !MaziAPI.onAuthChange) return;
   MaziAPI.onAuthChange((event, session)=>{
     if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !session || !session.user) return;
     if (getSession()) return; // already signed in locally — the email/password flow handled it
-    const provider = session.user.app_metadata && session.user.app_metadata.provider;
-    if (provider !== 'google') return;
-    MaziAPI.getProfile().then(profile=>{
-      applyAuthenticatedSession({
-        user: session.user,
-        profile,
-        isNewUser: !profile || !profile.onboarded
-      });
-    }).catch(()=>{});
+    // NOTE: app_metadata.provider is the provider the account was FIRST created
+    // with. An account created by email and later signed in with Google still
+    // says 'email' there, so also check providers/identities and, above all,
+    // whether this page load really is a return from the Google redirect.
+    const am = session.user.app_metadata || {};
+    const hasGoogle = am.provider === 'google'
+      || (Array.isArray(am.providers) && am.providers.includes('google'))
+      || (Array.isArray(session.user.identities) && session.user.identities.some(i=>i && i.provider === 'google'));
+    const oauthReturn = !!window.__maziOauthReturn;
+    if (event === 'SIGNED_IN' && !oauthReturn) return;            // email/password sign-in handles its own UI
+    if (event === 'INITIAL_SESSION' && !hasGoogle && !oauthReturn) return;
+    if (googleLandingBusy) return;                                // SIGNED_IN + INITIAL_SESSION both fire on return
+    googleLandingBusy = true;
+    console.info('[MAZI] finishing Google sign-in for', session.user.email, '(provider:', am.provider, ')');
+    // A failed profile read (RLS / permission / network) must NOT block the
+    // login — the Supabase session is already valid. Log in with what Google
+    // gave us and show the real error instead of silently staying logged out.
+    MaziAPI.getProfile().then(profile=>({
+      profile,
+      isNewUser: !profile || !profile.onboarded
+    })).catch(err=>{
+      console.error('Google sign-in: could not load profile', err);
+      showToast('Logged in, but your profile could not be loaded', (err && err.message) || '', 'error');
+      return { profile: null, isNewUser: false };
+    }).then(r=>{
+      applyAuthenticatedSession({ user: session.user, profile: r.profile, isNewUser: r.isNewUser });
+      googleLandingBusy = false;
+    }).catch(err=>{
+      googleLandingBusy = false;
+      console.error('Google sign-in: could not finish login', err);
+      showToast('Could not finish signing in', (err && err.message) || '', 'error');
+    });
   });
 }
 
@@ -4457,7 +5096,7 @@ function handleOpenParam(){
   if (cat){
     setCategory(cat);
     renderCategoryNav();
-    renderProducts();
+    renderProductsLoading();
     window.scrollTo({top:0, behavior:'smooth'});
   }
 

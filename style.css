@@ -133,7 +133,7 @@ input{font-family:inherit;}
   color:var(--green-800);
   transition:background .15s, width .28s ease, height .28s ease;
 }
-.icon-btn:hover{background:var(--green-100);}
+.icon-btn:hover{background:#F1F3F5;}
 .icon-btn svg{width:19px;height:19px;}
 .icon-btn svg path,.icon-btn svg circle{stroke-width:1.7;}
 .cart-count{
@@ -154,7 +154,7 @@ input{font-family:inherit;}
   border-radius:0;
 }
 .nav-viber-icon{width:60px;height:60px;object-fit:contain;display:block;border-radius:50%;}
-.nav-viber-btn:hover{background:var(--green-100);}
+.nav-viber-btn:hover{background:#F1F3F5;}
 .login-btn{
   display:flex;align-items:center;justify-content:center;
   width:clamp(38px,3.2vw,46px);height:clamp(38px,3.2vw,46px);
@@ -167,7 +167,7 @@ input{font-family:inherit;}
 }
 .login-btn svg{width:19px;height:19px;}
 .login-btn svg path,.login-btn svg circle{stroke-width:1.7;}
-.login-btn:hover{background:var(--green-100);}
+.login-btn:hover{background:#F1F3F5;}
 .login-btn[hidden]{display:none;}
 /* Product detail page: no login icon for guests (logged-in users still get the profile menu) */
 #productView .login-btn{display:none;}
@@ -245,7 +245,7 @@ input{font-family:inherit;}
   cursor:pointer;
   transition:background .15s;
 }
-.profile-btn:hover{background:var(--glass-bg);}
+.profile-btn:hover{background:#F1F3F5;}
 .profile-btn svg{width:25px;height:25px;}
 .profile-btn svg path,.profile-btn svg circle{stroke-width:1.7;}
 .profile-dropdown{
@@ -269,7 +269,13 @@ input{font-family:inherit;}
   cursor:pointer;
   transition:background .12s;
 }
-.profile-dropdown button:hover{background:var(--glass-bg);}
+.profile-dropdown > button{font-weight:500;}
+.profile-dropdown > button:hover,
+.profile-dropdown > button:focus-visible{background:#F1F3F5;outline:none;}
+.profile-dropdown > button:active{background:#E6E9EC;}
+html[data-theme="dark"] .profile-dropdown > button:hover,
+html[data-theme="dark"] .profile-dropdown > button:focus-visible{background:rgba(255,255,255,.10);}
+html[data-theme="dark"] .profile-dropdown > button:active{background:rgba(255,255,255,.16);}
 .profile-dropdown-currency{
   display:flex;justify-content:center;
   padding:10px 16px;
@@ -1351,7 +1357,8 @@ input{font-family:inherit;}
 .login-success.show{visibility:visible;pointer-events:auto;cursor:pointer;}
 .ls-backdrop{
   position:absolute;inset:0;
-  background:radial-gradient(circle at 50% 42%, rgba(46,140,108,.28), rgba(10,28,21,.62) 72%);
+  background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.82), rgba(238,244,241,.74) 75%);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   opacity:0;
   transition:opacity .45s ease;
 }
@@ -1365,16 +1372,16 @@ input{font-family:inherit;}
   width:min(330px, calc(100vw - 48px));
   padding:40px 28px 34px;
   text-align:center;
-  background:linear-gradient(165deg, rgba(255,255,255,.92), rgba(255,255,255,.70));
-  border:1px solid rgba(255,255,255,.85);
-  border-radius:30px;
-  box-shadow:0 34px 90px rgba(6,26,19,.38), 0 1px 0 rgba(255,255,255,.9) inset;
+  background:#fff;
+  border:1px solid rgba(17,24,39,.06);
+  border-radius:28px;
+  box-shadow:0 30px 80px rgba(17,24,39,.16), 0 4px 14px rgba(17,24,39,.06);
   opacity:0;transform:translateY(26px) scale(.9);
 }
 /* soft light sweep across the card */
 .ls-card::before{
   content:'';position:absolute;top:-40%;left:-60%;width:50%;height:180%;
-  background:linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+  background:linear-gradient(100deg, transparent, rgba(17,24,39,.045), transparent);
   transform:rotate(12deg) translateX(0);
   opacity:0;pointer-events:none;
 }
@@ -1401,33 +1408,39 @@ input{font-family:inherit;}
 .ls-disc{
   transform-box:fill-box;transform-origin:center;
   transform:scale(0);
-  filter:drop-shadow(0 10px 18px rgba(22,75,59,.35));
+  filter:drop-shadow(0 8px 18px rgba(22,75,59,.22));
 }
-.login-success.show .ls-disc{animation:lsDisc .6s cubic-bezier(.34,1.56,.64,1) .2s forwards;}
+.login-success.show .ls-disc{animation:lsDisc .5s cubic-bezier(.34,1.56,.64,1) .2s forwards;}
 @keyframes lsDisc{0%{transform:scale(0);}100%{transform:scale(1);}}
 
 .ls-ring{
-  stroke:#2E8C6C;stroke-width:2.6;stroke-linecap:round;fill:none;
+  stroke:url(#lsRingGrad);stroke-width:3.4;stroke-linecap:round;fill:none;
   stroke-dasharray:1;stroke-dashoffset:1;
   transform-box:fill-box;transform-origin:center;transform:rotate(-90deg);
 }
-.login-success.show .ls-ring{animation:lsDraw .8s cubic-bezier(.65,0,.35,1) .3s forwards;}
+.login-success.show .ls-ring{animation:lsRingSpin 1s cubic-bezier(.65,0,.35,1) .35s forwards;}
+@keyframes lsRingSpin{
+  0%{stroke-dashoffset:1;transform:rotate(-90deg);}
+  100%{stroke-dashoffset:0;transform:rotate(270deg);}
+}
 
 .ls-tick{
-  stroke:#fff;stroke-width:6.5;stroke-linecap:round;stroke-linejoin:round;fill:none;
+  stroke:#164B3B;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;fill:none;
   stroke-dasharray:1;stroke-dashoffset:1;
 }
-.login-success.show .ls-tick{animation:lsDraw .45s cubic-bezier(.65,0,.35,1) .72s forwards;}
+.login-success.show .ls-tick{animation:lsDraw .5s cubic-bezier(.65,0,.35,1) 1.3s forwards;}
+.login-success.show .ls-svg{animation:lsPop .5s cubic-bezier(.34,1.56,.64,1) 1.6s;}
+@keyframes lsPop{0%{transform:scale(1);}45%{transform:scale(1.1);}100%{transform:scale(1);}}
 @keyframes lsDraw{to{stroke-dashoffset:0;}}
 
 /* expanding pulse rings behind the badge */
 .ls-pulse{
   position:absolute;inset:8px;border-radius:50%;
-  border:2px solid rgba(46,140,108,.55);
+  border:2px solid rgba(46,140,108,.35);
   opacity:0;transform:scale(.7);
 }
-.login-success.show .ls-pulse-1{animation:lsPulse 1.3s ease-out .75s forwards;}
-.login-success.show .ls-pulse-2{animation:lsPulse 1.3s ease-out .98s forwards;}
+.login-success.show .ls-pulse-1{animation:lsPulse 1.3s ease-out 1.6s forwards;}
+.login-success.show .ls-pulse-2{animation:lsPulse 1.3s ease-out 1.85s forwards;}
 @keyframes lsPulse{
   0%{opacity:.7;transform:scale(.8);}
   100%{opacity:0;transform:scale(1.9);}
@@ -1463,22 +1476,10 @@ input{font-family:inherit;}
   font-size:14px;font-weight:500;color:var(--ink-soft);
   opacity:0;transform:translateY(12px);
 }
-.login-success.show .ls-title{animation:lsUp .55s var(--ease-glass) .85s forwards;}
-.login-success.show .ls-sub{animation:lsUp .55s var(--ease-glass) 1s forwards;}
+.login-success.show .ls-title{animation:lsUp .55s var(--ease-glass) 1.7s forwards;}
+.login-success.show .ls-sub{animation:lsUp .55s var(--ease-glass) 1.85s forwards;}
 @keyframes lsUp{to{opacity:1;transform:translateY(0);}}
 
-/* auto-dismiss countdown bar */
-.ls-progress{
-  position:absolute;left:0;right:0;bottom:0;height:4px;
-  background:rgba(22,75,59,.08);
-}
-.ls-progress span{
-  display:block;height:100%;width:100%;
-  background:linear-gradient(90deg, #2E8C6C, #3FA57F, #E9C46A);
-  transform-origin:left center;transform:scaleX(1);
-}
-.login-success.show .ls-progress span{animation:lsCountdown 2.1s linear .7s forwards;}
-@keyframes lsCountdown{to{transform:scaleX(0);}}
 
 @media (prefers-reduced-motion: reduce){
   .login-success .ls-card,
@@ -1488,12 +1489,12 @@ input{font-family:inherit;}
   .login-success .ls-tick,
   .login-success .ls-title,
   .login-success .ls-sub,
-  .login-success .ls-progress span{animation:none!important;}
+  .login-success .ls-svg{animation:none!important;}
   .ls-card{opacity:1;transform:none;transition:opacity .2s;}
   .ls-disc{transform:none;}
   .ls-ring,.ls-tick{stroke-dashoffset:0;}
   .ls-title,.ls-sub{opacity:1;transform:none;}
-  .ls-pulse,.ls-particles,.ls-progress{display:none;}
+  .ls-pulse,.ls-particles{display:none;}
 }
 
 /* ============ Order status notifications (glass popups) ============ */
@@ -2827,22 +2828,18 @@ input{font-family:inherit;}
 .orders-empty-cta{
   margin-top:22px;display:inline-flex;align-items:center;justify-content:center;
   padding:13px 32px;
-  background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.02) 55%), var(--green-800);
+  /* Flat solid button, same style as the admin primary button */
+  background:var(--green-800);
   color:#fff;
-  border:1px solid rgba(255,255,255,.3);
-  border-radius:0;
-  box-shadow:
-    inset 0 1px 1px rgba(255,255,255,.4),
-    inset 0 -3px 6px rgba(0,0,0,.18),
-    0 10px 24px rgba(15,58,46,.22);
-  font-weight:600;font-size:13.5px;letter-spacing:.01em;
-  transition:background .2s ease, box-shadow .2s ease, transform .15s ease;
+  border:1px solid var(--green-800);
+  border-radius:8px;
+  box-shadow:none;
+  font-weight:700;font-size:13.5px;letter-spacing:0;
+  transition:background .15s ease, border-color .15s ease;
 }
-.orders-empty-cta:hover{background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.02) 55%), var(--green-900);color:#fff;box-shadow:
-    inset 0 1px 1px rgba(255,255,255,.4),
-    inset 0 -3px 6px rgba(0,0,0,.18),
-    0 14px 30px rgba(15,58,46,.28);}
-.orders-empty-cta:active{transform:scale(.97);}
+.orders-empty-cta:hover,
+.orders-empty-cta:focus-visible{background:var(--green-900);border-color:var(--green-900);color:#fff;box-shadow:none;}
+.orders-empty-cta:active{transform:none;}
 
 .orders-list{padding:20px;display:flex;flex-direction:column;gap:16px;}
 .orders-load-more-btn{
@@ -3506,7 +3503,7 @@ input{font-family:inherit;}
 .co-secure-note svg{width:14px;height:14px;color:var(--ink-soft);flex-shrink:0;}
 .co-header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .co-profile-btn{flex-shrink:0;}
-.co-profile-btn:hover{background:var(--green-100);}
+.co-profile-btn:hover{background:#F1F3F5;}
 
 .co-wrap{max-width:1180px;margin:0 auto;padding:0 var(--side-pad) 90px;}
 @media (min-width:1440px){ .co-header-inner,.co-wrap{max-width:1320px;} }
@@ -3642,9 +3639,9 @@ input{font-family:inherit;}
   transition:background .15s ease, border-color .15s ease;
 }
 .co-terms-box svg{width:12px;height:12px;color:#fff;opacity:0;transform:scale(.6);transition:opacity .12s ease, transform .12s ease;}
-.co-terms-check input:checked ~ .co-terms-box{background:var(--ink-soft);border-color:var(--ink-soft);}
+.co-terms-check input:checked ~ .co-terms-box{background:#2563EB;border-color:#2563EB;}
 .co-terms-check input:checked ~ .co-terms-box svg{opacity:1;transform:scale(1);}
-.co-terms-check input:focus-visible ~ .co-terms-box{outline:2px solid var(--ink-soft);outline-offset:2px;}
+.co-terms-check input:focus-visible ~ .co-terms-box{outline:2px solid #2563EB;outline-offset:2px;}
 .co-terms-check span:last-child{font-size:12.5px;font-weight:700;color:var(--ink);}
 .co-terms-check a{color:var(--ink-soft);text-decoration:underline;}
 .co-terms-check a:hover{color:var(--ink);}
@@ -3713,6 +3710,11 @@ input{font-family:inherit;}
   transition:opacity .22s ease, transform .22s ease, background .22s ease;
 }
 .cart-row:hover{background:rgba(232,242,235,.42);}
+/* hover highlight + divider run edge-to-edge of the drawer (rows bleed out of the body padding),
+   with the content kept at the normal 24px inset, so the highlight no longer looks cut off at the sides */
+.drawer-body .cart-row{margin:0 -24px;padding:14px 24px;}
+.drawer-body .cart-row:first-child{margin-top:-12px;padding-top:18px;}
+.drawer-body .cart-row:last-child{border-bottom:0;}
 .cart-row-qty button,
 .co-item-qty button{
   border-radius:8px;
@@ -3728,24 +3730,16 @@ input{font-family:inherit;}
 .cart-row-qty button:active,
 .co-item-qty button:active{transform:scale(.92);}
 .cart-row-title{padding-right:8px;}
+/* Flat checkout button: no shadow, no shine, no lift */
 .checkout-btn{
-  position:relative;
-  overflow:hidden;
-  border-radius:10px;
-  box-shadow:0 8px 18px rgba(15,58,46,.16);
-  transition:transform .22s ease, background .22s ease, box-shadow .22s ease, opacity .22s ease;
+  border-radius:8px;
+  box-shadow:none;
+  transform:none;
+  transition:background .15s ease, opacity .15s ease;
 }
-.checkout-btn::after{
-  content:'';
-  position:absolute;
-  inset:0;
-  background:linear-gradient(110deg, transparent 20%, rgba(255,255,255,.2) 48%, transparent 75%);
-  transform:translateX(-120%);
-  transition:transform .55s ease;
-}
-.checkout-btn:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(15,58,46,.22);}
-.checkout-btn:hover::after{transform:translateX(120%);}
-.checkout-btn:active{transform:translateY(0) scale(.985);}
+.checkout-btn::after{content:none;}
+.checkout-btn:hover,
+.checkout-btn:active{transform:none;box-shadow:none;}
 .checkout-btn:disabled{opacity:.72;cursor:wait;}
 body.is-checkout-leaving .cart-drawer{transform:translateX(105%);}
 body.is-checkout-leaving .drawer-backdrop{opacity:0;}
@@ -3892,7 +3886,6 @@ body.is-checkout-leaving .drawer-backdrop{transition-duration:.34s;}
 /* ============ Checkout header final adjustment ============ */
 .co-header-inner{justify-content:space-between;}
 .co-back{display:flex;align-items:center;gap:7px;color:#565959;font-size:13px;font-weight:600;text-decoration:none;transition:color .15s, transform .15s;}
-.co-back:hover{color:#007185;}
 .co-back:active{transform:scale(.96);}
 .co-back svg{width:16px;height:16px;transition:transform .25s cubic-bezier(.22,1,.36,1);}
 .co-back:hover svg{transform:translateX(-3px);}
@@ -4967,24 +4960,29 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 /* ---- Viber CTA banner (long single-row style, web + mobile) ---- */
 .viber-cta-banner{
   position:relative;overflow:hidden;
-  display:flex;align-items:center;gap:14px;
+  display:flex;align-items:center;gap:16px;
   background:linear-gradient(135deg,#6A3FC8 0%,#7C55E0 55%,#8B5CF6 100%);
   border-radius:16px;
-  padding:16px 18px;
+  padding:18px 22px;
   margin-bottom:26px;
   color:#fff;
   box-shadow:0 10px 26px rgba(106,63,200,.28);
 }
 .viber-cta-icon{
   position:relative;z-index:1;
-  width:46px;height:46px;flex-shrink:0;
-  color:#fff;
+  width:54px;height:54px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
+  background:#fff;
+  border-radius:50%;
+  padding:0;
+  overflow:hidden;
+  --viber-logo-zoom:1.3; /* taasan (hal. 1.5) kung gusto pang palakihin ang logo, babaan kung sobra */
+  box-shadow:0 6px 16px rgba(30,10,80,.28), 0 0 0 4px rgba(255,255,255,.18);
 }
-.viber-cta-icon svg{width:100%;height:100%;display:block;}
+.viber-cta-icon img{width:100%;height:100%;display:block;object-fit:contain;border-radius:50%;transform:scale(var(--viber-logo-zoom));}
 .viber-cta-text{position:relative;z-index:1;flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
-.viber-cta-text strong{font-size:15px;font-weight:700;line-height:1.25;}
-.viber-cta-text span{font-size:12px;line-height:1.4;color:rgba(255,255,255,.8);}
+.viber-cta-text strong{font-size:17px;font-weight:800;line-height:1.25;letter-spacing:-.01em;}
+.viber-cta-text span{font-size:13px;line-height:1.45;color:rgba(255,255,255,.85);}
 .viber-cta-break{display:none;}
 .viber-cta-btn{
   position:relative;z-index:1;
@@ -5020,18 +5018,22 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .viber-cta-deco-2{width:34px;height:26px;right:14px;bottom:-8px;}
 
 @media (max-width:640px){
-  /* Two buttons no longer fit beside the icon+text on a phone-width
-     banner, so wrap onto a second row and let each button share the
-     width instead of squeezing both into the original single row. */
-  .viber-cta-banner{gap:11px 0;flex-wrap:wrap;padding:14px 12px 14px 14px;border-radius:14px;}
-  .viber-cta-icon{width:40px;height:40px;}
-  .viber-cta-text strong{font-size:14.5px;}
-  .viber-cta-text span{font-size:12.5px;}
+  /* Phone: icon + text on the first row (vertically centred together),
+     the two buttons share the full width on a second row. */
+  .viber-cta-banner{
+    display:grid;grid-template-columns:auto 1fr;
+    align-items:center;gap:12px 12px;
+    padding:16px 14px;border-radius:16px;
+  }
+  .viber-cta-icon{width:50px;height:50px;padding:0;}
+  .viber-cta-text{gap:4px;}
+  .viber-cta-text strong{font-size:16px;}
+  .viber-cta-text span{font-size:12.5px;line-height:1.45;}
   .viber-cta-break{display:inline;}
-  .viber-cta-actions{width:100%;margin-top:12px;gap:8px;}
+  .viber-cta-actions{grid-column:1 / -1;width:100%;margin-top:4px;gap:10px;}
   .viber-cta-divider{display:none;}
-  .viber-cta-btn{padding:9px 10px;font-size:11.5px;gap:5px;flex:1;justify-content:center;}
-  .viber-cta-btn svg{width:13px;height:13px;flex-shrink:0;}
+  .viber-cta-btn{padding:11px 10px;font-size:13px;gap:6px;flex:1;justify-content:center;white-space:nowrap;}
+  .viber-cta-btn svg{width:15px;height:15px;flex-shrink:0;}
   .viber-cta-deco-1{right:96px;}
 }
 
@@ -6744,7 +6746,6 @@ html[data-theme="dark"] .mobile-search-pill:focus-within{background:var(--#111A2
 html[data-theme="dark"] .install-banner{background:var(--#111A2C)}
 html[data-theme="dark"] .ls-card{background:linear-gradient(165deg, rgba(17,26,44,0.92), rgba(17,26,44,0.7));border:1px solid rgba(36,51,80,0.85)}
 html[data-theme="dark"] .ls-card::before{background:linear-gradient(100deg, transparent, rgba(17,26,44,0.55), transparent)}
-html[data-theme="dark"] .ls-ring{stroke:#81cdb3}
 html[data-theme="dark"] .notif-btn-dots span{background:#243350}
 html[data-theme="dark"] .notif-prompt-btn.success{background:#111A2C}
 html[data-theme="dark"] .notif-toggle-dots span{background:#111A2C}
@@ -6879,7 +6880,6 @@ html[data-theme="dark"] .co-coupon-btn:hover{background:#394641}
 html[data-theme="dark"] .co-place-btn{color:#E7EDF7}
 html[data-theme="dark"] .co-secure-box{background:#111A2C;border:1px solid #34456A}
 html[data-theme="dark"] .co-back{color:#97A5BA}
-html[data-theme="dark"] .co-back:hover{color:#8de6f6}
 html[data-theme="dark"] .co-qr-panel,
 html[data-theme="dark"] .co-bank-panel{border:1px solid #34456A;background:#111A2C}
 html[data-theme="dark"] .co-qr-panel{background:#111A2C}
@@ -7079,39 +7079,10 @@ html[data-theme="dark"] .cur-icon{filter:brightness(0) invert(1);}
    NIGHT MODE pill — same control as the admin top bar. Used in the profile dropdown + mobile menu.
    Only transform / opacity are animated, so it stays on the GPU.
    ===================================================================== */
-.theme-btn{--tt-w:134px;--tt-h:34px;--tt-d:26px;--tt-ease:cubic-bezier(.4,0,.2,1);flex:none;border:0;background:transparent;padding:0;cursor:pointer;display:inline-flex;align-items:center;border-radius:999px;-webkit-tap-highlight-color:transparent}
-.theme-btn .tt-track{position:relative;display:block;width:var(--tt-w);height:var(--tt-h);border-radius:999px;background:#E6E7E9;overflow:hidden;isolation:isolate;transform:translateZ(0)}
-.theme-btn .tt-track::after{content:"";position:absolute;inset:0;z-index:3;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(110,120,140,.38);pointer-events:none}
-.theme-btn .tt-track::before{content:"";position:absolute;inset:0;z-index:0;background:#3B4456;opacity:0;will-change:opacity;transition:opacity .4s ease}
-.theme-btn .tt-lbl{position:absolute;z-index:1;top:0;bottom:0;display:flex;align-items:center;font-size:10.5px;font-weight:600;letter-spacing:.06em;white-space:nowrap;will-change:opacity;transition:opacity .35s ease}
-.theme-btn .tt-day{left:14px;color:#111;opacity:1}
-.theme-btn .tt-night{right:14px;color:#fff;opacity:0}
-.theme-btn .tt-thumb{position:absolute;z-index:2;top:4px;left:4px;width:var(--tt-d);height:var(--tt-d);border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;box-shadow:0 1px 3px rgba(15,23,42,.30);will-change:transform;transform:translate3d(calc(var(--tt-w) - var(--tt-d) - 8px),0,0);transition:transform .5s var(--tt-ease)}
-.theme-btn .tt-thumb svg{position:absolute;width:14px;height:14px;stroke-width:1.7;color:#111;will-change:transform,opacity;transition:opacity .35s ease,transform .5s var(--tt-ease)}
-.theme-btn .tt-sun{opacity:1;transform:rotate(0)}
-.theme-btn .tt-moon{opacity:0;transform:rotate(-40deg) scale(.7)}
-.theme-btn:focus-visible{outline:2px solid var(--green-500);outline-offset:2px}
-html[data-theme="dark"] .theme-btn .tt-track::before{opacity:1}
-html[data-theme="dark"] .theme-btn .tt-day{opacity:0}
-html[data-theme="dark"] .theme-btn .tt-night{opacity:1}
-html[data-theme="dark"] .theme-btn .tt-thumb{transform:translate3d(0,0,0)}
-html[data-theme="dark"] .theme-btn .tt-sun{opacity:0;transform:rotate(40deg) scale(.7)}
-html[data-theme="dark"] .theme-btn .tt-moon{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){.theme-btn .tt-thumb,.theme-btn svg,.theme-btn .tt-track::before,.theme-btn .tt-lbl{transition:none}}
 
-.profile-dropdown .theme-btn{display:inline-flex;width:auto;padding:0;background:none;border-radius:999px}
-.profile-dropdown .theme-btn:hover{background:none}
 .profile-dropdown-theme{display:flex;justify-content:center;padding:10px 16px;border-bottom:1px solid var(--glass-border)}
 /* mobile menu: Night mode + Logout sit together at the bottom; the pill is one long line */
 .profile-menu-body .pm-bottom{margin-top:auto;display:flex;flex-direction:column;gap:10px}
-.pm-theme-row{display:block;padding:12px}
-.pm-theme-row .theme-btn{display:flex;width:100%;--tt-h:36px;--tt-d:28px;--tt-w:calc(100vw - 98px)}
-.pm-theme-row .theme-btn .tt-track{width:100%;container-type:inline-size}
-.pm-theme-row .theme-btn .tt-thumb{transform:translate3d(calc(100cqw - var(--tt-d) - 8px),0,0)}
-html[data-theme="dark"] .pm-theme-row .theme-btn .tt-thumb{transform:translate3d(0,0,0)}
-.pm-theme-row .theme-btn .tt-lbl{left:0;right:0;justify-content:center;font-size:11px;white-space:nowrap}
-.pm-theme-row .theme-btn .tt-day{padding-right:var(--tt-d)}
-.pm-theme-row .theme-btn .tt-night{padding-left:var(--tt-d)}
 
 /* =====================================================================
    PROFILE PAGE — Settings layout (same format as the admin Settings page):
@@ -7250,3 +7221,902 @@ html[data-theme="dark"] .pm-theme-row .theme-btn .tt-thumb{transform:translate3d
 /* Guests always see the light theme — no day/night switch until they log in */
 html[data-auth="guest"] .pm-theme-group,
 html[data-auth="guest"] .profile-dropdown-theme{display:none !important;}
+
+/* ============ Orders — tracking panel, actions, details popup (flat) ============ */
+.order-track{
+  display:flex;margin:4px 18px 16px;padding:18px 6px 14px;
+  background:#F5F6F8;border-radius:12px;
+}
+.ot-step{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 2px;}
+.ot-rail{display:flex;align-items:center;width:100%;height:22px;margin-bottom:10px;}
+.ot-line{flex:1;height:2px;background:#DDE1E7;}
+.ot-line.on{background:var(--green-600);}
+.ot-step:last-child .ot-line.r{visibility:hidden;}
+.ot-dot{
+  flex:none;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#fff;border:2px solid #DDE1E7;color:#fff;
+}
+.ot-dot svg{width:11px;height:11px;}
+.ot-step.done .ot-dot{background:var(--green-700);border-color:var(--green-700);}
+.ot-step.active .ot-dot{border-color:var(--green-600);}
+.ot-step.active .ot-dot::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--green-600);}
+.ot-label{font-size:11.5px;font-weight:700;color:var(--ink);line-height:1.3;}
+.ot-time{font-size:10px;color:var(--ink-soft);margin-top:3px;line-height:1.3;}
+.ot-step:not(.done):not(.active) .ot-label{color:var(--ink-soft);font-weight:600;}
+
+.order-cancelled-note{
+  margin:4px 18px 16px;padding:12px 14px;border:0;border-radius:12px;
+  background:#FBEDEB;color:var(--red);font-size:11.5px;line-height:1.5;font-weight:500;
+}
+.order-cancelled-note strong{font-weight:700;}
+
+.order-actions{display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 18px;}
+.oa-btn{
+  flex:1 1 120px;padding:11px 14px;border-radius:8px;
+  background:#fff;border:1px solid var(--line);color:var(--ink);
+  font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:none;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.oa-btn:hover{background:#F5F6F8;}
+.oa-btn.primary{background:var(--green-800);border-color:var(--green-800);color:#fff;}
+.oa-btn.primary:hover{background:var(--green-900);border-color:var(--green-900);}
+.oa-btn.danger{color:var(--red);border-color:rgba(213,71,60,.45);}
+.oa-btn.danger:hover{background:#FBEDEB;}
+.oa-btn:disabled,.oa-btn:disabled:hover{opacity:.5;cursor:not-allowed;background:#fff;}
+
+.od-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:520;
+}
+.od-backdrop.show{opacity:1;pointer-events:auto;}
+.od-modal{
+  position:fixed;inset:0;z-index:530;display:flex;align-items:center;justify-content:center;
+  padding:20px;opacity:0;pointer-events:none;transition:opacity .25s ease;
+}
+.od-modal.open{opacity:1;pointer-events:auto;}
+.od-card{
+  width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;
+  background:#fff;border-radius:16px;overflow:hidden;
+  transform:translateY(12px);transition:transform .3s ease;
+}
+.od-modal.open .od-card{transform:none;}
+.od-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--line);}
+.od-head h3{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink);}
+.od-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+.od-close{background:none;border:0;font-size:26px;line-height:1;color:var(--ink-soft);cursor:pointer;padding:0 2px;}
+.od-close:hover{color:var(--ink);}
+.od-body{flex:1;overflow-y:auto;padding:6px 20px 8px;-webkit-overflow-scrolling:touch;}
+.od-sec{padding:14px 0;border-bottom:1px solid var(--line);}
+.od-sec:last-child{border-bottom:0;}
+.od-sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.od-sec-head h4{font-size:12.5px;font-weight:700;color:var(--ink);}
+.od-tag{font-size:11px;font-weight:600;color:var(--ink-soft);background:#F5F6F8;padding:3px 9px;border-radius:999px;}
+.od-tl-item{position:relative;display:flex;gap:12px;padding-bottom:14px;}
+.od-tl-item:last-child{padding-bottom:0;}
+.od-tl-item::before{content:'';position:absolute;left:6px;top:15px;bottom:-1px;width:2px;background:#DDE1E7;}
+.od-tl-item:last-child::before{display:none;}
+.od-tl-item.done::before{background:var(--green-600);}
+.od-tl-dot{flex:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #DDE1E7;margin-top:2px;position:relative;z-index:1;}
+.od-tl-item.done .od-tl-dot{background:var(--green-700);border-color:var(--green-700);}
+.od-tl-item.active .od-tl-dot{border-color:var(--green-600);}
+.od-tl-item.cancelled .od-tl-dot{background:var(--red);border-color:var(--red);}
+.od-tl-item b{display:block;font-size:12.5px;font-weight:700;color:var(--ink);}
+.od-tl-item:not(.done):not(.active):not(.cancelled) b{color:var(--ink-soft);font-weight:600;}
+.od-tl-item small{display:block;font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.od-tl-item em{display:block;font-style:normal;font-size:11.5px;color:var(--ink);margin-top:3px;}
+.od-items{display:flex;flex-direction:column;gap:12px;}
+.od-items .order-item-name{font-size:12.5px;}
+.od-items .order-item-meta{font-size:11px;}
+.od-items .order-item-price{font-size:12.5px;}
+.od-rows,.od-summary{display:flex;flex-direction:column;gap:7px;}
+.od-summary{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+.od-row{display:flex;justify-content:space-between;gap:16px;font-size:12.5px;}
+.od-row span:first-child{color:var(--ink-soft);flex:none;}
+.od-row span:last-child{color:var(--ink);font-weight:600;text-align:right;word-break:break-word;}
+.od-row.total span{font-size:14px;font-weight:700;color:var(--ink);}
+.od-foot{display:flex;flex-wrap:wrap;gap:10px;padding:14px 20px 18px;border-top:1px solid var(--line);}
+.od-foot:empty{display:none;}
+@media (max-width:480px){
+  .order-track{margin:4px 12px 14px;padding:16px 2px 12px;}
+  .ot-label{font-size:10.5px;}
+  .ot-time{font-size:9px;}
+  .order-actions{padding:0 12px 14px;}
+  .od-modal{padding:0;align-items:flex-end;}
+  .od-card{max-width:100%;max-height:92vh;border-radius:16px 16px 0 0;}
+}
+
+/* dark mode: keep the soft-gray hover subtle on the navbar icon buttons */
+html[data-theme="dark"] .icon-btn:hover,
+html[data-theme="dark"] .profile-btn:hover,
+html[data-theme="dark"] .nav-viber-btn:hover,
+html[data-theme="dark"] .login-btn:hover,
+html[data-theme="dark"] .co-profile-btn:hover{background:rgba(255,255,255,.08);}
+
+/* ============ Currency switch loading state ============ */
+.currency-toggle-btn,.pv-currency-btn{position:relative;}
+.currency-toggle.is-switching,.pv-currency.is-switching{pointer-events:none;}
+.currency-toggle-btn.cur-loading > *,
+.pv-currency-btn.cur-loading > *{opacity:0;}
+.currency-toggle-btn.cur-loading,
+.pv-currency-btn.cur-loading{color:#fff;}
+.currency-toggle-btn.cur-loading::after,
+.pv-currency-btn.cur-loading::after{
+  content:"";position:absolute;top:50%;left:50%;
+  width:14px;height:14px;margin:-7px 0 0 -7px;
+  border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+  border-radius:50%;
+  animation:curSpin .7s linear infinite;
+}
+.toast-spin{animation:curSpin .8s linear infinite;}
+@keyframes curSpin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){
+  .currency-toggle-btn.cur-loading::after,.pv-currency-btn.cur-loading::after,.toast-spin{animation-duration:1.6s!important;animation-iteration-count:infinite!important;}
+}
+
+/* ============ Checkout: "Order as" account picker ============ */
+.co-acct-head{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:8px;display:flex;flex-direction:column;gap:2px}
+.co-acct-head small{font-size:11px;font-weight:500;color:var(--ink-soft)}
+.co-acct-list{display:flex;flex-direction:column;gap:8px}
+.co-acct{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1.5px solid #dfe3e3;border-radius:12px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+.co-acct:hover{border-color:var(--green-500,#2E8C6C);background:#f6faf8}
+.co-acct input{position:absolute;opacity:0;pointer-events:none}
+.co-acct-dot{flex:none;width:18px;height:18px;margin-top:1px;border-radius:50%;border:2px solid #b8c0c0;background:#fff;display:grid;place-items:center;transition:border-color .15s}
+.co-acct-dot::after{content:"";width:8px;height:8px;border-radius:50%;background:#2563EB;transform:scale(0);transition:transform .15s}
+.co-acct.is-selected{border-color:#E7EBF0;background:#E7EBF0;box-shadow:none}
+.co-acct.is-selected:hover{background:#E7EBF0;border-color:#E7EBF0}
+.co-acct.is-selected .co-acct-dot{border-color:#2563EB;background:#fff}
+.co-acct.is-selected .co-acct-dot::after{transform:scale(1)}
+.co-acct input:focus-visible ~ .co-acct-dot{box-shadow:0 0 0 3px rgba(37,99,235,.35)}
+.co-acct.is-disabled{opacity:.55;cursor:not-allowed}
+.co-acct.is-disabled:hover{border-color:#dfe3e3;background:#fff}
+.co-acct-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.co-acct-title{font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.co-acct-sub{font-size:11px;color:var(--ink-soft);line-height:1.35}
+.co-acct-error{margin-top:8px;font-size:12px;font-weight:600;color:#c62828}
+.co-acct-error[hidden]{display:none}
+html[data-theme="dark"] .co-acct{background:#16213a;border-color:#34456A}
+html[data-theme="dark"] .co-acct:hover{background:#1b2a49}
+html[data-theme="dark"] .co-acct.is-selected{background:#202D48;border-color:#202D48}
+html[data-theme="dark"] .co-acct.is-selected .co-acct-dot{border-color:#60A5FA}
+html[data-theme="dark"] .co-acct-dot::after{background:#60A5FA}
+html[data-theme="dark"] .co-acct-dot{background:#16213a;border-color:#5b6e94}
+.co-acct-note{margin-top:8px;font-size:11.5px;line-height:1.4;color:var(--ink-soft)}
+
+
+/* =====================================================================
+   THEME ROW + POPUP  (System / Light / Dark with a check — light is the default)
+   Used in: desktop profile dropdown, mobile profile menu, Profile page → Display & alerts.
+   Everything uses the site tokens, so it follows light / dark automatically.
+   ===================================================================== */
+.th-ico{display:inline-grid;place-items:center;flex:none;width:18px;height:18px;color:var(--ink-soft)}
+.th-ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.th-chev{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--ink-soft)}
+
+/* desktop dropdown row */
+.profile-dropdown-theme{padding:0}
+.profile-dropdown .pd-theme-row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 16px;font-weight:500}
+.profile-dropdown .pd-theme-row .th-label{flex:1;text-align:left}
+.profile-dropdown .pd-theme-row:hover,.profile-dropdown .pd-theme-row:focus-visible,.profile-dropdown .pd-theme-row[aria-expanded="true"]{background:#F1F3F5;outline:none}
+html[data-theme="dark"] .profile-dropdown .pd-theme-row:hover,html[data-theme="dark"] .profile-dropdown .pd-theme-row:focus-visible,html[data-theme="dark"] .profile-dropdown .pd-theme-row[aria-expanded="true"]{background:rgba(255,255,255,.10)}
+
+/* mobile menu row: current value sits before the chevron */
+#profileMenu .pm-theme-btn .pm-row-label{flex:1}
+#profileMenu .pm-row-value{font-size:13px;font-weight:500;color:var(--ink-soft)}
+#profileMenu .pm-theme-btn .pm-row-icon svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* profile page trigger */
+.pv-theme-trigger{display:inline-flex;align-items:center;gap:10px;flex:none;min-width:132px;padding:8px 12px;background:var(--white);border:1px solid var(--line);border-radius:12px;color:var(--ink);font:600 13px var(--font-body);cursor:pointer;transition:background-color .15s,border-color .15s}
+.pv-theme-trigger [data-theme-current]{flex:1;text-align:left}
+.pv-theme-trigger:hover,.pv-theme-trigger[aria-expanded="true"]{background:var(--cream);border-color:var(--ink-soft)}
+.pv-theme-trigger:focus-visible{outline:2px solid var(--green-500);outline-offset:2px}
+
+/* the popup itself */
+.theme-menu{position:fixed;left:0;top:0;z-index:100000;min-width:176px;padding:8px;background:var(--white);border:1px solid var(--line);border-radius:20px;box-shadow:0 12px 32px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.08);opacity:0;visibility:hidden;transform:translateY(-4px) scale(.98);transform-origin:top right;transition:opacity .14s,transform .14s,visibility .14s}
+.theme-menu.open{opacity:1;visibility:visible;transform:none}
+.theme-menu button{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:transparent;color:var(--ink);font:500 14px var(--font-body);text-align:left;cursor:pointer;transition:background-color .12s;-webkit-tap-highlight-color:transparent}
+.theme-menu button:hover,.theme-menu button:focus-visible{background:var(--cream);outline:none}
+.theme-menu button:active{background:var(--line)}
+.theme-menu .th-check{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.theme-menu button.active .th-check{opacity:1}
+html[data-theme="dark"] .theme-menu{box-shadow:0 14px 36px rgba(0,0,0,.55)}
+@media (prefers-reduced-motion:reduce){.theme-menu{transition:none}}
+@media (max-width:768px){.theme-menu{min-width:200px}.theme-menu button{padding:14px 16px;font-size:15px}}
+
+/* =====================================================================
+   UNIFIED UI  — one soft button + one rounded shape language (storefront + admin share this)
+   Buttons: quiet translucent fill, no border, 10px corners — reads the same in light and dark.
+   Shapes:  cards 16px · fields 10px · tabs/segments 10px/8px · chips fully round.
+   ===================================================================== */
+:root{
+  --ui-btn-bg:rgba(15,23,42,.07); --ui-btn-bg-h:rgba(15,23,42,.12); --ui-btn-bg-a:rgba(15,23,42,.17);
+  --ui-btn-fg:#0F172A; --ui-btn-danger:#C93B31;
+  --ui-r-btn:10px; --ui-r-field:10px; --ui-r-card:16px; --ui-r-modal:20px;
+}
+html[data-theme="dark"]{
+  --ui-btn-bg:rgba(255,255,255,.12); --ui-btn-bg-h:rgba(255,255,255,.18); --ui-btn-bg-a:rgba(255,255,255,.24);
+  --ui-btn-fg:#F1F5FB; --ui-btn-danger:#FF8A82;
+}
+
+/* --- the button --- */
+.card-add:not(.loading),
+.checkout-btn,
+.co-btn,
+.co-btn-ghost,
+.co-btn-primary,
+.co-place-btn,
+.auth-submit-btn,
+.auth-google-btn,
+.auth-verify-primary,
+.auth-verify-resend,
+.install-banner-cta,
+.ma-add-btn,
+.ma-edit-btn,
+.ma-cancel,
+.ma-submit,
+.notif-prompt-btn:not(.loading),
+.oa-btn,
+.oc-orders-btn,
+.oc-see-more-btn,
+.order-see-more-btn,
+.orders-empty-cta,
+.orders-load-more-btn,
+.profile-view-save-btn,
+.profile-view-logout-btn,
+.pv-delete-link,
+.receipt-action-btn,
+.receipt-download-btn,
+.receipt-print-btn,
+.submit-btn,
+.view-orders-btn,
+.confirm-cancel-btn,
+.confirm-ok-btn{
+  background:var(--ui-btn-bg) !important; background-image:none !important; color:var(--ui-btn-fg) !important;
+  border:0 !important; border-radius:var(--ui-r-btn) !important; box-shadow:none !important; text-shadow:none !important;
+  font-weight:500; text-decoration:none; transition:background-color .15s ease, transform .1s ease;
+}
+.card-add:not(.loading):hover:not(:disabled),
+.checkout-btn:hover:not(:disabled),
+.co-btn:hover:not(:disabled),
+.co-btn-ghost:hover:not(:disabled),
+.co-btn-primary:hover:not(:disabled),
+.co-place-btn:hover:not(:disabled),
+.auth-submit-btn:hover:not(:disabled),
+.auth-google-btn:hover:not(:disabled),
+.auth-verify-primary:hover:not(:disabled),
+.auth-verify-resend:hover:not(:disabled),
+.install-banner-cta:hover:not(:disabled),
+.ma-add-btn:hover:not(:disabled),
+.ma-edit-btn:hover:not(:disabled),
+.ma-cancel:hover:not(:disabled),
+.ma-submit:hover:not(:disabled),
+.notif-prompt-btn:not(.loading):hover:not(:disabled),
+.oa-btn:hover:not(:disabled),
+.oc-orders-btn:hover:not(:disabled),
+.oc-see-more-btn:hover:not(:disabled),
+.order-see-more-btn:hover:not(:disabled),
+.orders-empty-cta:hover:not(:disabled),
+.orders-load-more-btn:hover:not(:disabled),
+.profile-view-save-btn:hover:not(:disabled),
+.profile-view-logout-btn:hover:not(:disabled),
+.pv-delete-link:hover:not(:disabled),
+.receipt-action-btn:hover:not(:disabled),
+.receipt-download-btn:hover:not(:disabled),
+.receipt-print-btn:hover:not(:disabled),
+.submit-btn:hover:not(:disabled),
+.view-orders-btn:hover:not(:disabled),
+.confirm-cancel-btn:hover:not(:disabled),
+.confirm-ok-btn:hover:not(:disabled){background:var(--ui-btn-bg-h) !important;color:var(--ui-btn-fg) !important}
+.card-add:not(.loading):active:not(:disabled),
+.checkout-btn:active:not(:disabled),
+.co-btn:active:not(:disabled),
+.co-btn-ghost:active:not(:disabled),
+.co-btn-primary:active:not(:disabled),
+.co-place-btn:active:not(:disabled),
+.auth-submit-btn:active:not(:disabled),
+.auth-google-btn:active:not(:disabled),
+.auth-verify-primary:active:not(:disabled),
+.auth-verify-resend:active:not(:disabled),
+.install-banner-cta:active:not(:disabled),
+.ma-add-btn:active:not(:disabled),
+.ma-edit-btn:active:not(:disabled),
+.ma-cancel:active:not(:disabled),
+.ma-submit:active:not(:disabled),
+.notif-prompt-btn:not(.loading):active:not(:disabled),
+.oa-btn:active:not(:disabled),
+.oc-orders-btn:active:not(:disabled),
+.oc-see-more-btn:active:not(:disabled),
+.order-see-more-btn:active:not(:disabled),
+.orders-empty-cta:active:not(:disabled),
+.orders-load-more-btn:active:not(:disabled),
+.profile-view-save-btn:active:not(:disabled),
+.profile-view-logout-btn:active:not(:disabled),
+.pv-delete-link:active:not(:disabled),
+.receipt-action-btn:active:not(:disabled),
+.receipt-download-btn:active:not(:disabled),
+.receipt-print-btn:active:not(:disabled),
+.submit-btn:active:not(:disabled),
+.view-orders-btn:active:not(:disabled),
+.confirm-cancel-btn:active:not(:disabled),
+.confirm-ok-btn:active:not(:disabled){background:var(--ui-btn-bg-a) !important}
+.card-add:not(.loading):disabled,.checkout-btn:disabled,.co-btn:disabled,.co-btn-ghost:disabled,.co-btn-primary:disabled,.co-place-btn:disabled,.auth-submit-btn:disabled,.auth-google-btn:disabled,.auth-verify-primary:disabled,.auth-verify-resend:disabled,.install-banner-cta:disabled,.ma-add-btn:disabled,.ma-edit-btn:disabled,.ma-cancel:disabled,.ma-submit:disabled,.notif-prompt-btn:not(.loading):disabled,.oa-btn:disabled,.oc-orders-btn:disabled,.oc-see-more-btn:disabled,.order-see-more-btn:disabled,.orders-empty-cta:disabled,.orders-load-more-btn:disabled,.profile-view-save-btn:disabled,.profile-view-logout-btn:disabled,.pv-delete-link:disabled,.receipt-action-btn:disabled,.receipt-download-btn:disabled,.receipt-print-btn:disabled,.submit-btn:disabled,.view-orders-btn:disabled,.confirm-cancel-btn:disabled,.confirm-ok-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* destructive actions keep a red label so they are still obvious */
+.confirm-ok-btn,
+.oa-btn.danger,
+.pv-delete-link,
+.profile-view-logout-btn{color:var(--ui-btn-danger) !important}
+
+.co-place-btn::after{display:none !important}
+
+/* --- storefront shapes --- */
+.auth-card,.co-section,.co-summary-card,.co-payment-box,.co-hours-box,.co-secure-box,
+.ck-pickup-store,.ck-pickup-day,.ck-pickup-slot,.ck-hours-box,
+#profileView .profile-view-card,#profileView .pv-settings .profile-view-card,#profileView .profile-view-delete-bar,
+#ordersView .orders-card,.pd-media,.pd-media img{border-radius:var(--ui-r-card) !important}
+.pd-media{overflow:hidden}
+.receipt-modal-card,.ma-modal-card{border-radius:var(--ui-r-modal) !important}
+.auth-field input,.ma-modal-card .ma-field input,.ma-modal-card .ma-field select,.onboard-form select,
+.ck-textarea,.otp-box,.auth-mobile-wrap{border-radius:var(--ui-r-field) !important}
+.auth-mobile-wrap{overflow:hidden}
+.co-tab,.ck-tab,.pv-currency-toggle,.card-qty,.pd-actions .card-qty.pd-qty{border-radius:var(--ui-r-field) !important}
+.pv-currency-btn,.profile-view .pv-currency-toggle .pv-currency-btn,.card-qty .qty-btn,.pd-actions .card-qty.pd-qty .qty-btn{border-radius:8px !important}
+.pv-currency-toggle,.card-qty{overflow:hidden}
+.pv-theme-trigger{border-radius:var(--ui-r-btn)}
+.pv-theme-trigger{background:var(--ui-btn-bg) !important;border:0 !important;color:var(--ui-btn-fg) !important;box-shadow:none !important}
+.pv-theme-trigger:hover,.pv-theme-trigger[aria-expanded="true"]{background:var(--ui-btn-bg-h) !important}
+.product-card{border-radius:var(--ui-r-card) !important;overflow:hidden}
+.product-card .card-media{border-radius:0 !important}
+.ma-panel{border-radius:var(--ui-r-card) !important}
+
+/* =====================================================================
+   BUTTONS v2 — Claude-style hierarchy (storefront + admin)
+   primary   = solid inverse (ink on light, white on dark)  → ONE per view: Save, Place order, Sign in
+   secondary = quiet soft fill                              → everything else
+   cancel    = text only, soft fill on hover
+   danger    = soft fill, red label
+   Smaller type + tighter padding so labels fit. Green is no longer used on buttons.
+   ===================================================================== */
+:root{
+  --ui-pri-bg:var(--green-800); --ui-pri-bg-h:var(--green-900); --ui-pri-bg-a:var(--green-700); --ui-pri-fg:#FFFFFF;
+  --ui-btn-bg:#EDEEF1; --ui-btn-bg-h:#E3E5E9; --ui-btn-bg-a:#D9DCE1;
+  --ui-r-btn:8px;
+  --ui-btn-fs:13px; --ui-btn-pad:8px 14px; --ui-btn-fs-sm:12px; --ui-btn-pad-sm:5px 10px;
+}
+html[data-theme="dark"]{
+  --ui-pri-bg:#1F6B52; --ui-pri-bg-h:#26805F; --ui-pri-bg-a:#2E8C6C; --ui-pri-fg:#FFFFFF;
+  --ui-btn-bg:rgba(255,255,255,.09); --ui-btn-bg-h:rgba(255,255,255,.15); --ui-btn-bg-a:rgba(255,255,255,.21);
+}
+
+/* --- size + shape (all storefront buttons) --- */
+html .checkout-btn, html .co-btn, html .co-btn-ghost, html .co-btn-primary, html .co-place-btn,
+html .auth-submit-btn, html .auth-google-btn, html .auth-verify-primary, html .auth-verify-resend,
+html .install-banner-cta, html .ma-add-btn, html .ma-edit-btn, html .ma-cancel, html .ma-submit,
+html .notif-prompt-btn:not(.loading), html .oa-btn, html .oc-orders-btn, html .oc-see-more-btn,
+html .order-see-more-btn, html .orders-empty-cta, html .orders-load-more-btn, html .profile-view-save-btn,
+html .profile-view-logout-btn, html .receipt-action-btn, html .receipt-download-btn, html .receipt-print-btn,
+html .submit-btn, html .view-orders-btn, html .confirm-cancel-btn, html .confirm-ok-btn, html .onboard-submit-btn{
+  font-size:var(--ui-btn-fs) !important; font-weight:500 !important; line-height:1.3 !important;
+  padding:var(--ui-btn-pad) !important; border-radius:var(--ui-r-btn) !important;
+  letter-spacing:0 !important; text-transform:none !important;
+}
+/* full-width main actions get a little more height so they are easy to tap */
+html .checkout-btn, html .co-place-btn, html .auth-submit-btn, html .onboard-submit-btn, html .profile-view-save-btn{padding:11px 16px !important}
+html .oa-btn{padding:8px 12px !important; font-size:12.5px !important}
+html .receipt-action-btn{padding:8px 12px !important}
+
+/* --- primary --- */
+html .checkout-btn, html .co-place-btn, html .auth-submit-btn, html #onboardModal .auth-submit-btn, html .onboard-submit-btn,
+html .profile-view-save-btn, html #profileView .profile-view-save-btn, html .ma-modal-card .ma-submit, html .ma-submit,
+html .oa-btn.primary, html .co-btn-primary, html .auth-verify-primary, html .install-banner-cta, html .install-cta-btn,
+html .orders-empty-cta{
+  background:var(--ui-pri-bg) !important; background-image:none !important; color:var(--ui-pri-fg) !important;
+  border:0 !important; box-shadow:none !important;
+}
+html .checkout-btn:hover:not(:disabled), html .co-place-btn:hover:not(:disabled), html .auth-submit-btn:hover:not(:disabled),
+html #onboardModal .auth-submit-btn:hover:not(:disabled), html .onboard-submit-btn:hover:not(:disabled),
+html .profile-view-save-btn:hover:not(:disabled), html #profileView .profile-view-save-btn:hover:not(:disabled),
+html .ma-modal-card .ma-submit:hover:not(:disabled), html .ma-submit:hover:not(:disabled), html .oa-btn.primary:hover:not(:disabled),
+html .co-btn-primary:hover:not(:disabled), html .auth-verify-primary:hover:not(:disabled),
+html .install-banner-cta:hover:not(:disabled), html .install-cta-btn:hover, html .orders-empty-cta:hover:not(:disabled){
+  background:var(--ui-pri-bg-h) !important; color:var(--ui-pri-fg) !important;
+}
+html .checkout-btn:active:not(:disabled), html .co-place-btn:active:not(:disabled), html .auth-submit-btn:active:not(:disabled),
+html .profile-view-save-btn:active:not(:disabled), html #profileView .profile-view-save-btn:active:not(:disabled),
+html .ma-submit:active:not(:disabled), html .oa-btn.primary:active:not(:disabled), html .co-btn-primary:active:not(:disabled){
+  background:var(--ui-pri-bg-a) !important;
+}
+html .checkout-btn:disabled, html .co-place-btn:disabled, html .auth-submit-btn:disabled, html .profile-view-save-btn:disabled,
+html .ma-submit:disabled, html .oa-btn.primary:disabled{opacity:.4 !important; cursor:not-allowed !important}
+
+/* --- cancel / back = text only --- */
+html .confirm-cancel-btn, html .ma-cancel, html .auth-verify-resend{background:var(--ui-btn-bg) !important; color:var(--ink) !important}
+html .confirm-cancel-btn:hover:not(:disabled), html .ma-cancel:hover:not(:disabled), html .auth-verify-resend:hover:not(:disabled){
+  background:var(--ui-btn-bg-h) !important; color:var(--ink) !important;
+}
+/* dialog buttons (Cancel / Log out / Delete): same soft grey, dark label */
+html .confirm-cancel-btn, html .confirm-ok-btn{flex:1; padding:10px 16px !important; font-weight:600 !important}
+html .confirm-ok-btn{background:var(--ui-btn-bg) !important; color:var(--ui-btn-danger) !important}
+html .confirm-ok-btn:hover:not(:disabled){background:var(--ui-btn-bg-h) !important; color:var(--ui-btn-danger) !important}
+
+/* --- active toggles (currency, segments) were green: use the same inverse as primary --- */
+html .pv-seg button.active{
+  background:var(--ui-pri-bg) !important; color:var(--ui-pri-fg) !important; border-color:transparent !important; box-shadow:none !important;
+}
+
+/* --- keyboard focus --- */
+html button:focus-visible, html .co-btn:focus-visible, html a[class*="btn"]:focus-visible{outline:2px solid var(--ink-soft); outline-offset:2px}
+
+/* --- destructive actions: red label (log out, delete, cancel order, remove) --- */
+html .confirm-ok-btn, html .js-profile-logout-btn, html .profile-view-logout-btn, html .pv-delete-link,
+html .order-cancel-btn, html .cart-row-delete, html .oa-btn.danger{color:var(--ui-btn-danger) !important}
+html .js-profile-logout-btn svg, html .cart-row-delete svg, html .order-cancel-btn svg{color:inherit; stroke:currentColor}
+html .order-cancel-btn:hover:not(:disabled), html .cart-row-delete:hover{color:var(--ui-btn-danger) !important; background:rgba(213,71,60,.10) !important}
+
+/* --- currency toggle (MVR / USD): flat dark track, white selected pill with dark label --- */
+html .currency-toggle, html .pv-currency-toggle, html #profileView .pv-currency-toggle, html .profile-view .pv-currency-toggle{
+  background:#1A2436 !important; background-image:none !important; border:1px solid rgba(255,255,255,.10) !important;
+  box-shadow:none !important; border-radius:10px !important;
+}
+html .currency-toggle-thumb{
+  background:#FFFFFF !important; background-image:none !important; border:0 !important;
+  box-shadow:0 1px 3px rgba(0,0,0,.35) !important; border-radius:7px !important;
+}
+html .currency-toggle-btn, html .pv-currency-btn{border-radius:7px !important}
+html .currency-toggle-btn.active, html .pv-currency-btn.active,
+html #profileView .pv-currency-btn.active, html .profile-view .pv-currency-toggle .pv-currency-btn.active{
+  background:transparent !important; background-image:none !important; border-color:transparent !important; box-shadow:none !important;
+  color:#0F172A !important; font-weight:700 !important;
+}
+html .pv-currency-btn.active{background:#FFFFFF !important}
+html #profileView .pv-currency-btn.active, html .profile-view .pv-currency-toggle .pv-currency-btn.active{background:#FFFFFF !important}
+html .currency-toggle-btn.active span, html .pv-currency-btn.active span,
+html .profile-view .pv-currency-toggle .pv-currency-btn.active span,
+html .currency-toggle-btn.active .currency-toggle-usd-icon, html .pv-currency-btn.active .currency-toggle-usd-icon,
+html .profile-view .pv-currency-toggle .pv-currency-btn.active .currency-toggle-usd-icon{color:#0F172A !important}
+html .currency-toggle-btn.active .currency-toggle-icon, html .pv-currency-btn.active .currency-toggle-icon, html .pv-currency-btn.active .cur-icon{filter:brightness(0) !important}
+html .currency-toggle-btn:not(.active), html .pv-currency-btn:not(.active), html #profileView .pv-currency-btn:not(.active),
+html .profile-view .pv-currency-toggle .pv-currency-btn:not(.active){color:rgba(255,255,255,.72) !important}
+html .currency-toggle-btn:not(.active):hover, html .pv-currency-btn:not(.active):hover{color:#fff !important; background:rgba(255,255,255,.08) !important}
+
+/* =====================================================================
+   TOGGLE SWITCHES — iOS style: blue track when on, big white knob
+   ===================================================================== */
+:root{--ui-switch-on:#2F63F5; --ui-switch-off:#D3D8E0}
+html[data-theme="dark"]{--ui-switch-on:#3D6FFF; --ui-switch-off:#3A4660}
+
+html .pv-toggle-switch{width:44px !important; height:26px !important}
+html .pv-toggle-slider{background:var(--ui-switch-off) !important; border-radius:999px !important}
+html .pv-toggle-slider::before{top:3px !important; left:3px !important; width:20px !important; height:20px !important; border-radius:50% !important; background:#fff !important; box-shadow:0 1px 3px rgba(0,0,0,.3) !important}
+html .pv-toggle-switch input:checked + .pv-toggle-slider{background:var(--ui-switch-on) !important}
+html .pv-toggle-switch input:checked + .pv-toggle-slider::before{transform:translateX(18px) !important}
+
+html .ma-switch-slider, html .ma-modal-card .ma-switch-slider{width:44px !important; height:26px !important; border-radius:999px !important; background:var(--ui-switch-off) !important}
+html .ma-switch-slider::after, html .ma-modal-card .ma-switch-slider::after{top:3px !important; left:3px !important; width:20px !important; height:20px !important; border-radius:50% !important; background:#fff !important; box-shadow:0 1px 3px rgba(0,0,0,.3) !important}
+html .ma-switch input:checked+.ma-switch-slider{background:var(--ui-switch-on) !important}
+html .ma-switch input:checked+.ma-switch-slider::after{transform:translateX(18px) !important}
+html .pv-toggle-switch input:focus-visible + .pv-toggle-slider, html .ma-switch input:focus-visible+.ma-switch-slider{outline:2px solid var(--ui-switch-on); outline-offset:2px}
+
+/* --- Currency row in profile dropdown (hover menu, same look as Theme) --- */
+.pd-cur-value{font-size:12.5px;font-weight:500;color:var(--ink-soft);margin-right:2px}
+.theme-menu.cur-menu{min-width:140px}
+
+
+/* =====================================================================
+   CHECKOUT — no green anywhere. Selected = soft slate fill (same as the admin's selected
+   item), selection marks / focus / primary button = blue. Scoped to the checkout page only.
+   ===================================================================== */
+
+/* light theme */
+html:not([data-theme="dark"]) body.co-page .co-title,
+html:not([data-theme="dark"]) body.co-page .co-section-head,
+html:not([data-theme="dark"]) body.co-page .co-num,
+html:not([data-theme="dark"]) body.co-page .co-item-name,
+html:not([data-theme="dark"]) body.co-page .co-item-price,
+html:not([data-theme="dark"]) body.co-page .co-item-qty span,
+html:not([data-theme="dark"]) body.co-page .co-summary-title,
+html:not([data-theme="dark"]) body.co-page .co-summary-row.co-total,
+html:not([data-theme="dark"]) body.co-page .co-bank-name,
+html:not([data-theme="dark"]) body.co-page .co-bank-accounts div,
+html:not([data-theme="dark"]) body.co-page .co-coupon-btn{color:#0F172A}
+html:not([data-theme="dark"]) body.co-page .co-num{background:#E7EBF0}
+
+/* every "selected" option: slate fill, no dark/green outline */
+html:not([data-theme="dark"]) body.co-page .co-tab.active{background:#E7EBF0;border:2px solid #E7EBF0}
+html:not([data-theme="dark"]) body.co-page .co-day.active,
+html:not([data-theme="dark"]) body.co-page .co-slot.active{background:#E7EBF0;border-color:#E7EBF0;color:#0F172A}
+html:not([data-theme="dark"]) body.co-page .co-tab.active .co-tab-icon{color:#0F172A}
+html:not([data-theme="dark"]) body.co-page .co-acct:hover{border-color:#CBD5E1;background:#F1F5F9}
+html:not([data-theme="dark"]) body.co-page .co-acct.is-selected:hover{border-color:#E7EBF0;background:#E7EBF0}
+html:not([data-theme="dark"]) body.co-page .co-bank-accounts div.co-bank-match{background:#E7EBF0;border-color:#E7EBF0}
+html:not([data-theme="dark"]) body.co-page .co-bank-accounts div.co-bank-match .co-bank-tag{color:var(--green-800)}
+html:not([data-theme="dark"]) body.co-page .co-dd-opt:hover,
+html:not([data-theme="dark"]) body.co-page .co-dd-opt.active{background:#E7EBF0}
+html:not([data-theme="dark"]) body.co-page .co-qr-fallback{background:#F1F5F9}
+
+/* teal / green focus + link accents -> blue */
+body.co-page .co-field input:focus,
+body.co-page .co-field select:focus,
+body.co-page .co-field textarea:focus{border-color:#2563EB;box-shadow:0 0 0 2px rgba(37,99,235,.16)}
+body.co-page .co-dd-btn:focus,
+body.co-page .co-dd.open .co-dd-btn{border-color:#2563EB;box-shadow:0 0 0 2px rgba(37,99,235,.16)}
+body.co-page .co-upload:hover{border-color:#2563EB}
+html:not([data-theme="dark"]) body.co-page .co-bank-label{color:var(--green-800)}
+body.co-page .co-place-btn:hover{box-shadow:none}
+
+/* "Verified" business badge + success tick */
+body.co-page .co-biz-badge.is-verified{background:#DBEAFE;color:#1D4ED8}
+body.co-page .co-check-badge{background:linear-gradient(145deg,#3B82F6,#2563EB);box-shadow:0 10px 26px rgba(37,99,235,.38),0 0 0 8px rgba(37,99,235,.12)}
+
+/* dark theme */
+html[data-theme="dark"] body.co-page .co-tab.active,
+html[data-theme="dark"] body.co-page .co-day.active,
+html[data-theme="dark"] body.co-page .co-slot.active{background:#202D48;border-color:#202D48;color:#E7EDF7}
+html[data-theme="dark"] body.co-page .co-bank-accounts div.co-bank-match{background:#202D48;border-color:#202D48}
+html[data-theme="dark"] body.co-page .co-bank-accounts div.co-bank-match .co-bank-tag{color:#9ADBC4}
+html[data-theme="dark"] body.co-page .co-bank-label{color:#9ADBC4}
+html[data-theme="dark"] body.co-page .co-dd-opt:hover,
+html[data-theme="dark"] body.co-page .co-dd-opt.active{background:#202D48}
+html[data-theme="dark"] body.co-page .co-coupon-btn{background:#243350}
+html[data-theme="dark"] body.co-page .co-coupon-btn:hover{background:#2C3D5F}
+html[data-theme="dark"] body.co-page .co-qr-fallback{background:#16213a}
+html[data-theme="dark"] body.co-page .co-biz-badge.is-verified{background:rgba(59,130,246,.18);color:#93C5FD}
+
+
+/* Bank details: each account shows its currency icon + name (MVR / USD) */
+body.co-page .co-bank-tag{flex:0 0 auto;width:auto;gap:9px;justify-content:flex-start;font-size:12px;font-weight:800;letter-spacing:.06em}
+body.co-page .co-cur-badge{display:inline-grid;place-items:center;width:20px;height:20px;flex:none;background:none;border:0;border-radius:0;color:#0F172A;font-size:17px;font-weight:800;line-height:1;letter-spacing:0}
+body.co-page .co-cur-badge .cur-icon{height:16px;width:auto;margin:0;vertical-align:baseline}
+body.co-page .co-cur-name{min-width:30px}
+html[data-theme="dark"] body.co-page .co-cur-badge{color:#E7EDF7}   /* $ turns light; the MVR glyph is inverted by the global .cur-icon dark rule */
+html[data-theme="dark"] body.co-page .co-cur-badge .cur-icon{filter:brightness(0) invert(1)}
+
+
+.mobile-menu:not(.open){box-shadow:none !important}   /* closed off-canvas menu must not bleed a shadow onto the page */
+
+
+/* =====================================================================
+   PRODUCT PAGE actions — compact: [ Add to cart ] [ Buy now ] [ share ]
+   ===================================================================== */
+html .pd-action-row{display:flex;align-items:stretch;gap:10px;max-width:none;min-height:0;border:0;position:relative}
+html .pd-action-row .card-add,
+html .pd-action-row .pd-buy-btn{flex:1 1 0;min-width:0;height:42px;padding:0 14px !important;margin:0;border-radius:8px !important;font-size:13px !important;font-weight:600 !important;letter-spacing:0 !important;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:none !important;transition:background .15s,color .15s,border-color .15s,transform .1s}
+html .pd-action-row .card-add:not(.loading){background:transparent !important;border:1.5px solid var(--green-800) !important;color:var(--green-800) !important}
+html .pd-action-row .card-add:not(.loading):hover:not(:disabled){background:var(--green-50) !important}
+html .pd-action-row .card-add svg{width:15px;height:15px;color:inherit}
+html .pd-action-row .card-add.card-add-disabled{border-color:var(--line) !important;color:var(--ink-soft) !important;cursor:not-allowed}
+html .pd-action-row .card-add.loading{flex:none;height:42px}
+html .pd-action-row .pd-buy-btn{background:var(--green-800);color:#fff;border:1.5px solid var(--green-800)}
+html .pd-action-row .pd-buy-btn:hover{background:var(--green-900);border-color:var(--green-900)}
+html .pd-action-row .pd-buy-btn:active,html .pd-action-row .card-add:not(.loading):active{transform:scale(.97)}
+html .pd-action-row:has(.card-add.loading) .pd-buy-btn{opacity:0;pointer-events:none;transition:opacity .15s}
+html .pd-action-row .pd-share-btn{flex:0 0 42px;width:42px;height:42px;padding:0;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center}
+html .pd-action-row .pd-share-btn:hover{background:var(--gray-50,#F1F5F9);color:var(--ink)}
+html[data-theme="dark"] .pd-action-row .card-add:not(.loading){border-color:#4A9C80 !important;color:#9ADBC4 !important}
+html[data-theme="dark"] .pd-action-row .card-add:not(.loading):hover:not(:disabled){background:rgba(74,156,128,.14) !important}
+html[data-theme="dark"] .pd-action-row .pd-buy-btn{background:var(--ui-pri-bg);border-color:var(--ui-pri-bg)}
+html .pd-qty-select{padding-bottom:14px}
+@media (min-width:721px){html .pd-action-row{max-width:none}}
+
+/* =====================================================================
+   STOCK STATUS — bold coloured text (no dot)
+   In Stock = green · Low Stock = amber · Out of Stock = red
+   ===================================================================== */
+html .stock-indicator{gap:0;font-size:12px;font-weight:700;letter-spacing:0;line-height:1.2;margin-bottom:6px}
+html .stock-indicator .stock-dot{display:none}
+html .stock-indicator .stock-text{font-weight:700}
+html .stock-indicator.in-stock .stock-text{color:#00A63E}
+html .stock-indicator.low-stock .stock-text{color:#E17100}
+html .stock-indicator.out-stock .stock-text{color:#E7000B}
+html .pd-info .stock-indicator{font-size:15px;margin-bottom:8px}
+@media (min-width:721px){html .pd-info .stock-indicator{font-size:16px;margin-bottom:10px}}
+html[data-theme="dark"] .stock-indicator.in-stock .stock-text{color:#05DF72}
+html[data-theme="dark"] .stock-indicator.low-stock .stock-text{color:#FFB900}
+html[data-theme="dark"] .stock-indicator.out-stock .stock-text{color:#FF6467}
+
+/* =====================================================================
+   BUY NOW — smooth hand-off to checkout
+   Button → spinner, then the page fades out (transform / opacity only)
+   ===================================================================== */
+html .pd-action-row .pd-buy-btn.is-buying{pointer-events:none;cursor:default;animation:buyPress .32s cubic-bezier(.22,1,.36,1)}
+html .pd-action-row .pd-buy-btn .buy-spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;flex-shrink:0;animation:buySpin .7s linear infinite}
+html .pd-action-row .pd-buy-btn .buy-label{animation:buyLabelIn .3s cubic-bezier(.22,1,.36,1) both}
+@keyframes buySpin{to{transform:rotate(360deg)}}
+@keyframes buyPress{0%{transform:scale(1)}40%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes buyLabelIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+body.is-buy-leaving{animation:buyPageOut .4s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes buyPageOut{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  html .pd-action-row .pd-buy-btn.is-buying,
+  html .pd-action-row .pd-buy-btn .buy-label{animation:none}
+  body.is-buy-leaving{animation:none;opacity:0}
+}
+
+/* =====================================================================
+   BACK BUTTON (checkout + my accounts) — no background, no blue.
+   Only the arrow moves (slides left) while the cursor is over it.
+   ===================================================================== */
+html body.co-page .co-back,
+html body.co-page .co-back:hover,
+html body.co-page .co-back:active,
+html body.co-page .co-back:focus,
+html body.co-page .co-back:focus-visible{
+  background:none !important;
+  box-shadow:none !important;
+  outline:none;
+  -webkit-tap-highlight-color:transparent;
+}
+html body.co-page .co-back svg{transition:transform .25s cubic-bezier(.22,1,.36,1)}
+@media (hover:hover) and (pointer:fine){
+  html body.co-page .co-back:hover svg{transform:translateX(-4px)}
+}
+
+/* Back arrow stays gray in every state — only the gray highlight shows (no blue) */
+html body.co-page .co-back,
+html body.co-page .co-back:visited,
+html body.co-page .co-back:hover,
+html body.co-page .co-back:active,
+html body.co-page .co-back:focus,
+html body.co-page .co-back:focus-visible{color:#4B5563 !important}
+html[data-theme="dark"] body.co-page .co-back,
+html[data-theme="dark"] body.co-page .co-back:visited,
+html[data-theme="dark"] body.co-page .co-back:hover,
+html[data-theme="dark"] body.co-page .co-back:active,
+html[data-theme="dark"] body.co-page .co-back:focus,
+html[data-theme="dark"] body.co-page .co-back:focus-visible{color:#a3abb7 !important}
+html body.co-page .co-back svg{color:inherit;stroke:currentColor}
+
+/* =====================================================================
+   LOADING SKELETONS — soft gray tiles, GPU-friendly
+   · only opacity animates (compositor-only: no layout, paint or box-shadow per frame)
+   · no moving gradients, no backdrop blur
+   · used for: first load / reload, category switch, search, and every product photo
+     (shows until the photo has loaded — lazy photos load as you scroll to them)
+   ===================================================================== */
+@keyframes skPulse{0%,100%{opacity:0}50%{opacity:1}}
+@keyframes skCardPulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* grid skeleton card — mirrors a real product card so nothing jumps when products appear */
+html .skeleton-card{
+  background:#F1F2ED;border:0;border-radius:var(--ui-r-card, 16px);overflow:hidden;
+  display:flex;flex-direction:column;
+  will-change:opacity;
+  animation:skCardPulse 1.4s ease-in-out infinite;
+}
+html .skeleton-card:nth-child(3n+2){animation-delay:.15s}
+html .skeleton-card:nth-child(3n){animation-delay:.3s}
+html .skeleton-media{aspect-ratio:1/0.82;background:#E7E8E2;position:relative}
+html .skeleton-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
+html .skeleton-line{height:12px;width:85%;background:#E4E5DF;border-radius:6px;position:relative}
+html .skeleton-line.sm{height:9px;width:38%}
+html .skeleton-line.short{width:48%}
+html .skeleton-btn{height:36px;margin-top:6px;border-radius:10px;background:#E4E5DF}
+/* the old per-element shimmer (many animated layers) is retired */
+html .skeleton-media::after,
+html .skeleton-line::after{display:none;animation:none}
+
+/* product photo skeleton — sits on top of the photo until it has loaded */
+html .img-skel{
+  position:absolute;inset:0;z-index:2;
+  background:#F1F2ED;
+  pointer-events:none;
+  transition:opacity .3s ease, visibility 0s linear 0s;
+}
+html .img-skel::after{
+  content:"";position:absolute;inset:0;
+  background:#E4E5DF;
+  will-change:opacity;
+  animation:skPulse 1.4s ease-in-out infinite;
+}
+html .is-loaded > .img-skel{opacity:0;visibility:hidden;transition:opacity .3s ease, visibility 0s linear .3s}
+html .is-loaded > .img-skel::after{animation:none;will-change:auto}
+/* the photo fades in once it is ready (opacity only) */
+html .card-media .card-img{transition:transform .55s cubic-bezier(.22,1,.36,1), opacity .35s ease}
+html .card-media:not(.is-loaded) .card-img,
+html .pd-media:not(.is-loaded) img{opacity:0}
+html .pd-media img{transition:opacity .35s ease}
+
+/* dark mode */
+html[data-theme="dark"] .skeleton-card{background:#1B2842}
+html[data-theme="dark"] .skeleton-media{background:#202D48}
+html[data-theme="dark"] .skeleton-line,
+html[data-theme="dark"] .skeleton-btn{background:#243350}
+html[data-theme="dark"] .img-skel{background:#1B2842}
+html[data-theme="dark"] .img-skel::after{background:#243350}
+
+@media (prefers-reduced-motion:reduce){
+  html .skeleton-card,html .img-skel::after{animation:none;will-change:auto}
+  html .skeleton-card{opacity:.8}
+}
+
+/* =====================================================================
+   PROFILE → Preferred currency: dropdown (same look as Theme) with icons
+   ===================================================================== */
+.pv-cur-trigger{min-width:132px}
+.pv-cur-trigger [data-currency-current]{flex:1;text-align:left}
+.pv-cur-trigger .th-chev{transition:transform .18s ease}
+.pv-cur-trigger[aria-expanded="true"] .th-chev{transform:rotate(180deg)}
+.theme-menu.cur-drop{min-width:150px}
+.theme-menu .cur-opt{display:inline-flex;align-items:center;gap:10px}
+.cur-opt-ico{display:inline-grid;place-items:center;flex:none;width:20px;height:20px;color:var(--ink-soft)}
+.cur-opt-ico img{height:13px;width:auto;display:block}
+.cur-opt-ico .cur-glyph{font-weight:700;font-size:16px;line-height:1;color:var(--ink-soft)}
+html[data-theme="dark"] .cur-opt-ico img{filter:brightness(0) invert(1);opacity:.8}
+@media (prefers-reduced-motion:reduce){.pv-cur-trigger .th-chev{transition:none}}
+
+/* Currency menu — compact size (header + profile) */
+html .theme-menu.cur-drop{min-width:0;width:auto;padding:5px;border-radius:14px}
+html .theme-menu.cur-drop button{gap:14px;padding:8px 10px;border-radius:10px;font-size:13px}
+html .theme-menu.cur-drop .cur-opt{gap:8px}
+html .theme-menu.cur-drop .cur-opt-ico{width:16px;height:16px}
+html .theme-menu.cur-drop .cur-opt-ico img{height:11px}
+html .theme-menu.cur-drop .cur-opt-ico .cur-glyph{font-size:14px}
+html .theme-menu.cur-drop .th-check{width:14px;height:14px}
+@media (max-width:768px){
+  html .theme-menu.cur-drop{min-width:0}
+  html .theme-menu.cur-drop button{padding:8px 10px;font-size:13px}
+}
+
+/* ============ Cart drawer — regular weight text (no bold) ============ */
+.cart-drawer .drawer-head h3,
+.cart-drawer .cart-item-count,
+.cart-drawer .cart-row-title,
+.cart-drawer .cart-row-price,
+.cart-drawer .cart-row-qty span,
+.cart-drawer .cart-row-qty button,
+.cart-drawer .cart-row-remove,
+.cart-drawer .drawer-subtotal,
+.cart-drawer .drawer-subtotal span,
+.cart-drawer .drawer-subtotal strong,
+.cart-drawer .checkout-btn{font-weight:400 !important;}
+
+/* ============ Receipt modal — slide up to open, slide down to close ============ */
+.receipt-modal{
+  /* stay visible while the card slides away, then switch off */
+  transition:opacity 0s linear .5s;
+}
+.receipt-modal.open{
+  transition:opacity 0s linear 0s;
+}
+.receipt-modal .receipt-modal-card{
+  transform:translate3d(0,110vh,0);
+  transition:transform .5s cubic-bezier(.32,.72,0,1);
+  will-change:transform;
+}
+.receipt-modal.open .receipt-modal-card{
+  transform:translate3d(0,0,0);
+}
+.receipt-backdrop{transition:opacity .45s ease;}
+@media (prefers-reduced-motion:reduce){
+  .receipt-modal .receipt-modal-card{transition-duration:.01s;}
+}
+
+/* ============ My accounts header — keep title + Add button on one line (mobile) ============ */
+html #profileView .pv-accounts-card .ma-head,
+html .ma-panel .ma-head{flex-wrap:nowrap;align-items:center;gap:10px;}
+html #profileView .pv-accounts-card .ma-title,
+html .ma-panel .ma-title{white-space:nowrap;flex:0 0 auto;}
+html #profileView .pv-accounts-card .ma-add-btn,
+html .ma-panel .ma-add-btn{
+  white-space:nowrap;flex:0 1 auto;min-width:0;width:auto;min-height:0;
+  font-size:12px;line-height:1.2;padding:8px 12px;
+}
+@media (max-width:380px){
+  html #profileView .pv-accounts-card .ma-add-btn,
+  html .ma-panel .ma-add-btn{font-size:11px;padding:7px 10px;}
+}
+
+/* ============ Order details — regular weight text (no bold) ============ */
+.od-card,
+.od-card *{font-weight:400 !important;}
+
+/* ============ Orders / Profile menu opened from the bottom nav: slide up, slide down ============ */
+.profile-view.rise,
+.profile-menu.rise:not(.open):not(.park-left){
+  transform:translate3d(0,100%,0);
+}
+.profile-view.rise,
+.profile-menu.rise{
+  transition:transform .5s cubic-bezier(.32,.72,0,1);
+}
+.profile-view.rise.open,
+.profile-menu.rise.open{
+  transform:translate3d(0,0,0);
+}
+@media (prefers-reduced-motion:reduce){
+  .profile-view.rise,.profile-menu.rise{transition-duration:.01s;}
+}
+
+/* ============ Product page: Add to Cart / Buy now / Share — always one line ============ */
+html .pd-action-row .card-add,
+html .pd-action-row .pd-buy-btn{
+  white-space:nowrap;flex-wrap:nowrap;
+  padding:0 10px !important;gap:6px;
+  line-height:1 !important;
+}
+html .pd-action-row .card-add .card-add-label,
+html .pd-action-row .pd-buy-btn .buy-label{white-space:nowrap;}
+html .pd-action-row .card-add .card-add-icon,
+html .pd-action-row .card-add > svg{flex:0 0 auto;}
+@media (max-width:420px){
+  html .pd-action-row{gap:8px;}
+  html .pd-action-row .card-add,
+  html .pd-action-row .pd-buy-btn{font-size:12.5px !important;padding:0 8px !important;gap:5px;}
+  html .pd-action-row .card-add svg{width:14px;height:14px;}
+}
+@media (max-width:340px){
+  html .pd-action-row .card-add,
+  html .pd-action-row .pd-buy-btn{font-size:11.5px !important;padding:0 6px !important;}
+  html .pd-action-row .card-add svg{display:none;}   /* very narrow phones: drop the cart icon, keep the text on one line */
+}
+
+
+/* ============================================================
+   FOOTER — Get in Touch alignment fix
+   The address comes from site settings and can be long, so it must wrap
+   inside its column instead of running off the page. Phone and email stay
+   on one line. The last column gets a little more room than the others.
+   ============================================================ */
+.footer-contact li{white-space:normal;overflow-wrap:break-word;min-width:0;}
+.footer-contact li:not(:first-child),
+.footer-contact li:not(:first-child) a{white-space:nowrap;overflow-wrap:normal;}
+.footer-contact li a{display:inline-block;}
+.footer-contact li a:hover{transform:none;}
+.footer-top{
+  grid-template-columns:minmax(240px,1.5fr) repeat(3,minmax(130px,1fr)) minmax(215px,1.3fr);
+}
+@media (max-width:1100px){
+  .footer-top{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(215px,1.3fr);}
+}
+@media (max-width:900px){
+  .footer-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+}
+@media (max-width:380px){
+  .footer-contact li,
+  .footer-contact li a{white-space:normal;overflow-wrap:anywhere;}
+}
+
+
+/* =====================================================================
+   STOCK STATUS — green dot with soft halo + dark text
+   In stock → Low stock use the dot style (green / amber).
+   Out of stock keeps its red text.
+   ===================================================================== */
+html .stock-indicator.in-stock,
+html .stock-indicator.low-stock{
+  --sd:7px; --sh:2.5px;
+  display:flex;align-items:center;gap:calc(var(--sh) + 7px);
+  padding-left:var(--sh);
+  font-size:10.5px;font-weight:500;line-height:1.3;letter-spacing:0;
+}
+html .stock-indicator.in-stock .stock-dot,
+html .stock-indicator.low-stock .stock-dot{
+  display:block;flex-shrink:0;
+  width:var(--sd);height:var(--sd);border-radius:50%;
+  animation:none;
+}
+html .stock-indicator.in-stock .stock-dot{
+  background:#22C55E;box-shadow:0 0 0 var(--sh) rgba(34,197,94,.24);
+}
+html .stock-indicator.low-stock .stock-dot{
+  background:#F59E0B;box-shadow:0 0 0 var(--sh) rgba(245,158,11,.26);
+}
+html .stock-indicator.in-stock .stock-dot::after,
+html .stock-indicator.low-stock .stock-dot::after{display:none;animation:none;}
+html .stock-indicator.in-stock .stock-text,
+html .stock-indicator.low-stock .stock-text,
+html[data-theme="dark"] .stock-indicator.in-stock .stock-text,
+html[data-theme="dark"] .stock-indicator.low-stock .stock-text{
+  color:var(--ink);font-weight:500;
+}
+/* product page — larger, like the reference */
+html .pd-info .stock-indicator.in-stock,
+html .pd-info .stock-indicator.low-stock{--sd:9px;--sh:3.5px;font-size:13px;margin-bottom:10px;}
+@media (min-width:721px){
+  html .pd-info .stock-indicator.in-stock,
+  html .pd-info .stock-indicator.low-stock{font-size:14px;}
+}
+/* Out of stock text matches the smaller size */
+html .stock-indicator.out-stock{font-size:10.5px;}
+html .pd-info .stock-indicator.out-stock{font-size:13px;margin-bottom:10px;}
+@media (min-width:721px){html .pd-info .stock-indicator.out-stock{font-size:14px;}}

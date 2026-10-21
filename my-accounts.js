@@ -165,7 +165,16 @@
 
   /* ---------- start (inside the Profile page) ---------- */
   function refresh(){
-    MaziAPI.getSession().then(function(s){ if (s) load(); }).catch(function(){});
+    MaziAPI.getSession().then(function(s){
+    if (!s) return;
+    load();
+    // Live: staff approve / reject an account -> the card updates without a reload
+    // (needs 59_realtime_everything.sql; refreshing when the tab becomes visible is the fallback).
+    var t = null;
+    function soon(){ clearTimeout(t); t = setTimeout(function(){ if (!document.hidden) load(); }, 300); }
+    try { if (MaziAPI.subscribeShops) MaziAPI.subscribeShops(soon); } catch(e){}
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) soon(); });
+  }).catch(function(){});
   }
   document.addEventListener('DOMContentLoaded', function(){
     if (!$('maGrid') || !window.MaziAPI) return;
