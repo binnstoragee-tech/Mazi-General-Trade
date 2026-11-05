@@ -48,7 +48,7 @@ RedirectMatch 404 ^/(supabase|docs|archive|\.git)(/|$)
   # onerror=/onload= at isang inline <script> sa admin.html. Kapag naalis
   # na ang mga iyon, tanggalin din ang 'unsafe-inline' — doon lalakas ang
   # proteksyon laban sa XSS.
-  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://www.facebook.com https://connect.facebook.net https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
   # Anti-clickjacking (enforced na agad — walang kailangang subukan)
   Header always set X-Frame-Options "DENY"
@@ -60,7 +60,7 @@ RedirectMatch 404 ^/(supabase|docs|archive|\.git)(/|$)
   # Ang 'unsafe-inline' ay nandito pa dahil sa inline loader sa admin.html.
   # ----------------------------------------------------------------
   <FilesMatch "^admin\.html$">
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://fzxaonudfsfxtbmvejeu.supabase.co; connect-src 'self' https://www.facebook.com https://connect.facebook.net https://fzxaonudfsfxtbmvejeu.supabase.co wss://fzxaonudfsfxtbmvejeu.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     Header always set Cache-Control "no-store, no-cache, must-revalidate"
     Header always set Cross-Origin-Resource-Policy "same-origin"
     Header always set X-Robots-Tag "noindex, nofollow, noarchive"

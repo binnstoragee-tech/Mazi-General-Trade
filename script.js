@@ -2129,6 +2129,13 @@ function addToCart(id, qty){
   updateCartUI();
   refreshCardSlot(id);
   openCart();
+  try {
+    const prod = PRODUCTS.find(p => p.id === id);
+    if (window.mazipx) mazipx('AddToCart', {
+      content_ids: [String(id)], content_type: 'product',
+      content_name: prod ? (prod.name || '') : '', num_items: qty
+    });
+  } catch(e){}
 }
 
 function changeQty(id, delta){

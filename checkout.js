@@ -758,6 +758,14 @@ function showSuccess(order, contactLabel){
   $('#coSuccessSub').textContent = `Hi ${firstName}, your order for ${itemCount} product${itemCount!==1?'s':''} has been received and is now pending confirmation from our team.`;
   $('#coSuccessTotal').innerHTML = fmtCur(order.total, order.currency || 'MVR');
   $('#coSuccessOrderId').textContent = order.id;
+  try {
+    if (window.mazipx) mazipx('Purchase', {
+      value: Number(order.total) || 0, currency: order.currency || 'MVR',
+      content_type: 'product',
+      content_ids: (order.items || []).map(it => String(it.product_id || it.id || '')).filter(Boolean),
+      num_items: itemCount
+    });
+  } catch(e){}
   const d = new Date(order.placedAt);
   $('#coSuccessDate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) + ', ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
   $('#coSuccessContact').textContent = contactLabel || '—';
