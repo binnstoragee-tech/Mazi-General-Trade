@@ -40,25 +40,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet"></noscript>
 <script src="theme.js?v=20261021a"></script>
-<link rel="stylesheet" href="style.css?v=20261021f">
+<link rel="stylesheet" href="style.css?v=20261107x">
 <script src="meta-pixel.js" async></script>
 </head>
 <body class="has-bottom-nav">
 
-<!-- ============ APP SPLASH LOADER (installed app only) ============ -->
+<!-- ============ APP SPLASH LOADER (first open only) ============ -->
 <div id="pageLoader" hidden>
   <div class="loader-inner">
     <img src="img/logo-green.png" alt="MAZI" class="loader-logo">
-    <div class="loader-dots">
-      <span></span><span></span><span></span>
-    </div>
   </div>
 </div>
+<script src="loader.js?v=20261107b"></script>
 <script src="supabase.js" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="api.js?v=20261018d" defer></script>
+<script src="api.js?v=20261107a" defer></script>
 <script src="site-config.js?v=20261014a" defer></script>
-<script src="loader.js" defer></script>
 
 <!-- ============ NAVBAR ============ -->
 <header class="navbar">
@@ -227,19 +224,25 @@
       <div class="popular-grid" id="popularProductsGrid"></div>
     </section>
 
-    <!-- Special offers promo banner (redesign) -->
-    <section class="promo-banner" id="promoBanner">
-      <div class="promo-banner-text">
-        <div class="promo-eyebrow">Special Offers</div>
-        <h2>Better products.<br><span>Better business.</span></h2>
-        <p>Great value for your everyday needs.</p>
-        <button class="promo-cta" id="promoShopBtn">
-          Shop Offers
-          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-      <img src="img/home/1.jpeg" alt="" class="promo-banner-img" onerror="this.remove()">
-    </section>
+    <!-- Special Offers strip with live countdown.
+         Sale period: Nov 1-11, 2026 (Maldives time, UTC+5). Change data-start / data-ends
+         to run another period. Before the start it shows "Starts in"; after the end it shows "Offer ended". -->
+    <div class="flash-sale" id="flashSale" role="timer" aria-label="Special offers, November 1 to 11, 2026"
+       data-start="2026-11-01T00:00:00+05:00" data-ends="2026-11-11T23:59:59+05:00">
+      <svg class="fs-bolt" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
+      <span class="fs-title"><span>Special</span><span>Offers</span><small class="fs-date">Nov 1&ndash;11, 2026 only</small></span>
+      <span class="fs-timer">
+        <span class="fs-state" id="fsState">Ends in</span>
+        <span class="fs-units">
+          <span class="fs-u"><b id="fsD">00</b><small>Days</small></span>
+          <span class="fs-u"><b id="fsH">00</b><small>Hrs</small></span>
+          <span class="fs-u"><b id="fsM">00</b><small>Min</small></span>
+          <span class="fs-u"><b id="fsS">00</b><small>Sec</small></span>
+        </span>
+        <span class="fs-ended"><b>Offer ended</b><small>Stay tuned for the next one!</small></span>
+        <a class="fs-btn" href="https://www.facebook.com/share/p/1FQddV8bgP/" target="_blank" rel="noopener noreferrer">See Offers</a>
+      </span>
+    </div>
 
     <!-- Brands ticker (infinite auto-scroll) -->
     <section class="brands-ticker" id="brandsTicker">
@@ -648,9 +651,9 @@
         <span class="auth-head-icon">
           <svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </span>
-        <h2>Complete your profile</h2>
+        <h2 id="onboardTitle">Complete your profile</h2>
       </div>
-      <p>Just a few details so we can get your orders to you.</p>
+      <p id="onboardSub">Just a few details so we can get your orders to you.</p>
     </div>
 
     <form id="onboardForm" class="auth-form" novalidate>
@@ -704,7 +707,39 @@
       </label>
       </div>
 
-      <button type="submit" class="auth-submit-btn" id="onboardSubmit">Continue</button>
+      <button type="submit" class="auth-submit-btn" id="onboardSubmit">Next</button>
+    </form>
+
+    <!-- Step 2: business account (optional). "Skip" for shoppers who don't have one yet. -->
+    <form id="onboardBizForm" class="auth-form" novalidate hidden>
+      <label class="ma-switch" id="obGstSwitchRow">
+        <input type="checkbox" id="obGstExempt">
+        <span class="ma-switch-slider"></span>
+        <span class="ma-switch-text">Enable, if you're not GST registered</span>
+      </label>
+      <label class="auth-field" id="obGstField">
+        <span>GST TIN Number</span>
+        <input type="text" id="obGst" placeholder="e.g. 1234567GST501" autocomplete="off">
+      </label>
+      <label class="auth-field">
+        <span>Shop/Business Name</span>
+        <input type="text" id="obName" autocomplete="off">
+      </label>
+      <label class="auth-field">
+        <span>Business Type</span>
+        <select id="obBizType"></select>
+      </label>
+      <label class="auth-field">
+        <span>Atoll</span>
+        <select id="obAtoll"></select>
+      </label>
+      <label class="auth-field">
+        <span>City/Island</span>
+        <select id="obCity"></select>
+      </label>
+      <small class="field-error" id="obError" hidden></small>
+      <button type="submit" class="auth-submit-btn" id="obSubmit">Submit</button>
+      <button type="button" class="ob-skip-btn" id="obSkip">Skip, I don't have one yet</button>
     </form>
 
     </div>
@@ -870,7 +905,7 @@
       <h2 class="install-title" id="installTitle">How to Install on Your Device</h2>
       <p class="install-sub" id="installSub">Add MAZI to your home screen for<br class="install-sub-break">quick, app-like access.</p>
 
-      <p class="install-native-note" id="installNativeNote">Your browser supports one-tap install — no manual steps needed.</p>
+      <p class="install-native-note" id="installNativeNote">Your browser supports one-tap install - no manual steps needed.</p>
 
       <!-- Device tabs — mobile first (Android, iOS), then desktop (Windows).
            installGuideTabs.js reads navigator.userAgent to pre-select the
@@ -992,9 +1027,9 @@
           <button type="button" class="pv-theme-trigger pv-cur-trigger" id="pvCurTrigger" aria-haspopup="menu" aria-expanded="false" aria-label="Preferred currency"><span class="th-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.5 0-2.6.8-2.6 2 0 2.8 5.2 1.4 5.2 4.2 0 1.2-1.1 2-2.6 2-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5"/></svg></span><span data-currency-current>MVR</span><svg class="th-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
         </div>
         <div class="pv-set-row" id="pvNotifCard" hidden>
-          <div class="pv-set-info"><b>Order notifications</b><small>Get alerted on this device when an order status changes.</small></div>
+          <div class="pv-set-info"><b>Notifications</b><small>Get alerted on this device when an order status changes.</small></div>
           <label class="pv-toggle-switch">
-            <input type="checkbox" id="pvNotifToggle" aria-label="Order notifications">
+            <input type="checkbox" id="pvNotifToggle" aria-label="Notifications">
             <span class="pv-toggle-slider"></span>
           </label>
         </div>
@@ -1016,7 +1051,7 @@
         <label class="auth-field">
           <span>Email</span>
           <input type="email" id="pvEmail" readonly aria-readonly="true">
-          <small class="field-hint">This is the email you sign in with — it can't be changed here.</small>
+          <small class="field-hint">This is the email you sign in with - it can't be changed here.</small>
         </label>
         <label class="auth-field">
           <span>Contact Number</span>
@@ -1300,8 +1335,8 @@
 </div>
 
 <script src="page-transitions.js" defer></script>
-<script src="profile-extras.js?v=20260921h" defer></script>
-<script src="script.js?v=20261021c" defer></script>
-<script src="my-accounts.js?v=20261018c" defer></script>
+<script src="profile-extras.js?v=20261107i" defer></script>
+<script src="script.js?v=20261107s" defer></script>
+<script src="my-accounts.js?v=20261107a" defer></script>
 </body>
 </html>

@@ -1,47 +1,34 @@
 (function () {
-  // Only show the splash on the installed app (desktop or mobile "Add to
-  // Home Screen" / installed PWA window) — never on a normal browser tab.
-  var isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-    window.navigator.standalone === true; // iOS Safari home-screen apps
-
+  // Splash on the first open (installed app AND normal browser). Not on refresh,
+  // and not when moving to another page.
   var loader = document.getElementById('pageLoader');
   if (!loader) return;
 
-  if (!isStandalone) {
-    // Not installed — remove it immediately, no splash for regular visits.
-    loader.parentNode.removeChild(loader);
-    return;
+  function removeNow() {
+    if (loader.parentNode) loader.parentNode.removeChild(loader);
   }
+
+  // A refresh (reload) must NOT show the splash, only a fresh open does.
+  var isReload = false;
+  try {
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    isReload = !!(nav && nav.type === 'reload') ||
+      (!nav && performance.navigation && performance.navigation.type === 1);
+  } catch (e) {}
+
+  // Only once per app launch (moving between pages of the app does not replay it).
+  var alreadyShown = false;
+  try { alreadyShown = sessionStorage.getItem('mazi_splash_shown') === '1'; } catch (e) {}
+
+  if (isReload || alreadyShown) { removeNow(); return; }
+  try { sessionStorage.setItem('mazi_splash_shown', '1'); } catch (e) {}
 
   loader.hidden = false;
 
-  var MIN_VISIBLE_MS = 600; // brief branded flash only — just enough to avoid a jarring instant flicker
-  var startedAt = Date.now();
-
-  function hideLoader() {
-    var elapsed = Date.now() - startedAt;
-    var wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
-    setTimeout(function () {
-      loader.classList.add('loader-hide');
-      loader.addEventListener('transitionend', function remove() {
-        loader.removeEventListener('transitionend', remove);
-        if (loader.parentNode) loader.parentNode.removeChild(loader);
-      });
-      // Safety fallback in case transitionend doesn't fire
-      setTimeout(function () {
-        if (loader.parentNode) loader.parentNode.removeChild(loader);
-      }, 700);
-    }, wait);
-  }
-
-  if (document.readyState === 'complete') {
-    hideLoader();
-  } else {
-    window.addEventListener('load', hideLoader);
-  }
-
-  // Hard safety cap: never let the loader block the app for more than 2.5s
-  setTimeout(hideLoader, 2500);
+  // Exactly 2 seconds on screen, then a quick fade.
+  var SHOW_MS = 2000;
+  setTimeout(function () {
+    loader.classList.add('loader-hide');
+    setTimeout(removeNow, 450);
+  }, SHOW_MS);
 })();

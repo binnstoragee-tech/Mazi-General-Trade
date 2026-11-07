@@ -224,4 +224,78 @@
       [300, 1000].forEach(function(ms){ setTimeout(fillExtraProfile, ms); });
     }).observe(pv, { attributes: true, attributeFilter: ['class'] });
   });
+
+  /* ---------- 8) Save buttons stay disabled until something actually changed ----------
+     "Save Profile" unlocks only when a field differs from what was loaded (and locks again
+     after a successful save). The password "Save" unlocks only once all three boxes are filled. */
+  (function(){
+    var pvBase = null, userTouched = false, wrapped = false;
+    function pvEl(){ return $('profileView'); }
+    function isOpen(){ var pv = pvEl(); return !!(pv && pv.classList.contains('open')); }
+    function serialize(){
+      var card = document.querySelector('#profileView .pv-details-card');
+      if (!card) return '';
+      var vals = Array.prototype.map.call(card.querySelectorAll('input, select, textarea'), function(el){
+        return (el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? '1' : '0') : String(el.value || '');
+      });
+      var toggles = Array.prototype.map.call(document.querySelectorAll('#pvTypeTabs .co-tab, #profileView [data-currency]'), function(b){
+        return b.classList.contains('active') ? '1' : '0';
+      });
+      return vals.join('\u0001') + '\u0002' + toggles.join('');
+    }
+    function rebase(){ pvBase = serialize(); }
+    function profileDirty(){ return pvBase !== null && serialize() !== pvBase; }
+    function passFilled(){
+      return ['pvCurrentPass', 'pvNewPass', 'pvConfirmPass'].every(function(id){
+        var el = $(id); return el && el.value.length > 0;
+      });
+    }
+    function setLocked(btn, locked){
+      if (!btn) return;
+      if (/saving/i.test(btn.textContent)) return;       // leave the in-progress state alone
+      if (btn.disabled !== locked) btn.disabled = locked;
+      btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    }
+    function refresh(){
+      setLocked($('pvSaveBtn'), !profileDirty());
+      setLocked($('pvPassSaveBtn'), !passFilled());
+    }
+    // A save that really went through becomes the new "unchanged" baseline.
+    function wrapUpdateProfile(){
+      if (wrapped || !window.MaziAPI || typeof MaziAPI.updateProfile !== 'function') return;
+      wrapped = true;
+      var orig = MaziAPI.updateProfile;
+      MaziAPI.updateProfile = function(){
+        var r = orig.apply(this, arguments);
+        if (r && typeof r.then === 'function'){
+          r.then(function(){ rebase(); setTimeout(refresh, 0); }, function(){});
+        }
+        return r;
+      };
+    }
+    function onOpen(){
+      userTouched = false; pvBase = null;
+      wrapUpdateProfile();
+      // Take the baseline after the form has been filled (and again after late DB data lands),
+      // but stop as soon as the shopper starts editing.
+      [60, 450, 1250].forEach(function(ms){
+        setTimeout(function(){ if (isOpen() && !userTouched) { rebase(); refresh(); } }, ms);
+      });
+    }
+    function onUser(e){
+      if (e.isTrusted && e.target && e.target.closest && e.target.closest('#profileView')) userTouched = true;
+      setTimeout(refresh, 0);
+    }
+    ['input', 'change', 'click'].forEach(function(t){ document.addEventListener(t, onUser, true); });
+    document.addEventListener('DOMContentLoaded', function(){
+      var pv = pvEl();
+      if (pv && window.MutationObserver){
+        new MutationObserver(function(){ if (pv.classList.contains('open')) onOpen(); })
+          .observe(pv, { attributes: true, attributeFilter: ['class'] });
+      }
+      // Cheap safety net for changes made by code (cleared password boxes, late-loaded data).
+      setInterval(refresh, 300);
+      refresh();
+    });
+  })();
 })();

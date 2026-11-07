@@ -222,13 +222,17 @@ if (session && window.MaziAPI){
 }
 
 /* ---------- Contact ---------- */
+// +960 is fixed in the UI; the box only holds the 7-digit local number.
+function mobileDigits7(m){
+  return String(m || '').replace(/\D/g, '').replace(/^960/, '').slice(0, 7);
+}
 function renderContact(){
   const s = getSession() || {};
   const name = joinName(s.firstName, s.lastName) || s.name || 'there';
   $('#coContactName').textContent = `Signed in as ${name}`;
   $('#coContactMobile').textContent = s.mobile ? `+960${String(s.mobile).replace(/^\+?960/,'')}` : '';
   $('#coName').value = name !== 'there' ? name : '';
-  $('#coMobile').value = s.mobile || '';
+  $('#coMobile').value = mobileDigits7(s.mobile);
   renderBusinessInfo();
   startAccountsLive();
 }
@@ -447,18 +451,119 @@ function renderBankAccounts(){
   const usdRow = $('#coBankUSD');
   if (mvrRow) mvrRow.classList.toggle('co-bank-match', cur === 'MVR');
   if (usdRow) usdRow.classList.toggle('co-bank-match', cur === 'USD');
+  renderPaymentQr();
 }
+
+/* National QR per currency. MVR uses the Bank of Maldives PayMV QR; the USD
+   QR is loaded from img/qr_code/payment-qr-usd.png once that file is added. Until
+   then the shopper sees a clear note to use the USD bank account instead. */
+const PAYMENT_QR = {
+  MVR: { src: 'img/qr_code/payment-qr-mvr.png', alt: 'Bank of Maldives PayMV National QR (MVR)',
+         caption: 'Scan with your banking app and pay the exact MVR order total.' },
+  USD: { src: 'img/qr_code/payment-qr-usd.png', alt: 'National QR (USD)',
+         caption: 'Scan with your banking app and pay the exact USD order total.',
+         missing: 'USD QR is not available yet. Please transfer to the USD account shown above.' }
+};
+// Preload both QR images up front so switching MVR/USD is instant.
+Object.values(PAYMENT_QR).forEach(c => { const i = new Image(); i.decoding = 'async'; i.src = c.src; });
+function renderPaymentQr(){
+  const cur = getCurrency() === 'USD' ? 'USD' : 'MVR';
+  const cfg = PAYMENT_QR[cur];
+  $$('.co-cur-opt').forEach(b => {
+    const on = b.dataset.cur === cur;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const img = $('#coQrImg'), fb = $('#coQrFallback'), cap = $('#coQrCaption');
+  if (!img) return;
+  if (img.dataset.cur !== cur){
+    img.dataset.cur = cur;
+    img.classList.remove('img-missing');
+    img.alt = cfg.alt;
+    img.src = cfg.src;
+  }
+  if (fb) fb.textContent = cfg.missing || 'QR not available. Please use the bank transfer details above.';
+  if (cap) cap.textContent = cfg.caption;
+  const dl = $('#coQrDownload'), dlTxt = $('#coQrDownloadTxt');
+  if (dl){ dl.dataset.cur = cur; }
+  if (dlTxt) dlTxt.textContent = 'Download QR (' + cur + ')';
+}
+
+/* Download the QR image that is currently shown (MVR or USD). */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest && e.target.closest('#coQrDownload');
+  if (!btn) return;
+  const cur = btn.dataset.cur === 'USD' ? 'USD' : 'MVR';
+  const cfg = PAYMENT_QR[cur];
+  const fileName = 'MAZI-payment-QR-' + cur + '.png';
+  try{
+    const res = await fetch(cfg.src, { cache: 'force-cache' });
+    if (!res.ok) throw new Error('missing');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch(err){
+    if (typeof showToast === 'function') showToast(cur + ' QR is not available to download yet.');
+    else alert(cur + ' QR is not available to download yet.');
+  }
+});
+
+/* Switching currency here updates the whole checkout (prices, totals, bank
+   account highlight and the QR) and is remembered for the shop page too. */
+function setCheckoutCurrency(cur){
+  cur = cur === 'USD' ? 'USD' : 'MVR';
+  if (getCurrency() === cur) return;
+  try { localStorage.setItem('mazi_currency', cur); } catch(e){}
+  try { renderItems(); } catch(e){}
+  try { renderSummary(); } catch(e){}
+  try { if (coMethod === 'delivery' && $('#coIsland')) renderDeliveryEstimate(); } catch(e){}
+  renderBankAccounts();
+}
+/* Copy account number (digits only, so it pastes cleanly into banking apps). */
+function copyText(t){
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+  return new Promise((res, rej) => {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly',''); ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+    ta.remove(); ok ? res() : rej();
+  });
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest && e.target.closest('.co-copy');
+  if (!c) return;
+  const txt = c.querySelector('.co-copy-txt');
+  copyText(c.dataset.copy).then(() => {
+    c.classList.add('copied'); if (txt) txt.textContent = 'Copied';
+    clearTimeout(c._t);
+    c._t = setTimeout(() => { c.classList.remove('copied'); if (txt) txt.textContent = 'Copy'; }, 1600);
+  }).catch(() => { if (txt) txt.textContent = 'Press Ctrl+C'; });
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.co-cur-opt');
+  if (b) setCheckoutCurrency(b.dataset.cur);
+});
+window.addEventListener('storage', e => {
+  if (e.key === 'mazi_currency'){
+    try { renderItems(); renderSummary(); } catch(err){}
+    renderBankAccounts();
+  }
+});
 
 /* ---------- Delivery preferences ---------- */
 function pickupDayOptions(){
-  // The Male' showroom is CLOSED on Fridays, so Fridays are never offered.
+  // The Male' showroom is open every day. Fridays have shorter hours
+  // (2:00 PM - 10:00 PM), see pickupHoursFor().
   // Labels follow the real calendar (TODAY / TOMORROW only when it is
-  // literally today / tomorrow), and we still return 6 open days.
+  // literally today / tomorrow), and we return the next 6 days.
   const out = [];
   for (let i = 0; out.length < 6; i++){
     const d = new Date();
     d.setDate(d.getDate() + i);
-    if (d.getDay() === 5) continue; // Friday = closed
     const dateLabel = d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
     out.push(i === 0 ? `TODAY &middot; ${dateLabel}`
            : i === 1 ? `TOMORROW &middot; ${dateLabel}`
@@ -466,8 +571,16 @@ function pickupDayOptions(){
   }
   return out;
 }
+// Opening hours for the Nth pickup day (0 = today). Friday: 2 PM - 10 PM.
+function pickupHoursFor(i){
+  const d = new Date();
+  d.setDate(d.getDate() + i);
+  return d.getDay() === 5 ? '2:00 PM \u2013 10:00 PM' : '8:30 AM \u2013 10:00 PM';
+}
 function renderPickupDays(){
   const days = pickupDayOptions();
+  const slotMain = document.querySelector('#coPickupSlot .co-slot-main');
+  if (slotMain) slotMain.textContent = pickupHoursFor(coPickupDayIndex);
   $('#coPickupDays').innerHTML = days.map((label,i)=>
     `<button type="button" class="co-day${i===coPickupDayIndex?' active':''}" data-day="${i}">${label}</button>`
   ).join('');
@@ -694,7 +807,7 @@ function renderSlip(){
     label.textContent = `Selected: ${coSlipFile.name}`;
   } else {
     wrap.classList.remove('has-file');
-    label.textContent = 'Tap to upload slip (JPG, PNG, PDF — max 5MB)';
+    label.textContent = 'Tap to upload slip (JPG, PNG, PDF - max 5MB)';
   }
 }
 
@@ -748,7 +861,7 @@ function showSubmitError(msg){
 
 function showSuccess(order, contactLabel){
   $('#coContent').style.display = 'none';
-  document.title = 'Order Placed — MAZI General Trade';
+  document.title = 'Order Placed - MAZI General Trade';
 
   const s = getSession() || {};
   const customer = order.customer || {};
@@ -999,7 +1112,13 @@ function init(){
   });
 
   $('#coName').addEventListener('input', ()=> $('#coNameField').classList.remove('has-error'));
-  $('#coMobile').addEventListener('input', ()=> $('#coMobileField').classList.remove('has-error'));
+  $('#coMobile').addEventListener('input', (e)=>{
+    // digits only, max 7 (handles paste of +960... / 960... too)
+    const el = e.target;
+    const clean = mobileDigits7(el.value);
+    if (el.value !== clean) el.value = clean;
+    $('#coMobileField').classList.remove('has-error');
+  });
   $('#coHouse').addEventListener('input', ()=> $('#coHouseField').classList.remove('has-error'));
   [
     'coBoatName','coBoatContact','coBoatDeparture','coBoatCustomerName',
@@ -1021,8 +1140,9 @@ function init(){
     const name = $('#coName').value.trim();
     const nameOk = name.length >= 2;
     $('#coNameField').classList.toggle('has-error', !nameOk);
-    const mobile = $('#coMobile').value.trim();
-    const mobileOk = /^[0-9+\-\s]{6,}$/.test(mobile);
+    const mobileDigits = mobileDigits7($('#coMobile').value);
+    const mobileOk = /^\d{7}$/.test(mobileDigits);
+    const mobile = mobileOk ? `+960${mobileDigits}` : '';
     $('#coMobileField').classList.toggle('has-error', !mobileOk);
 
     let deliveryDetails = null;
@@ -1157,7 +1277,7 @@ function init(){
       resetBtn();
       if (err && err.code === 'NOT_AUTHENTICATED'){
         localStorage.removeItem('mazi_session'); if (window.MaziTheme) MaziTheme.apply(false);
-        showSubmitError('Your login expired. Please log in again — your cart is saved.');
+        showSubmitError('Your login expired. Please log in again - your cart is saved.');
         setTimeout(()=>{ window.location.href = 'index.html?open=login&from=checkout'; }, 1800);
         return;
       }
@@ -1175,3 +1295,91 @@ function init(){
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+
+/* ============================================================
+   Terms & conditions viewer
+   Opens the terms inside the checkout page (full-screen sheet) instead of
+   leaving it, so everything already filled in — fields, delivery/payment
+   choice, the uploaded payment slip, the ticked box — stays exactly as it
+   was. The phone/browser Back button (or the arrow) closes the sheet and
+   lands back on checkout. Falls back to the normal link if anything fails.
+   ============================================================ */
+function initTermsViewer(){
+  const link = document.querySelector('#coTermsField a[href="terms.html"]');
+  if (!link) return;
+
+  const css = document.createElement('style');
+  css.textContent = `
+    #coTermsSheet{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;
+      background:var(--cream,#fff);visibility:hidden;opacity:0;transform:translateY(14px);
+      transition:opacity .22s ease, transform .22s ease, visibility .22s;}
+    #coTermsSheet.open{visibility:visible;opacity:1;transform:none;}
+    #coTermsSheet .cts-bar{flex:none;display:flex;align-items:center;gap:10px;
+      padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
+      border-bottom:1px solid var(--line,#e3e6e4);background:var(--cream,#fff);}
+    #coTermsSheet .cts-back{width:40px;height:40px;border:0;border-radius:50%;background:transparent;
+      color:var(--ink,#1c2b25);display:grid;place-items:center;cursor:pointer;}
+    #coTermsSheet .cts-back:active{transform:scale(.92);}
+    #coTermsSheet .cts-back svg{width:20px;height:20px;}
+    #coTermsSheet .cts-title{font-weight:700;font-size:15px;color:var(--ink,#1c2b25);}
+    #coTermsSheet iframe{flex:1 1 auto;width:100%;border:0;background:var(--cream,#fff);}
+    @media (prefers-reduced-motion:reduce){#coTermsSheet{transition:none;}}
+  `;
+  document.head.appendChild(css);
+
+  let sheet = null, isOpen = false;
+
+  function build(){
+    sheet = document.createElement('div');
+    sheet.id = 'coTermsSheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-label', 'Terms and conditions');
+    sheet.innerHTML =
+      '<div class="cts-bar">' +
+        '<button type="button" class="cts-back" aria-label="Back to checkout">' +
+          '<svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<iframe title="Terms and conditions" src="terms.html?embed=1"></iframe>';
+    document.body.appendChild(sheet);
+    sheet.querySelector('.cts-back').addEventListener('click', close);
+  }
+
+  function open(){
+    if (isOpen) return;
+    if (!sheet) build();
+    isOpen = true;
+    try{ history.pushState({ coTerms: true }, ''); }catch(e){}
+    document.documentElement.style.overflow = 'hidden';
+    requestAnimationFrame(()=> sheet.classList.add('open'));
+  }
+
+  function hide(){
+    if (!isOpen) return;
+    isOpen = false;
+    sheet.classList.remove('open');
+    document.documentElement.style.overflow = '';
+  }
+
+  function close(){
+    if (!isOpen) return;
+    // Go through history so the pushed entry is consumed; popstate hides the sheet.
+    if (history.state && history.state.coTerms) history.back();
+    else hide();
+  }
+
+  window.addEventListener('popstate', ()=>{
+    if (isOpen && !(history.state && history.state.coTerms)) hide();
+  });
+  document.addEventListener('keydown', e=>{ if (e.key === 'Escape') close(); });
+
+  link.addEventListener('click', e=>{
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation(); // keep page-transitions.js from navigating away
+    open();
+  });
+}
+document.addEventListener('DOMContentLoaded', initTermsViewer);

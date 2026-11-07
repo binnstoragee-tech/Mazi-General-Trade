@@ -154,12 +154,15 @@ function accountId(){
   } catch(e){ return 'guest'; }
 }
 
+(function purgeSharedRecentSearches(){
+  try{ localStorage.removeItem('mazi_recent_searches'); localStorage.removeItem('mazi_recent_searches_guest'); }catch(e){}
+})();
+
 (function migratePerAccountData(){
   // Older versions of the site stored these globally (shared by every
   // account on the device). Move any leftover data into the "guest" bucket
   // once, so nothing is silently lost.
   const migrations = [
-    ['mazi_recent_searches', 'mazi_recent_searches_guest'],
     ['mazi_cart', 'mazi_cart_guest'],
     ['mazi_orders', 'mazi_orders_guest'],
   ];
@@ -179,8 +182,14 @@ function accountId(){
 function recentSearchesKey(){
   return 'mazi_recent_searches_' + accountId();
 }
+/* Recent searches are private to each account. Logged-in accounts keep theirs
+   under their own key; guests (not logged in) only keep them for the current
+   tab session, so the next person on the same device never sees them. */
+function recentSearchesStore(){
+  return accountId() === 'guest' ? sessionStorage : localStorage;
+}
 function loadRecentSearches(){
-  try{ return JSON.parse(localStorage.getItem(recentSearchesKey()) || '[]'); }
+  try{ return JSON.parse(recentSearchesStore().getItem(recentSearchesKey()) || '[]'); }
   catch(e){ return []; }
 }
 
@@ -206,6 +215,8 @@ function ordersKey(){
 
 let state = {
   category: 'all',
+  sub: '',        // sub-filter inside Household & Cleaning ('' = all)
+  subOpen: false, // is the Household & Cleaning dropdown expanded
   query: '',
   cart: loadCart(),
   recentSearches: loadRecentSearches(),
@@ -436,7 +447,7 @@ function saveCart(){
 }
 
 function saveRecentSearches(){
-  localStorage.setItem(recentSearchesKey(), JSON.stringify(state.recentSearches));
+  try{ recentSearchesStore().setItem(recentSearchesKey(), JSON.stringify(state.recentSearches)); }catch(e){}
 }
 
 function getRegisteredAccounts(){
@@ -674,7 +685,7 @@ const AUTH_VERIFY_COPY = {
   unconfirmed: { icon:'mail',  title:'Confirm your email', text:'Your account is almost ready. Open the confirmation link we sent to {email}, or request a new one below.', primary:'Go to Sign In', resend:true,  hint:true },
   confirmed:   { icon:'check', title:'Email confirmed!',   text:'Your MAZI account is verified and you are now signed in. Welcome aboard.', primary:'Continue', resend:false, hint:false },
   resetSent:   { icon:'mail',  title:'Check your inbox',   text:'If there is an account for {email}, we sent a link to reset your password. Open it to choose a new one.', primary:'Back to Sign In', resend:true,  hint:true },
-  expired:     { icon:'alert', title:'Link expired',       text:'This email link is invalid or has expired. Go back to sign in — you can request a new confirmation email, or tap "Forgot password?" to get a new reset link.', primary:'Back to Sign In', resend:false, hint:false }
+  expired:     { icon:'alert', title:'Link expired',       text:'This email link is invalid or has expired. Go back to sign in - you can request a new confirmation email, or tap "Forgot password?" to get a new reset link.', primary:'Back to Sign In', resend:false, hint:false }
 };
 let authVerifyState = null;
 let authVerifyEmail = '';
@@ -1038,19 +1049,112 @@ function updateHeroSearchBar(){
   }
 }
 
+/* ---------- Household & Cleaning sub-filters (same groups as the MAZI Product Catalogue) ----------
+   A product is placed by its name. To force a product into a group, give it  sub:'<id>'
+   in the PRODUCTS list. "Toilet Cleaner" is empty for now - any new product whose name
+   contains "TOILET" will show there automatically. */
+const HOUSEHOLD_SUBS = [
+  { id:'laundry',      name:'Laundry Liquid Detergent', re:/LAUNDRY|DETERGENT(?! DEODORIZER)/i },
+  { id:'fabric',       name:'Fabric Care',              re:/FABRIC|SENSATION SPRAY/i },
+  { id:'dish',         name:'Dish Washing Liquid',      re:/DISH ?WASH/i },
+  { id:'floor',        name:'Floor Cleaner',            re:/FLOOR CLEANER/i },
+  { id:'glass',        name:'Glass & Surface Cleaner',  re:/GLASS CLEANER|GLOSS DAILY|SURFACE/i },
+  { id:'disinfectant', name:'Disinfectant Deodorizer',  re:/DISINFECTANT/i },
+  { id:'toilet',       name:'Toilet Cleaner',           re:/TOILET/i },
+  { id:'air',          name:'Air Freshener Gel',        re:/AIR (FRESHENER|GEL)/i },
+  { id:'handsoap',     name:'Liquid Hand Soap',         re:/HAND SOAP/i },
+  { id:'shower',       name:'Shower Cleansing',         re:/SHOWER|CLEANSING/i }
+];
+function productSub(p){
+  if (p.sub) return p.sub;
+  const n = p.name || '';
+  const hit = HOUSEHOLD_SUBS.find(s => s.re.test(n));
+  return hit ? hit.id : '';
+}
+function householdSubCount(id){
+  return PRODUCTS.filter(p => p.cat === 'household' && productSub(p) === id).length;
+}
+
 function setCategory(catId){
   state.category = catId;
+  state.sub = '';
+  state.subOpen = (catId === 'household');
+  applyCatView();
   state.query = '';
   $('#searchInput').value = '';
   $('#mobileSearchInput').value = '';
 }
 
+// Updates the dropdown (open/closed + which filter is active) without re-rendering,
+// so the arrow can animate.
+// Category view: once a category / filter is picked, the home-page promo blocks (hero,
+// quick cards, Viber banner, Popular Products, Special Offers) are hidden so the page
+// lands straight on search + brands + the product list (web and mobile).
+function applyCatView(){
+  document.body.classList.toggle('cat-view', state.category !== 'all');
+}
+// After picking a category / filter, land at the top of that page.
+function scrollToProductList(){
+  setTimeout(()=> window.scrollTo({ top:0, behavior:'smooth' }), 60);
+}
+// Back to the full home page.
+function goHomeView(){
+  setCategory('all');
+  renderCategoryNav();
+  renderProductsLoading();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function syncHouseholdNav(){
+  const isHH = state.category === 'household';
+  $$('.cat-parent').forEach(li=>{
+    li.classList.toggle('open', state.subOpen);
+    const t = li.querySelector('.cat-toggle');
+    if (t) t.setAttribute('aria-expanded', String(state.subOpen));
+    const w = li.querySelector('.sub-wrap');
+    if (w){ if (state.subOpen) w.removeAttribute('inert'); else w.setAttribute('inert',''); }
+    const main = li.querySelector('.cat-main');
+    if (main) main.classList.toggle('active', isHH && !state.sub);
+    if (main) main.classList.toggle('parent-active', isHH && !!state.sub);
+    li.querySelectorAll('[data-sub]').forEach(b=> b.classList.toggle('active', isHH && state.sub === b.dataset.sub));
+  });
+  updateCategoryHighlights();
+  updateSidebarRail();
+  // the list animates open/closed, so re-measure once it settles
+  setTimeout(()=>{ updateCategoryHighlights(); updateSidebarRail(); }, 320);
+}
+
+function householdNavItem(c){
+  const chev = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  const isHH = state.category === c.id;
+  const open = state.subOpen;
+  const subs = HOUSEHOLD_SUBS.map(s =>
+    `<li><button type="button" data-sub="${s.id}" class="sub-btn${isHH && state.sub===s.id?' active':''}">${s.name}</button></li>`
+  ).join('');
+  return `<li class="cat-parent${open?' open':''}">
+    <div class="cat-row">
+      <button type="button" data-cat="${c.id}" class="cat-main${isHH && !state.sub?' active':''}${isHH && state.sub?' parent-active':''}">${c.name}</button>
+      <button type="button" class="cat-toggle" aria-expanded="${open}" aria-label="Show ${c.name} filters">${chev}</button>
+    </div>
+    <div class="sub-wrap"${open?'':' inert'}><ul class="sub-list">${subs}</ul></div>
+  </li>`;
+}
+
 function renderCategoryNav(){
-  // Categories are listed A–Z by name ("All Categories" always stays on top).
+  // Household & Cleaning is pinned first; the rest are listed A–Z by name.
   // Sidebar (desktop) — highlight pill is rebuilt as the first list item each render
+  // Only Household & Cleaning is open for now (it sits at the very top); the other
+  // categories are greyed out until they get products. To open one later, remove its id
+  // from the list below.
+  const OPEN_CATS = ['household'];
+  const others = [...CATEGORIES].filter(c => c.id !== 'household')
+    .sort((a,b)=> a.name.localeCompare(b.name, 'en', {sensitivity:'base'}));
+  const hh = CATEGORIES.find(c => c.id === 'household');
   const sidebarItems = [
-    `<li><button data-cat="all" class="${state.category==='all'?'active':''}">All Categories</button></li>`,
-    ...[...CATEGORIES].sort((a,b)=> a.name.localeCompare(b.name, 'en', {sensitivity:'base'})).map(c => `<li><button data-cat="${c.id}" class="${state.category===c.id?'active':''}">${c.name}</button></li>`)
+    hh ? householdNavItem(hh) : '',
+    ...others.map(c => OPEN_CATS.includes(c.id)
+      ? `<li><button data-cat="${c.id}" class="${state.category===c.id?'active':''}">${c.name}</button></li>`
+      : `<li><button type="button" data-cat="${c.id}" class="is-soon" disabled aria-disabled="true" title="Coming soon">${c.name}</button></li>`)
   ].join('');
   const sidebarHtml = `<div class="sidebar-highlight" id="sidebarHighlight"></div>${sidebarItems}`;
   const mobileHtml = `<div class="sidebar-highlight" id="mobileMenuHighlight"></div>${sidebarItems}`;
@@ -1061,8 +1165,54 @@ function renderCategoryNav(){
     btn.addEventListener('click', ()=>{
       setCategory(btn.dataset.cat);
       $$('[data-cat]').forEach(b=> b.classList.toggle('active', b.dataset.cat === state.category));
+      syncHouseholdNav();
       renderProductsLoading();
-      closeMenu();
+      // Household & Cleaning keeps the mobile menu open (so you can pick a filter).
+      if (btn.dataset.cat !== 'household') closeMenu();
+      scrollToProductList();
+    });
+  });
+
+  // Household & Cleaning: arrow opens / closes the filter list
+  $$('.cat-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.subOpen = !state.subOpen;
+      syncHouseholdNav();
+    });
+  });
+  // Desktop (mouse): hovering Household & Cleaning opens the filters, moving the
+  // cursor away closes them. Touch screens keep the arrow / tap behaviour.
+  const canHover = ()=> window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  $$('#sidebarList .cat-parent').forEach(li=>{
+    let closeT = null;
+    li.addEventListener('mouseenter', ()=>{
+      if (!canHover()) return;
+      clearTimeout(closeT);
+      if (!state.subOpen){ state.subOpen = true; syncHouseholdNav(); }
+    });
+    li.addEventListener('mouseleave', ()=>{
+      if (!canHover()) return;
+      clearTimeout(closeT);
+      closeT = setTimeout(()=>{
+        if (state.subOpen){ state.subOpen = false; syncHouseholdNav(); }
+      }, 120);
+    });
+  });
+  // Household & Cleaning: pick a filter
+  $$('[data-sub]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.category = 'household';
+      state.sub = btn.dataset.sub;
+      applyCatView();
+      state.subOpen = true;
+      state.query = '';
+      $('#searchInput').value = '';
+      $('#mobileSearchInput').value = '';
+      $$('[data-cat]').forEach(b=> b.classList.toggle('active', b.dataset.cat === state.category && !state.sub));
+      syncHouseholdNav();
+      renderProductsLoading();
+      closeMenu(); // picking a filter closes the mobile menu
+      scrollToProductList();
     });
   });
 
@@ -1074,6 +1224,8 @@ function renderCategoryNav(){
 
 /* ============ Sidebar custom scrollbar (rail) ============ */
 function updateSidebarRail(){
+  // The custom scrollbar rail is intentionally never shown (the list still scrolls with the wheel / touch).
+  return;
   const wrap = $('#sidebarScrollwrap');
   const rail = $('#sidebarRail');
   const track = $('#sidebarRailTrack');
@@ -1297,6 +1449,65 @@ function renderHero(){
   window.addEventListener('resize', rafDebounce(positionHeroDotHighlight));
 
   startHeroAuto();
+  initHeroSwipe();
+}
+
+// Swipe (touch) / drag (mouse) the hero banner left and right. The track follows
+// the finger, then snaps to the next/previous slide (wrapping around at the ends).
+function initHeroSwipe(){
+  const hero = $('#hero'), track = $('#heroTrack');
+  if (!hero || !track || hero.dataset.swipe || HERO_SLIDES.length < 2) return;
+  hero.dataset.swipe = '1';
+
+  let id = null, startX = 0, startY = 0, startT = 0, dx = 0, dragging = false, justDragged = false;
+
+  function finish(cancelled){
+    const wasDragging = dragging;
+    id = null; dragging = false;
+    if (!wasDragging) return;
+    justDragged = true; setTimeout(()=>{ justDragged = false; }, 0);
+    const w = hero.offsetWidth || 1;
+    const dt = Math.max(1, performance.now() - startT);
+    const v = dx / dt;                       // px per ms
+    const far = Math.min(80, w * 0.18);
+    let target = heroIndex;
+    if (!cancelled){
+      if (dx < -far || (v < -0.45 && dx < -12)) target = heroIndex + 1;
+      else if (dx > far || (v > 0.45 && dx > 12)) target = heroIndex - 1;
+    }
+    const n = HERO_SLIDES.length;
+    target = (target + n) % n;
+    hero.classList.remove('is-dragging');
+    goToSlide(target);                       // also restarts autoplay
+  }
+
+  hero.addEventListener('pointerdown', e=>{
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    id = e.pointerId; startX = e.clientX; startY = e.clientY;
+    startT = performance.now(); dx = 0; dragging = false;
+  });
+
+  hero.addEventListener('pointermove', e=>{
+    if (e.pointerId !== id) return;
+    const mx = e.clientX - startX, my = e.clientY - startY;
+    if (!dragging){
+      if (Math.abs(mx) < 6 && Math.abs(my) < 6) return;
+      if (Math.abs(my) > Math.abs(mx)){ id = null; return; }   // vertical scroll — leave it alone
+      dragging = true;
+      clearInterval(heroTimer);
+      hero.classList.add('is-dragging');
+      try{ hero.setPointerCapture(id); }catch(_){}
+    }
+    dx = mx;
+    const last = HERO_SLIDES.length - 1;
+    const off = ((heroIndex === 0 && mx > 0) || (heroIndex === last && mx < 0)) ? mx * 0.35 : mx;
+    track.style.transform = `translateX(calc(-${heroIndex * 100}% + ${off}px))`;
+  });
+
+  hero.addEventListener('pointerup', e=>{ if (e.pointerId === id) finish(false); });
+  hero.addEventListener('pointercancel', e=>{ if (e.pointerId === id) finish(true); });
+  // a drag that ends over a dot/slide shouldn't also count as a click
+  hero.addEventListener('click', e=>{ if (justDragged){ e.stopPropagation(); e.preventDefault(); } }, true);
 }
 
 function positionHeroDotHighlight(){
@@ -1328,8 +1539,9 @@ function startHeroAuto(){
 function getFilteredProducts(){
   const filtered = PRODUCTS.filter(p=>{
     const matchCat = state.category==='all' || p.cat===state.category;
+    const matchSub = !state.sub || state.category!=='household' || productSub(p)===state.sub;
     const matchQuery = !state.query || p.name.toLowerCase().includes(state.query) || p.id.toLowerCase().includes(state.query);
-    return matchCat && matchQuery;
+    return matchCat && matchSub && matchQuery;
   });
   // Products with a real uploaded photo (p.img set) go first; the rest
   // (falling back to the default img/products/ID.png convention, which may
@@ -1377,7 +1589,19 @@ function cardActionHtml(p, opts){
   const rowClose = detailed ? '</div>' : '';
 
   if (qty > 0){
-    return `${rowOpen}<button class="card-add card-add-done" data-id="${p.id}">
+    // On the product page, keep the quantity stepper available after adding —
+    // it edits the quantity that's already in the cart (data-incart).
+    const cartQtySelector = detailed ? `
+    <div class="pd-qty-select">
+      <div class="pd-qty-label">Quantity</div>
+      <div class="card-qty pd-qty" data-id="${p.id}" data-incart="1">
+        <button class="qty-btn" data-dir="-1" ${qty<=1?'disabled':''}>&minus;</button>
+        <span class="qty-val">${qty}</span>
+        <button class="qty-btn" data-dir="1">&plus;</button>
+      </div>
+    </div>` : '';
+    return `${cartQtySelector}
+    ${rowOpen}<button class="card-add card-add-done" data-id="${p.id}">
       <span class="card-add-success">
         <span class="card-add-success-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         Added to cart
@@ -1423,7 +1647,7 @@ async function shareProduct(id){
   const url = productShareUrl(id);
 
   if (navigator.share){
-    try { await navigator.share({ title: toDisplayName(p.name), text: `${toDisplayName(p.name)} — ${fmt(p.price)}`, url }); }
+    try { await navigator.share({ title: toDisplayName(p.name), text: `${toDisplayName(p.name)} - ${fmt(p.price)}`, url }); }
     catch(e){ /* user backed out of the native share sheet — nothing to do */ }
     return;
   }
@@ -1464,11 +1688,12 @@ function bindCardSlot(slot){
       if (addBtn.classList.contains('loading') || addBtn.classList.contains('success')) return;
       if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
       const qty = parseInt(addBtn.dataset.qty || '1', 10);
+      const fromRect = addBtn.getBoundingClientRect();
       addBtn.classList.add('loading');
       setTimeout(()=>{
         addBtn.classList.remove('loading');
         addBtn.classList.add('success');
-        setTimeout(()=>{ addToCart(addBtn.dataset.id, qty); }, 900);
+        setTimeout(()=>{ addToCart(addBtn.dataset.id, qty, fromRect); }, 900);
       }, 1500);
     });
   }
@@ -1496,6 +1721,12 @@ function bindCardSlot(slot){
       b.addEventListener('click', (e)=>{
         e.stopPropagation();
         const dir = parseInt(b.dataset.dir, 10);
+        if (pdQty.dataset.incart){
+          // Already in cart: change the real cart quantity (re-renders the slot).
+          if (dir < 0 && (state.cart[qId] || 0) <= 1) return;
+          changeQty(qId, dir);
+          return;
+        }
         const next = (state.pendingQty[qId] || 1) + dir;
         state.pendingQty[qId] = Math.max(1, next);
         if (container){
@@ -1517,8 +1748,13 @@ function refreshCardSlot(id, detailed){
   const p = PRODUCTS.find(p=>p.id===id);
   olds.forEach(old=>{
     const isDetailed = typeof detailed === 'boolean' ? detailed : old.classList.contains('pd-actions');
+    // The "Added to cart" confirmation (.success) and the final "done" state look
+    // identical, so swap them silently. Replaying the fade/scale-in here made the
+    // button blink and the check mark show up a beat after its circle.
+    const wasSuccess = !!old.querySelector('.card-add.success');
     old.innerHTML = cardActionHtml(p, { detailed: isDetailed }).trim();
-    old.classList.add('swap-in');
+    if (wasSuccess) old.classList.remove('swap-in');
+    else old.classList.add('swap-in');
     bindCardSlot(old);
   });
 }
@@ -1639,6 +1875,37 @@ function productImg(p){
   return `img/products/${p.id}.png`;
 }
 
+/* ============ Special Offers countdown ============ */
+// Reads data-start / data-ends (ISO dates with timezone) from the #flashSale link.
+// Before the start it counts down to the start ("Starts in"); during the sale it
+// counts down to the end ("Ends in"); once the end has passed the strip shows "Offer ended - Stay tuned for the next one!".
+function initFlashSale(){
+  const box = $('#flashSale');
+  if (!box) return;
+  const dEl = $('#fsD'), hEl = $('#fsH'), mEl = $('#fsM'), sEl = $('#fsS'), stEl = $('#fsState');
+  const start = Date.parse(box.dataset.start || '');
+  const end = Date.parse(box.dataset.ends || '');
+  if (isNaN(end)) { box.hidden = true; return; }
+  const pad = n => String(n).padStart(2, '0');
+  let timer = null;
+
+  function tick(){
+    const now = Date.now();
+    let target, label;
+    if (!isNaN(start) && now < start){ target = start; label = 'Starts in'; }
+    else if (now <= end){ target = end; label = 'Ends in'; }
+    else { box.classList.add('is-ended'); box.setAttribute('aria-label', 'Special offers ended'); clearInterval(timer); return; }
+    const t = Math.max(0, Math.floor((target - now) / 1000));
+    if (stEl) stEl.textContent = label;
+    dEl.textContent = pad(Math.floor(t / 86400));
+    hEl.textContent = pad(Math.floor((t % 86400) / 3600));
+    mEl.textContent = pad(Math.floor((t % 3600) / 60));
+    sEl.textContent = pad(t % 60);
+  }
+  tick();
+  timer = setInterval(tick, 1000);
+}
+
 /* ============ Popular products preview (home redesign) ============ */
 function renderPopularProducts(){
   const grid = $('#popularProductsGrid');
@@ -1648,7 +1915,9 @@ function renderPopularProducts(){
   // item if fewer than 4 photographed products exist yet.
   const withPhotos = PRODUCTS.filter(p => p.img && p.stock !== 'out');
   const rest = PRODUCTS.filter(p => !p.img && p.stock !== 'out');
-  const picks = [...withPhotos, ...rest].slice(0, 6);
+  // 12 cards so the row always runs past the edge of even a wide desktop
+  // screen instead of ending early with an empty gap on the right.
+  const picks = [...withPhotos, ...rest].slice(0, 12);
   grid.innerHTML = picks.map(p => productCardHtml(p)).join('');
   $$('.card-action-slot', grid).forEach(bindCardSlot);
   bindProductCardClicks(grid);
@@ -1707,10 +1976,12 @@ function renderProducts(){
   updateHeroSearchBar();
   const list = getFilteredProducts();
   const catName = state.category==='all' ? 'All Products' : CATEGORIES.find(c=>c.id===state.category)?.name || 'All Products';
-  $('#sectionTitle').textContent = state.query ? `Results for "${state.query}"` : catName;
+  const subName = (state.category==='household' && state.sub) ? (HOUSEHOLD_SUBS.find(s=>s.id===state.sub)||{}).name : '';
+  $('#sectionTitle').textContent = state.query ? `Results for "${state.query}"` : (subName || catName);
   $('#sectionTitle').classList.toggle('is-search-title', !!state.query);
   $('#resultCount').textContent = `${list.length} item${list.length!==1?'s':''}`;
 
+  $('#emptyState').textContent = (subName && !state.query) ? 'New products coming soon.' : 'No products found.';
   $('#emptyState').hidden = list.length !== 0;
   $('#productGrid').style.display = list.length === 0 ? 'none' : 'grid';
 
@@ -2120,7 +2391,54 @@ function buyNow(id, qty, btn){
   setTimeout(()=> { window.location.href = 'checkout.html'; }, 780);
 }
 
-function addToCart(id, qty){
+/* ---- Add-to-cart feedback: no drawer, the red badge hops instead ---- */
+// Several cart buttons exist (main navbar, product page topbar, profile
+// views...). Pick the one the person can actually see right now: on-screen
+// and not covered by an overlay such as the product page.
+function activeCartBtn(){
+  return $$('.js-cart-btn').find(btn => {
+    const r = btn.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return false;
+    const top = document.elementFromPoint(cx, cy);
+    return !!top && (top === btn || btn.contains(top));
+  }) || null;
+}
+function hopCartBadge(btn){
+  const badge = btn && btn.querySelector('.js-cart-count');
+  if (!badge || badge.style.display === 'none') return;
+  badge.classList.remove('cart-hop');
+  void badge.offsetWidth; // restart animation if it's already running
+  badge.classList.add('cart-hop');
+  badge.addEventListener('animationend', ()=> badge.classList.remove('cart-hop'), { once:true });
+}
+function flyToCart(fromRect, btn, done){
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!fromRect || !btn || reduce || !Element.prototype.animate){ done(); return; }
+  // Land on the red badge itself when it's showing, otherwise the cart icon.
+  const badge = btn.querySelector('.js-cart-count');
+  const aim = (badge && badge.style.display !== 'none') ? badge : btn;
+  const t = aim.getBoundingClientRect();
+  const size = 14;
+  const sx = fromRect.left + fromRect.width/2 - size/2;
+  const sy = fromRect.top  + fromRect.height/2 - size/2;
+  const dx = (t.left + t.width/2 - size/2) - sx;
+  const dy = (t.top  + t.height/2 - size/2) - sy;
+  const dot = document.createElement('div');
+  dot.className = 'cart-fly-dot';
+  dot.style.cssText = `left:${sx}px;top:${sy}px;width:${size}px;height:${size}px;`;
+  document.body.appendChild(dot);
+  const anim = dot.animate([
+    { transform:'translate(0,0) scale(1)', opacity:1, offset:0 },
+    { transform:`translate(${dx*0.5}px, ${dy*0.5 - 40}px) scale(1.1)`, opacity:1, offset:0.5 },
+    { transform:`translate(${dx}px, ${dy}px) scale(.5)`, opacity:.9, offset:1 }
+  ], { duration:620, easing:'cubic-bezier(.4,.1,.3,1)' });
+  anim.onfinish = ()=>{ dot.remove(); done(); };
+  anim.oncancel = ()=>{ dot.remove(); done(); };
+}
+
+function addToCart(id, qty, fromRect){
   if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
   qty = qty || 1;
   state.cart[id] = (state.cart[id] || 0) + qty;
@@ -2128,7 +2446,18 @@ function addToCart(id, qty){
   saveCart();
   updateCartUI();
   refreshCardSlot(id);
-  openCart();
+  // Use whichever cart button is visible. If none is (navbar slid away while
+  // scrolling), bring the navbar back first, then animate once it's in place.
+  const go = ()=>{
+    const btn = activeCartBtn();
+    flyToCart(fromRect, btn, ()=> hopCartBadge(btn));
+  };
+  if (activeCartBtn()){
+    go();
+  } else {
+    const revealed = window.revealNavbar ? window.revealNavbar(2200) : false;
+    setTimeout(go, revealed ? 320 : 0);
+  }
   try {
     const prod = PRODUCTS.find(p => p.id === id);
     if (window.mazipx) mazipx('AddToCart', {
@@ -2487,6 +2816,90 @@ function setOnboardAccountType(type){
     $('#onboardBusinessName').required = onboardAccountType === 'business';
   }
 }
+/* ---- Onboarding step 2: optional business account ---- */
+let onboardDisplayName = '';
+function showOnboardStep(step){
+  const f1 = $('#onboardForm'), f2 = $('#onboardBizForm');
+  if (!f1 || !f2) return;
+  f1.hidden = step !== 1;
+  f2.hidden = step !== 2;
+  $('#onboardTitle').textContent = step === 1 ? 'Complete your profile' : 'Business account';
+  $('#onboardSub').textContent = step === 1
+    ? 'Just a few details so we can get your orders to you.'
+    : 'Do you have a business account? Add its details below, or skip if you don\'t have one yet.';
+}
+function obFillSelect(sel, items, placeholder){
+  if (!sel) return;
+  sel.innerHTML = `<option value="">${placeholder}</option>` +
+    items.map(v => `<option value="${String(v).replace(/"/g, '&quot;')}">${v}</option>`).join('');
+  sel.value = '';
+}
+function openOnboardBizStep(){
+  const islands = window.MAZI_ATOLL_ISLANDS, types = window.MAZI_BUSINESS_TYPES;
+  if (!islands || !types){ finishOnboarding(); return; }   // lists unavailable — just skip the step
+  ['#obBizType', '#obAtoll', '#obCity'].forEach(sel => enhanceSelect($(sel)));
+  $('#obGstExempt').checked = false;
+  $('#obGstField').hidden = false;
+  $('#obGst').value = '';
+  $('#obName').value = '';
+  obFillSelect($('#obBizType'), types, 'Select business type');
+  obFillSelect($('#obAtoll'), Object.keys(islands), 'Select atoll');
+  obFillSelect($('#obCity'), [], 'Select island');
+  $('#obError').hidden = true;
+  const sb = $('#obSubmit'); sb.disabled = false; sb.textContent = 'Submit';
+  $('#obSkip').disabled = false;
+  showOnboardStep(2);
+  const sc = document.querySelector('#onboardModal .auth-card-scroll'); if (sc) sc.scrollTop = 0;
+}
+function finishOnboarding(){
+  closeOnboarding();
+  showLoginSuccess(onboardDisplayName, onboardWasSignup);
+}
+function obShowError(t){ const el = $('#obError'); el.textContent = t; el.hidden = false; }
+function bindOnboardBizEvents(){
+  const form = $('#onboardBizForm');
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = '1';
+  $('#obGstExempt').addEventListener('change', ()=>{ $('#obGstField').hidden = $('#obGstExempt').checked; });
+  $('#obAtoll').addEventListener('change', ()=>{
+    const islands = window.MAZI_ATOLL_ISLANDS || {};
+    obFillSelect($('#obCity'), islands[$('#obAtoll').value] || [], 'Select island');
+  });
+  $('#obSkip').addEventListener('click', finishOnboarding);
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    const f = {
+      accountType: 'business',
+      name: $('#obName').value.trim(),
+      businessType: $('#obBizType').value,
+      gstExempt: $('#obGstExempt').checked,
+      gstTin: $('#obGst').value.trim().toUpperCase(),
+      atoll: $('#obAtoll').value,
+      city: $('#obCity').value
+    };
+    $('#obError').hidden = true;
+    if (!f.gstExempt){
+      if (!f.gstTin) return obShowError('Please enter your GST TIN number, or switch on "not GST registered".');
+      if (!/^\d{7}GST\d{3}$/.test(f.gstTin)) return obShowError('GST TIN format should look like 1234567GST501.');
+    }
+    if (!f.name) return obShowError('Please enter the shop / business name.');
+    if (!f.businessType) return obShowError('Please select a business type.');
+    if (!f.atoll) return obShowError('Please select an atoll.');
+    if (!f.city) return obShowError('Please select a city / island.');
+    if (!window.MaziAPI || !MaziAPI.addShop) return obShowError('Could not save the account. Please try again.');
+
+    const sb = $('#obSubmit'), sk = $('#obSkip');
+    sb.disabled = true; sk.disabled = true; sb.textContent = 'Submitting…';
+    MaziAPI.addShop(f).then(()=>{
+      document.dispatchEvent(new CustomEvent('mazi-accounts-updated'));
+      showToast('Business account added', 'It will be available once our team approves it.', 'success');
+      finishOnboarding();
+    }).catch(err=>{
+      obShowError((err && err.message) || 'Could not save the account. Please try again.');
+      sb.disabled = false; sk.disabled = false; sb.textContent = 'Submit';
+    });
+  });
+}
 function openOnboarding(prefill){
   populateOnboardAtolls();
   onboardWasSignup = !!(prefill && prefill.wasSignup);
@@ -2498,7 +2911,8 @@ function openOnboarding(prefill){
   $('#onboardBusinessName').value = '';
   $('#onboardAtoll').value = 'Kaafu (K)';
   const submitBtn = $('#onboardSubmit');
-  if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = 'Continue'; }
+  if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = 'Next'; }
+  showOnboardStep(1);
   $('#authBackdrop').classList.add('show');
   $('#onboardModal').classList.add('open');
 }
@@ -2513,6 +2927,7 @@ function bindOnboardingEvents(){
   $$('#pvTypeTabs .co-tab').forEach(tab=>{
     tab.addEventListener('click', ()=> setPvAccountType(tab.dataset.accountType));
   });
+  bindOnboardBizEvents();
   const form = $('#onboardForm');
   if (!form) return;
   form.addEventListener('submit', e=>{
@@ -2565,13 +2980,15 @@ function bindOnboardingEvents(){
     }).then(()=>{
       const sess = getSession() || {};
       setSession({ ...sess, name: firstName, firstName, lastName, mobile, atoll, city, accountType: onboardAccountType, businessName: onboardAccountType === 'business' ? businessName : '' });
-      closeOnboarding();
-      showLoginSuccess(name, onboardWasSignup);
+      // Profile is saved — next comes the optional business-account step
+      // (its Submit / Skip finishes onboarding and plays the welcome animation).
+      onboardDisplayName = name;
+      openOnboardBizStep();
     }).catch(err=>{
       showToast(friendlyProfileError(err), null, 'error');
     }).finally(()=>{
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Continue';
+      submitBtn.textContent = 'Next';
     });
   });
 }
@@ -2620,6 +3037,7 @@ function setSession(data){
 function clearSession(){
   stopOrdersLive();
   localStorage.removeItem('mazi_session');
+  try{ sessionStorage.removeItem('mazi_recent_searches_guest'); }catch(e){} // next person on this device starts clean
   if (window.MaziTheme) MaziTheme.apply(false); // logged out → back to light
   state.recentSearches = loadRecentSearches();
   state.cart = loadCart();
@@ -3178,7 +3596,7 @@ function fireDeviceNotification(order, idx){
   if (getNotifPref() === 'off') return;
   const step = ORDER_STEPS[idx];
   const cls = orderNotifClass(idx);
-  const title = `${step.label} — Order #${order.id}`;
+  const title = `${step.label} - Order #${order.id}`;
   const options = {
     body: ORDER_NOTIF_SUBS[cls],
     icon: NOTIF_ICON,
@@ -3276,7 +3694,7 @@ function renderNotifToggle(action, toggleId){
     if (wrap) wrap.innerHTML = `<span class="notif-toggle-dots"><span></span><span></span><span></span></span>`;
     setTimeout(()=>{
       setNotifPref(isOn ? 'on' : 'off');
-      showToast(isOn ? "Notifications on — you'll also hear about offers & sales" : 'Notifications turned off');
+      showToast(isOn ? "Notifications on - you'll also hear about offers & sales" : 'Notifications turned off');
       renderNotifToggle(action, toggleId);
     }, 700);
   });
@@ -3302,7 +3720,7 @@ function initProfileNotifToggle(){
     toggle._wired = true;
     toggle.addEventListener('change', ()=>{
       setNotifPref(toggle.checked ? 'on' : 'off');
-      showToast(toggle.checked ? 'Order notifications enabled' : 'Order notifications turned off');
+      showToast(toggle.checked ? 'Notifications enabled' : 'Notifications turned off');
     });
   }
 }
@@ -3338,7 +3756,7 @@ function openCancelOrderConfirm(orderId){
   openConfirmModal({
     title: 'Cancel this order?',
     sub: "This order hasn't been approved yet. Once cancelled, this can't be undone.",
-    note: "If you've already sent payment via bank transfer or QR code, it won't be refunded instantly — refunds are processed manually by our team and may take a few business days.",
+    note: "If you've already sent payment via bank transfer or QR code, it won't be refunded instantly - refunds are processed manually by our team and may take a few business days.",
     confirmLabel: 'Cancel Order',
     onConfirm: ()=> cancelOrder(orderId),
   });
@@ -3717,7 +4135,7 @@ function openOrderConfirmModal(order){
   `;
 
   const contact = customer.mobile || session.mobile || session.email || '—';
-  const methodLabels = { pickup:"Showroom Pickup — Male'", delivery:'Home Delivery', boat:'Boat / Dhoni Delivery' };
+  const methodLabels = { pickup:"Showroom Pickup - Male'", delivery:'Home Delivery', boat:'Boat / Dhoni Delivery' };
   const loc = customer.location;
   let locationHtml = '—';
   if (customer.method === 'delivery' && loc && loc.address){
@@ -4495,6 +4913,19 @@ function initNavScroll(){
 
   let lastY = window.scrollY;
   let ticking = false;
+  let navHoldUntil = 0;
+
+  // Called after add-to-cart: slide the navbar back down (if it was tucked
+  // away) and keep it there briefly so the cart animation is visible.
+  window.revealNavbar = function(holdMs){
+    navHoldUntil = Date.now() + (holdMs || 1800);
+    if (nav.classList.contains('nav-hidden')){
+      nav.classList.remove('nav-hidden');
+      setOffset();
+      return true;
+    }
+    return false;
+  };
 
   function tick(){
     const currentY = window.scrollY;
@@ -4503,7 +4934,7 @@ function initNavScroll(){
     // Never hide the navbar while the search panel is open (it's a child of it).
     const searchOpen = $('#mobileSearchPanel')?.classList.contains('open');
     const typingSearch = document.activeElement && document.activeElement.id === 'searchInput';
-    const shouldHide = !searchOpen && !typingSearch && currentY > lastY && currentY > 4;
+    const shouldHide = !searchOpen && !typingSearch && Date.now() > navHoldUntil && currentY > lastY && currentY > 4;
     if (shouldHide !== wasHidden){
       nav.classList.toggle('nav-hidden', shouldHide);
       // Hiding/showing the navbar only moves it (transform), it doesn't
@@ -4618,6 +5049,7 @@ function init(){
   renderHero();
   renderProductsLoading(520);
   renderPopularProducts();
+  initFlashSale();
   if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCurrencyToggleUI();
   updateCartUI();
@@ -4842,10 +5274,6 @@ function init(){
     });
   });
 
-  const promoShopBtn = $('#promoShopBtn');
-  // Same behaviour as the other Offers buttons — no offers exist yet.
-  if (promoShopBtn) promoShopBtn.addEventListener('click', ()=> showToast('No offers saved yet', null, 'info'));
-
   const popularViewAllBtn = $('#popularViewAllBtn');
   if (popularViewAllBtn) popularViewAllBtn.addEventListener('click', ()=>{
     setCategory('all');
@@ -5009,6 +5437,14 @@ function init(){
     document.fonts.ready.then(()=>{ updateCategoryHighlights(); updateSidebarRail(); });
   }
 
+  // Tapping the logo returns to the full home page.
+  $$('.brand').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.preventDefault();
+      if (state.category !== 'all') goHomeView(); else window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+
   $$('.bn-item[data-action]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const action = btn.dataset.action;
@@ -5020,7 +5456,7 @@ function init(){
         if (getSession()) openProfileMenu(false, true);
         else openLogin();
       }
-      else if (action==='home') window.scrollTo({top:0, behavior:'smooth'});
+      else if (action==='home'){ if (state.category !== 'all') goHomeView(); else window.scrollTo({top:0, behavior:'smooth'}); }
       else if (action==='orders') openOrdersView(true);
     });
   });

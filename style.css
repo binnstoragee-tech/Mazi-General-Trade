@@ -344,7 +344,7 @@ html[data-theme="dark"] .profile-dropdown > button:active{background:rgba(255,25
   position:sticky;
   top:var(--nav-offset, 10px);
   z-index:5;
-  padding:0 6px 4px 0;
+  padding:28px 6px 4px 0; /* gap between navbar and the Categories title */
   background:none;
   border:none;
   border-radius:0;
@@ -368,8 +368,8 @@ html[data-theme="dark"] .profile-dropdown > button:active{background:rgba(255,25
      viewport. Uses the navbar's CURRENT offset (it shrinks / hides while you
      scroll down), so the list takes all the room that's actually free.
      52px = title + its margin + bottom breathing room. */
-  max-height:calc(100vh - var(--nav-offset, 10px) - 52px);
-  max-height:calc(100dvh - var(--nav-offset, 10px) - 52px);
+  max-height:calc(100vh - var(--nav-offset, 10px) - 80px);
+  max-height:calc(100dvh - var(--nav-offset, 10px) - 80px);
   overflow-y:auto;
   scrollbar-width:none;
   -ms-overflow-style:none;
@@ -450,6 +450,52 @@ html[data-theme="dark"] .profile-dropdown > button:active{background:rgba(255,25
 .sidebar-inner.compact .sidebar-list li button{padding-top:5px;padding-bottom:5px;}
 .sidebar-list li button.active{color:var(--ink-soft);font-weight:700;padding-left:16px;}
 .sidebar-list li button.active::before{transform:translateY(-50%) scaleY(1);opacity:1;}
+
+/* ---- Household & Cleaning dropdown (arrow + filters) ---- */
+.sidebar-list .cat-row{display:flex;align-items:center;}
+.sidebar-list .cat-row .cat-main{flex:1;min-width:0;}
+.sidebar-list .cat-row .cat-main.parent-active{color:var(--ink-soft);font-weight:700;}
+.sidebar-list .cat-row .cat-toggle{
+  flex:none;width:30px;height:30px;padding:0;margin-left:2px;
+  display:grid;place-items:center;
+  color:var(--ink-soft);border-radius:8px;cursor:pointer;
+  transform:none;transition:background .2s ease,color .2s ease;
+}
+.sidebar-list .cat-row .cat-toggle::before{display:none;}
+.sidebar-list .cat-row .cat-toggle:hover{background:rgba(0,0,0,.06);transform:none;}
+.sidebar-list .cat-row .cat-toggle svg{width:16px;height:16px;transition:transform .3s cubic-bezier(.22,1,.36,1);}
+.sidebar-list .cat-parent.open .cat-toggle svg{transform:rotate(180deg);}
+.sidebar-list .sub-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.22,1,.36,1);}
+.sidebar-list .cat-parent.open .sub-wrap{grid-template-rows:1fr;}
+.sidebar-list .sub-list{min-height:0;overflow:hidden;margin:0;padding:0 0 0 14px;list-style:none;}
+.sidebar-list .sub-list li button{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 8px 8px 12px;font-size:13px;letter-spacing:0;text-transform:none;
+  border-left:2px solid #dfe3e0;color:var(--ink);
+}
+.sidebar-list .sub-list li button::before{display:none;}
+.sidebar-list .sub-list li button:hover{transform:none;color:var(--ink-soft);}
+.sidebar-list .sub-list li button.active{
+  padding-left:12px;border-left-color:var(--ink-soft);color:var(--ink-soft);font-weight:700;
+}
+.sidebar-list .sub-list li:last-child{margin-bottom:6px;}
+
+/* Categories scroll rail: hidden (list still scrolls with wheel / touch). */
+.sidebar-rail,.sidebar-rail[hidden]{display:none !important;}
+
+/* The filters open in-flow and push the categories below them down (nothing is covered).
+   The sidebar list is a contained layout root, so the open/close animation never
+   reflows the rest of the page; the filter text itself fades with opacity. */
+.sidebar-scrollwrap{contain:layout style;}
+.sidebar-list .sub-list{opacity:0;transition:opacity .2s ease;}
+.sidebar-list .cat-parent.open .sub-list{opacity:1;transition:opacity .25s ease .08s;}
+.sidebar-list .sub-wrap{will-change:grid-template-rows;}
+
+.sidebar-list li button.is-soon,
+.sidebar-list li button.is-soon:hover{color:#a7aeaa;cursor:not-allowed;transform:none;}
+@media (prefers-reduced-motion:reduce){
+  .sidebar-list .sub-wrap,.sidebar-list .cat-row .cat-toggle svg{transition:none;}
+}
 
 .content{min-width:0;}
 
@@ -4003,39 +4049,35 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
   position:fixed;inset:0;z-index:9999;
   display:flex;align-items:center;justify-content:center;
   background:var(--cream);
-  transition:opacity .6s cubic-bezier(.4,0,.2,1), visibility .6s cubic-bezier(.4,0,.2,1);
+  transition:opacity .35s ease, visibility .35s ease;
 }
 #pageLoader[hidden]{display:none;} /* author display:flex was overriding the hidden attribute */
 #pageLoader.loader-hide{opacity:0;visibility:hidden;pointer-events:none;}
-.loader-inner{
-  display:flex;flex-direction:column;align-items:center;gap:30px;
-}
+.loader-inner{display:flex;align-items:center;justify-content:center;}
+/* Logo only: pops in, then gently zooms in/out (Pinterest-style) for the 2s splash. */
 .loader-logo{
-  height:clamp(168px,24vw,252px);width:auto;
+  height:clamp(120px,22vw,190px);width:auto;
   opacity:0;
-  animation:loader-logo-in 1.5s cubic-bezier(.22,1,.36,1) both;
+  transform-origin:center center;
+  will-change:transform,opacity;
+  animation:
+    loader-logo-pop .5s cubic-bezier(.34,1.56,.64,1) both,
+    loader-logo-pulse 1.1s ease-in-out .5s 1 both;
 }
-@keyframes loader-logo-in{
-  0%{opacity:0;transform:scale(.86) translateY(10px);}
-  55%{opacity:1;transform:scale(1.015) translateY(0);}
-  100%{opacity:1;transform:scale(1) translateY(0);}
+@keyframes loader-logo-pop{
+  0%{opacity:0;transform:scale(.4);}
+  100%{opacity:1;transform:scale(1);}
 }
-.loader-dots{display:flex;gap:9px;}
-.loader-dots span{
-  width:11px;height:11px;border-radius:50%;
-  background:var(--ink-soft);
-  animation:loaderDotBounce 1s var(--ease-glass,cubic-bezier(.4,0,.2,1)) infinite;
+@keyframes loader-logo-pulse{
+  0%{opacity:1;transform:scale(1);}
+  35%{opacity:1;transform:scale(1.12);}
+  70%{opacity:1;transform:scale(.96);}
+  100%{opacity:1;transform:scale(1);}
 }
-.loader-dots span:nth-child(2){animation-delay:.15s;}
-.loader-dots span:nth-child(3){animation-delay:.3s;}
-@keyframes loaderDotBounce{
-  0%, 80%, 100%{transform:translateY(0) scale(.8);opacity:.5;}
-  40%{transform:translateY(-10px) scale(1);opacity:1;}
-}
+.loader-dots{display:none;}
 @media (prefers-reduced-motion:reduce){
   #pageLoader{transition:opacity .01s linear;}
   .loader-logo{animation:none;opacity:1;}
-  .loader-dots span{animation:none;opacity:1;transform:none;}
 }
 
 
@@ -4871,31 +4913,66 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
     radial-gradient(circle 46px at 40% 92%, rgba(255,255,255,.07) 0 44px, transparent 46px),
     radial-gradient(circle 30px at 48% 10%, rgba(255,255,255,.07) 0 28px, transparent 30px);
 }
-.promo-banner-text{position:relative;z-index:2;max-width:440px;}
-.promo-banner-img{
-  position:absolute;top:0;right:0;
-  width:52%;height:100%;
-  object-fit:cover;object-position:center;
-  z-index:1;
-  /* long, soft fade into the banner colour so the photo melts in */
-  -webkit-mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 22%, #000 48%);
-  mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 22%, #000 48%);
-  filter:saturate(1.08) contrast(1.04);
+.promo-banner{
+  --pb-px:32px; --pb-py:34px;
+  container-type:inline-size;
+  flex-wrap:wrap;align-content:center;
+  min-height:280px;
+  /* light card: the photo's white background melts straight into it */
+  background:linear-gradient(180deg,#FFFFFF 0%,#FFFFFF 55%,#FFF3F8 100%);
+  border:1px solid #F3E4EC;
+  box-shadow:0 14px 34px rgba(120,40,90,.10);
 }
-/* gentle plum tint over the photo so it matches the banner */
-.promo-banner::after{
-  content:"";position:absolute;top:0;right:0;width:52%;height:100%;z-index:1;pointer-events:none;
-  background:linear-gradient(200deg, rgba(178,58,122,0) 40%, rgba(104,32,111,.32) 100%);
-  -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 45%);
-  mask-image:linear-gradient(90deg, transparent 0%, #000 45%);
+.promo-banner::before,.promo-banner::after{display:none;}
+.promo-banner-text{position:relative;z-index:3;max-width:440px;flex:0 1 440px;}
+
+/* Product photo (img/offers/offer.png): white background, multiplied into the card so
+   only the basket and the arm remain — the arm reaches in from the card's right edge.
+   No wrapper z-index on purpose: that would isolate the blend and show a white box. */
+.promo-banner-visual{
+  position:absolute;top:0;right:0;bottom:0;
+  aspect-ratio:1.5/1;
+  pointer-events:none;
+}
+/* soft pink glow behind the products (no hard edge) */
+.promo-banner-visual::before{
+  content:"";position:absolute;z-index:0;
+  inset:-10% -10% -30% 12%;
+  background:radial-gradient(ellipse at 60% 55%, #FFD6E8 0%, rgba(255,214,232,.55) 45%, rgba(255,214,232,0) 72%);
+}
+.promo-banner-img{
+  position:absolute;z-index:1;right:0;bottom:-3%;
+  height:112%;width:auto;max-width:none;
+  mix-blend-mode:multiply;
+}
+
+/* Narrow card (phones / narrow column): short text + button on top, the photo
+   underneath reaching in from the right edge. */
+@container (max-width:779px){
+  .promo-banner-text{flex:1 1 100%;max-width:none;}
+  .promo-banner-visual{
+    position:relative;top:auto;right:auto;bottom:auto;aspect-ratio:auto;
+    flex:0 0 auto;width:calc(100% + var(--pb-px)*2);height:220px;
+    margin:6px calc(var(--pb-px)*-1) calc(var(--pb-py)*-1);
+    overflow:hidden;
+  }
+  .promo-banner-visual::before{inset:0 -10% -40% 10%;}
+  .promo-banner-img{height:118%;bottom:-4%;}
 }
 @media (max-width:640px){
-  .promo-banner{padding:26px 22px;min-height:0;border-radius:22px;}
-  /* photo stays as a faint backdrop instead of disappearing on phones */
-  .promo-banner-img{display:block;width:100%;opacity:.16;object-position:80% center;
-    -webkit-mask-image:linear-gradient(270deg, #000 0%, transparent 62%);
-    mask-image:linear-gradient(270deg, #000 0%, transparent 62%);}
-  .promo-banner::after{display:none;}
+  .promo-banner{--pb-px:22px;--pb-py:26px;padding:26px 22px;min-height:0;border-radius:22px;}
+}
+@supports not (container-type:inline-size){
+  @media (max-width:900px){
+    .promo-banner-text{flex:1 1 100%;max-width:none;}
+    .promo-banner-visual{
+      position:relative;top:auto;right:auto;bottom:auto;aspect-ratio:auto;
+      flex:0 0 auto;width:calc(100% + var(--pb-px)*2);height:220px;
+      margin:6px calc(var(--pb-px)*-1) calc(var(--pb-py)*-1);overflow:hidden;
+    }
+    .promo-banner-visual::before{inset:0 -10% -40% 10%;}
+    .promo-banner-img{height:118%;bottom:-4%;}
+  }
 }
 .promo-eyebrow{
   display:inline-flex;align-items:center;gap:8px;
@@ -5378,9 +5455,7 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
   position:relative;
   isolation:isolate;
   overflow:hidden;
-  background:
-    radial-gradient(circle at 82% 12%, rgba(46,140,108,.22), transparent 30%),
-    linear-gradient(145deg,#09261d 0%,#0f3a2e 54%,#0b2c23 100%);
+  background:#0F3A2E;   /* solid brand dark green (same as --green-900 / the logo) */
   color:rgba(255,255,255,.78);
   margin-top:64px;
   border-top:1px solid rgba(255,255,255,.10);
@@ -5388,7 +5463,7 @@ body.page-leaving{animation:page-fade-out .22s ease both;}
 .site-footer::before{
   content:'';
   position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.035) 50%,transparent 100%);
+  background:none;   /* sheen overlay removed - footer is now a flat solid colour */
 }
 .footer-inner{
   /* Full width, with the same side padding as the page (.layout), so the footer
@@ -8120,3 +8195,489 @@ html .pd-info .stock-indicator.low-stock{--sd:9px;--sh:3.5px;font-size:13px;marg
 html .stock-indicator.out-stock{font-size:10.5px;}
 html .pd-info .stock-indicator.out-stock{font-size:13px;margin-bottom:10px;}
 @media (min-width:721px){html .pd-info .stock-indicator.out-stock{font-size:14px;}}
+
+
+/* ============ National QR card + MVR/USD switch (checkout) ============ */
+.co-cur-switch{display:inline-flex;padding:3px;margin:0 auto 14px;background:#e8ecec;border-radius:999px;gap:2px;}
+.co-cur-opt{appearance:none;border:0;background:transparent;font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;color:#565959;padding:7px 20px;border-radius:999px;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s;min-width:64px;}
+.co-cur-opt:hover{color:#172e25;}
+.co-cur-opt.active{background:#fff;color:#0F5EA8;box-shadow:0 1px 3px rgba(15,23,42,.18);}
+.co-cur-opt:focus-visible{outline:2px solid #0F5EA8;outline-offset:2px;}
+/* The QR image is a full Bank of Maldives card, so it shows edge to edge
+   instead of sitting inside a bordered square. */
+.co-qr-panel .co-qr-box{width:min(300px,100%);height:auto;padding:0;border:0;background:transparent;margin:0 auto 14px;display:block;}
+.co-qr-panel .co-qr-img{display:block;width:100%;height:auto;max-width:none;max-height:none;border-radius:14px;box-shadow:0 2px 10px rgba(15,23,42,.12);}
+.co-qr-panel .co-qr-fallback{width:100%;min-height:200px;padding:20px;text-align:center;line-height:1.5;border:1px dashed #aab7b3;border-radius:14px;font-size:12.5px;letter-spacing:0;font-weight:600;}
+@media (max-width:700px){
+  .co-qr-panel .co-qr-box{width:min(280px,100%);height:auto;}
+  .co-qr-panel .co-qr-img{max-width:none;max-height:none;}
+}
+html[data-theme="dark"] .co-cur-switch{background:#1b2740;}
+html[data-theme="dark"] .co-cur-opt{color:#97A5BA;}
+html[data-theme="dark"] .co-cur-opt.active{background:#2a3b5f;color:#E7EDF7;box-shadow:none;}
+html[data-theme="dark"] .co-qr-panel .co-qr-box{background:transparent;border:0;}
+html[data-theme="dark"] .co-qr-panel .co-qr-fallback{border-color:#34456A;}
+.co-qr-panel .co-qr-img.img-missing{display:none;}
+
+/* Bigger, smoother National QR: reserved aspect ratio (no layout jump),
+   lighter image, GPU-friendly fade only (no heavy shadow repaint). */
+.co-qr-panel .co-qr-box{width:min(400px,100%);aspect-ratio:900/1087;height:auto;contain:layout paint;}
+.co-qr-panel .co-qr-img{width:100%;height:100%;object-fit:contain;box-shadow:none;border-radius:16px;animation:coQrIn .18s ease-out;will-change:opacity;}
+.co-qr-panel .co-qr-fallback{height:100%;min-height:0;}
+@keyframes coQrIn{from{opacity:0}to{opacity:1}}
+@media (max-width:700px){.co-qr-panel .co-qr-box{width:min(340px,100%);}}
+@media (prefers-reduced-motion:reduce){.co-qr-panel .co-qr-img{animation:none;}}
+
+/* ============ Final payment layout polish (mobile + desktop) ============ */
+.co-payment-box{container-type:inline-size;container-name:copay;}
+.co-qr-panel{padding:22px 18px 20px;}
+.co-qr-panel .co-qr-label{margin-bottom:14px;}
+.co-qr-panel .co-qr-box{width:min(380px,100%);aspect-ratio:900/1087;contain:none;margin:0 auto 16px;}
+.co-qr-panel .co-qr-img{border-radius:0;box-shadow:none;filter:drop-shadow(0 3px 10px rgba(15,23,42,.16));}
+.co-qr-panel .co-qr-fallback{border-radius:16px;}
+.co-qr-panel .co-qr-caption{max-width:320px;font-size:12.5px;}
+.co-bank-accounts div{flex-wrap:wrap;}
+.co-bank-accounts strong{font-size:clamp(13px,3.6vw,15px);}
+@media (max-width:700px){
+  .co-payment-box{padding:16px 14px 18px;}
+  .co-bank-panel{padding:20px 16px;}
+  .co-qr-panel{padding:18px 12px 16px;}
+  .co-qr-panel .co-qr-box{width:min(360px,100%);}
+}
+/* Desktop: bank details on the left, QR on the right */
+@container copay (min-width:720px){
+  .co-payment-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,420px);gap:18px;align-items:stretch;}
+  .co-bank-panel,.co-qr-panel{min-height:0;height:100%;}
+  .co-qr-panel .co-qr-box{width:min(360px,100%);}
+}
+html[data-theme="dark"] .co-qr-panel .co-qr-img{filter:drop-shadow(0 3px 12px rgba(0,0,0,.5));}
+
+/* ============ Copy buttons for account numbers ============ */
+.co-copy{margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;appearance:none;border:1px solid #c9d1d1;background:#fff;color:#172e25;font:inherit;font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;-webkit-tap-highlight-color:transparent;}
+.co-copy:hover{background:#f1f5f9;}
+.co-copy:active{transform:scale(.97);}
+.co-copy:focus-visible{outline:2px solid #0F5EA8;outline-offset:2px;}
+.co-copy-ico{width:14px;height:14px;flex:none;}
+.co-copy.copied{background:#e5e7eb;border-color:#d1d5db;color:#6b7280;}
+html[data-theme="dark"] .co-copy{background:#16213a;border-color:#34456A;color:#E7EDF7;}
+html[data-theme="dark"] .co-copy.copied{background:#2a3550;border-color:#34456A;color:#97A5BA;}
+@media (max-width:420px){.co-copy-txt{display:none;}.co-copy{padding:8px 9px;}.co-bank-accounts div{flex-wrap:nowrap;}}
+
+/* Clean QR edges: the shadow lives on the box and the image is clipped to the
+   card's own rounded corners, so no dark/black corners can show even if an
+   older QR file (with baked-in black corners) is still cached. */
+.co-qr-panel .co-qr-box{filter:drop-shadow(0 3px 10px rgba(15,23,42,.16));}
+.co-qr-panel .co-qr-img{filter:none;clip-path:inset(0 round 5.2% / 4.3%);}
+html[data-theme="dark"] .co-qr-panel .co-qr-box{filter:drop-shadow(0 3px 12px rgba(0,0,0,.5));}
+html[data-theme="dark"] .co-qr-panel .co-qr-img{filter:none;}
+
+/* ============ QR-only tile (no card, no black corners) ============ */
+.co-qr-panel .co-qr-box{width:min(340px,100%);aspect-ratio:1/1;height:auto;box-sizing:border-box;padding:18px;background:#0E5CA6;border:0;border-radius:20px;margin:0 auto 14px;display:block;filter:drop-shadow(0 4px 12px rgba(15,23,42,.18));}
+.co-qr-panel .co-qr-img{display:block;width:100%;height:100%;object-fit:contain;border-radius:0;clip-path:none;filter:none;image-rendering:auto;}
+.co-qr-panel .co-qr-box:has(.co-qr-img.img-missing){background:transparent;padding:0;aspect-ratio:auto;filter:none;}
+.co-qr-panel .co-qr-box:has(.co-qr-img.img-missing) .co-qr-fallback{min-height:200px;}
+.co-qr-merchant{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:10px;}
+.co-qr-merchant strong{font-size:14px;letter-spacing:.04em;color:#172e25;}
+.co-qr-merchant span{font-size:11.5px;color:#5f6b6d;}
+.co-qr-panel .co-qr-box:has(.co-qr-img.img-missing) ~ .co-qr-merchant{display:none;}
+html[data-theme="dark"] .co-qr-merchant strong{color:#E7EDF7;}
+html[data-theme="dark"] .co-qr-merchant span{color:#97A5BA;}
+html[data-theme="dark"] .co-qr-panel .co-qr-box{background:#0E5CA6;filter:drop-shadow(0 4px 14px rgba(0,0,0,.5));}
+html[data-theme="dark"] .co-qr-panel .co-qr-box:has(.co-qr-img.img-missing){background:transparent;filter:none;}
+@media (max-width:700px){.co-qr-panel .co-qr-box{width:min(320px,100%);padding:16px;}}
+@container copay (min-width:720px){.co-qr-panel .co-qr-box{width:min(340px,100%);}}
+
+/* ============ Compact bank rows on small screens ============ */
+.co-bank-panel{container-type:inline-size;container-name:cobank;}
+body.co-page .co-bank-accounts div{flex-wrap:nowrap;gap:8px;}
+body.co-page .co-bank-accounts strong{min-width:0;white-space:nowrap;}
+@media (max-width:700px){
+  .co-bank-panel{padding:16px 14px;}
+  .co-bank-label{margin-bottom:12px;}
+  .co-bank-company{margin-bottom:14px;}
+  body.co-page .co-bank-accounts{gap:8px;margin-bottom:12px;}
+  body.co-page .co-bank-accounts div{min-height:42px;padding:7px 9px;}
+  .co-bank-note{padding-top:10px;font-size:11px;}
+}
+@container cobank (max-width:400px){
+  .co-copy-txt{display:none;}
+  .co-copy{padding:7px 8px;border-radius:7px;}
+  body.co-page .co-bank-accounts strong{font-size:clamp(12px,4.6cqw,13.5px);letter-spacing:0;}
+  body.co-page .co-bank-tag{gap:5px;font-size:11px;}
+  body.co-page .co-bank-tag .co-cur-name{min-width:0;}
+  body.co-page .co-cur-badge{width:16px;height:16px;font-size:15px;}
+  body.co-page .co-cur-badge .cur-icon{height:13px;}
+  .co-bank-name{font-size:14px;}
+}
+
+@container cobank (max-width:270px){
+  body.co-page .co-cur-badge{display:none;}
+  body.co-page .co-bank-accounts div{gap:6px;padding:7px 8px;}
+}
+
+
+/* ============================================================
+   ADD TO CART — check circle + loading animation polish
+   (product page + product cards, mobile + desktop)
+
+   Check circle: the product-page rule `html .pd-action-row .card-add svg`
+   was also resizing the tick inside the green circle (15px / 14px inside
+   a 14px circle, and display:none on very narrow phones), so the tick
+   overflowed or vanished. The circle and tick now have exact, even pixel
+   sizes (so nothing lands on a half pixel) and selectors long enough to win.
+
+   Loading: the product-page button kept its 8px radius + side padding while
+   "loading", so it was a squeezed rounded rectangle with dots spilling out.
+   It is now a true circle, centred, with a soft pop-in; dots bounce evenly
+   around the centre line instead of sitting low.
+   ============================================================ */
+
+/* --- check circle (cards) --- */
+.card-add .card-add-success{align-items:center;line-height:1;}
+.card-add .card-add-success-icon{
+  box-sizing:border-box;
+  width:14px;height:14px;min-width:14px;aspect-ratio:1/1;
+  flex:0 0 auto;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--green-800);color:#fff;
+}
+.card-add .card-add-success-icon svg{
+  display:block;flex:none;
+  width:8px;height:8px;color:#fff;
+}
+.card-add .card-add-success-icon svg path{stroke:currentColor;stroke-width:3;}
+
+/* --- check circle (product page) --- */
+html .pd-action-row .card-add .card-add-success{gap:8px;}
+html .pd-action-row .card-add .card-add-success-icon{width:18px;height:18px;min-width:18px;}
+html .pd-action-row .card-add .card-add-success-icon svg{display:block;width:12px;height:12px;}
+html[data-theme="dark"] .pd-action-row .card-add .card-add-success-icon{background:#4A9C80;}
+
+/* --- loading circle (product page) --- */
+html .pd-action-row .card-add.loading{
+  box-sizing:border-box;
+  flex:none;width:42px;height:42px;min-width:42px;
+  padding:0 !important;gap:0 !important;margin:0;
+  border-radius:50% !important;
+  background:transparent !important;
+  border:0 !important;box-shadow:none !important;
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  animation:cardAddLoadPopCentered .32s var(--ease-glass) both;
+}
+html .pd-action-row .card-add.loading .card-add-dots{gap:5px;}
+html .pd-action-row .card-add.loading .card-add-dots span{width:6px;height:6px;background:var(--green-800);}
+html[data-theme="dark"] .pd-action-row .card-add.loading .card-add-dots span{background:#9ADBC4;}
+
+/* --- loading circle (product cards): same soft pop-in --- */
+/* dots only — no circle behind them */
+.card-action-slot .card-add.loading{
+  box-sizing:border-box;
+  background:transparent !important;border-color:transparent !important;box-shadow:none !important;
+  animation:cardAddLoadPop .3s var(--ease-glass) both;
+}
+.card-add.loading .card-add-dots{gap:5px;}
+.card-add.loading .card-add-dots span{width:6px;height:6px;background:var(--green-800);}
+html[data-theme="dark"] .card-add.loading .card-add-dots span{background:#9ADBC4;}
+
+@keyframes cardAddLoadPop{
+  from{transform:scale(.6);opacity:.4;}
+  to{transform:scale(1);opacity:1;}
+}
+@keyframes cardAddLoadPopCentered{
+  from{transform:translate(-50%,-50%) scale(.6);opacity:.4;}
+  to{transform:translate(-50%,-50%) scale(1);opacity:1;}
+}
+/* dots rise and fall evenly around the centre line */
+@keyframes cardAddDotBounce{
+  0%,80%,100%{transform:translateY(2px) scale(.8);opacity:.5;}
+  40%{transform:translateY(-3px) scale(1);opacity:1;}
+}
+@media (prefers-reduced-motion:reduce){
+  .card-add.loading{animation:none !important;}
+  .card-add-dots span{animation:none;opacity:1;transform:none;}
+}
+
+/* Check mark paints together with its circle — fixed white stroke, no transitions/animation on the icon */
+.card-add .card-add-success-icon,
+.card-add .card-add-success-icon svg,
+.card-add .card-add-success-icon svg path{transition:none !important;animation:none !important;}
+.card-add .card-add-success-icon svg path{stroke:#fff;}
+.card-add.success,.card-add.card-add-done{transition:none;}
+
+/* Hero banner — swipe / drag left and right */
+.hero{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
+@media (hover:hover){ .hero{cursor:grab;} .hero.is-dragging{cursor:grabbing;} }
+.hero.is-dragging .hero-track{transition:none;}
+
+/* Shop Offers is now a real link */
+a.promo-cta{text-decoration:none;cursor:pointer;}
+
+
+/* Special offers card — light theme text/button colours (replaces the old violet card) */
+.promo-banner .promo-eyebrow{color:#B23A7A;background:#FFE6F1;border-color:#F8C9DE;}
+.promo-banner h2{color:var(--ink,#1c2b25);text-shadow:none;margin-bottom:20px;}
+.promo-banner h2 span{
+  background:linear-gradient(90deg,#B23A7A,#68206F);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:#68206F;
+}
+.promo-banner .promo-cta{
+  background:linear-gradient(180deg,#8A2F86 0%,#68206F 100%);color:#fff;
+  box-shadow:0 8px 20px rgba(104,32,111,.28), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.promo-banner .promo-cta:hover{box-shadow:0 12px 26px rgba(104,32,111,.36), inset 0 1px 0 rgba(255,255,255,.25);}
+
+
+/* ============ Special Offers strip ============ */
+/* Neutral palette: white card, black text, gray labels, red accent. */
+.flash-sale{
+  --so-red:#D92D20;--so-red-dark:#B42318;--so-ink:#FFFFFF;--so-gray:rgba(255,255,255,.82);
+  display:flex;align-items:center;gap:16px;
+  margin:0 0 26px;padding:18px 22px;
+  border-radius:18px;
+  background:linear-gradient(135deg,#E5372A 0%,#C62A1E 100%);
+  color:var(--so-ink);
+}
+.flash-sale[hidden]{display:none;}
+.fs-btn{
+  align-self:center;margin-top:4px;padding:6px 14px;border-radius:999px;
+  background:#111111;color:#fff;text-decoration:none;
+  font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1;
+  white-space:nowrap;
+}
+.fs-btn:hover{background:#000;}
+.fs-btn:focus-visible{outline:2px solid #fff;outline-offset:2px;}
+.fs-ended{display:none;text-align:right;line-height:1.2;}
+.fs-ended b{display:block;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#fff;}
+.fs-ended small{display:block;margin-top:3px;font-size:11px;font-weight:700;color:var(--so-gray);}
+.flash-sale.is-ended .fs-ended{display:block;}
+.flash-sale.is-ended .fs-state,
+.flash-sale.is-ended .fs-units,
+.flash-sale.is-ended .fs-btn,
+.flash-sale.is-ended .fs-date{display:none;}
+.fs-bolt{width:46px;height:46px;flex:none;color:#fff;}
+.fs-title{
+  display:flex;flex-direction:column;
+  line-height:.95;font-weight:800;font-style:italic;
+  font-size:30px;letter-spacing:.01em;text-transform:uppercase;color:var(--so-ink);
+}
+.fs-title span:first-child{font-size:.78em;}
+.fs-date{
+  margin-top:7px;font-size:11px;font-weight:700;font-style:normal;
+  letter-spacing:.04em;line-height:1.1;color:var(--so-gray);
+}
+.fs-timer{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-variant-numeric:tabular-nums;}
+.fs-state{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--so-gray);line-height:1;}
+.fs-units{display:flex;align-items:flex-start;gap:5px;}
+.fs-u{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.fs-u b{
+  min-width:36px;padding:8px 6px;border-radius:9px;
+  background:#fff;color:#111;
+  font-size:18px;font-weight:700;text-align:center;line-height:1;
+}
+.fs-u small{font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--so-gray);line-height:1;}
+@media (max-width:640px){
+  .flash-sale{padding:14px 12px;gap:10px;border-radius:16px;margin-bottom:20px;}
+  .fs-bolt{width:34px;height:34px;}
+  .fs-title{font-size:21px;}
+  .fs-date{font-size:8.5px;margin-top:6px;}
+  .fs-units{gap:3px;}
+  .fs-u b{min-width:28px;padding:7px 4px;font-size:14px;border-radius:7px;}
+  .fs-btn{padding:6px 12px;font-size:9.5px;}
+}
+html[data-theme="dark"] .flash-sale{background:linear-gradient(135deg,#B42318 0%,#8E1B12 100%);}
+
+/* Mobile menu: keep scrolling, but never show the scrollbar. */
+.mobile-menu-body{scrollbar-width:none;-ms-overflow-style:none;}
+.mobile-menu-body::-webkit-scrollbar{display:none;width:0;height:0;}
+
+/* Category view: only search + brands + the product list (home promos hidden). */
+body.cat-view #hero,
+body.cat-view #quickCats,
+body.cat-view #homeViberCta,
+body.cat-view #popularProductsSection,
+body.cat-view #flashSale{display:none !important;}
+
+/* Categories sidebar: visible thin scrollbar on the LEFT side.
+   direction:rtl on the scroll container moves the scrollbar left; the list
+   inside is flipped back to ltr so the text/layout stay normal. */
+.sidebar-scrollwrap{
+  direction:rtl;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(100,116,139,.45) transparent;
+  -ms-overflow-style:auto;
+  padding-left:6px;
+}
+.sidebar-scrollwrap::-webkit-scrollbar{display:block;width:5px;height:auto;}
+.sidebar-scrollwrap::-webkit-scrollbar-track{background:transparent;}
+.sidebar-scrollwrap::-webkit-scrollbar-thumb{background:rgba(100,116,139,.35);border-radius:999px;}
+.sidebar-scrollwrap::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,.6);}
+.sidebar-scrollwrap > .sidebar-list{direction:ltr;}
+
+/* Download QR button */
+.co-qr-dl{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:12px auto 0;appearance:none;border:1px solid #c9d1d1;background:#fff;color:#172e25;font:inherit;font-size:13px;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s;}
+.co-qr-dl svg{width:16px;height:16px;flex:0 0 auto;}
+.co-qr-dl:hover{background:#f3f6f6;border-color:#aab4b4;}
+.co-qr-dl:active{transform:scale(.97);}
+html[data-theme="dark"] .co-qr-dl{background:#16213a;border-color:#34456A;color:#E7EDF7;}
+
+/* Install App banner: only on the Home screen. It slides down and fades out
+   when a product, profile or orders screen opens, and returns on Home. */
+.install-banner{
+  transition:opacity .28s ease, transform .32s cubic-bezier(.4,0,.2,1), visibility .32s;
+}
+body:has(#productView.open) .install-banner,
+body:has(#profileView.open) .install-banner,
+body:has(#ordersView.open) .install-banner{
+  opacity:0;
+  transform:translateY(24px);
+  visibility:hidden;
+  pointer-events:none;
+  animation:none;
+}
+
+
+/* ===== Add-to-cart: flying dot + hopping red badge (no drawer) ===== */
+.cart-fly-dot{
+  position:fixed;z-index:9999;pointer-events:none;
+  border-radius:50%;background:#E8262B;
+  box-shadow:0 2px 8px rgba(232,38,43,.45);
+}
+.js-cart-btn .cart-count.cart-hop{
+  animation:cartBadgeHop .6s cubic-bezier(.28,.84,.42,1);
+}
+@keyframes cartBadgeHop{
+  0%   { transform:translateY(0) scale(1); }
+  25%  { transform:translateY(-12px) scale(1.25); }
+  45%  { transform:translateY(0) scale(.9); }
+  62%  { transform:translateY(-6px) scale(1.1); }
+  80%  { transform:translateY(0) scale(.97); }
+  100% { transform:translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce){
+  .js-cart-btn .cart-count.cart-hop{animation:none;}
+}
+
+
+/* ===== Checkout: fixed +960 prefix + 7-digit mobile box ===== */
+.co-field .auth-mobile-wrap{
+  display:flex;align-items:stretch;
+  border:1px solid #a6a6a6;border-radius:3px;background:#fff;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.co-field .auth-mobile-wrap:focus-within{border-color:#007185;box-shadow:0 0 0 2px rgba(0,113,133,.16);}
+.co-field .auth-mobile-prefix{
+  display:flex;align-items:center;padding:0 12px;
+  font-size:14px;font-weight:600;color:var(--ink-soft);
+  background:#F1F5F9;border-right:1px solid #E2E8F0;
+  text-transform:none;letter-spacing:0;user-select:none;
+}
+.co-field .auth-mobile-wrap input{
+  flex:1;min-width:0;border:0;border-radius:0;box-shadow:none;background:transparent;
+}
+.co-field .auth-mobile-wrap input:focus{box-shadow:none;}
+.co-field.has-error .auth-mobile-wrap{border-color:var(--red);background:var(--red-bg);}
+html[data-theme="dark"] .co-field .auth-mobile-wrap{background:#111A2C;border-color:#34456A;}
+html[data-theme="dark"] .co-field .auth-mobile-prefix{background:#18233A;border-right-color:#34456A;color:#97A5BA;}
+
+
+/* Profile / password Save buttons: clearly inactive until something changed */
+#profileView .profile-view-save-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+
+/* =====================================================================
+   "Complete your profile" (first sign-in) — same look as the
+   "Add Business Account" modal: dimmed backdrop, 20px rounded card,
+   title + hairline, small gray labels, 44px rounded fields, green button.
+   Scoped to #onboardModal only.
+   ===================================================================== */
+html #onboardModal{background:rgba(0,0,0,.5);}
+html #onboardModal .auth-card{
+  max-width:420px;background:#fff;
+  border:1px solid var(--line);border-radius:20px !important;box-shadow:none;
+}
+html #onboardModal .auth-card-scroll{padding:20px;}
+
+/* title row: no icon chip, bold left title, hairline underneath */
+html #onboardModal .auth-head{margin-bottom:16px;}
+html #onboardModal .auth-head-icon{display:none;}
+html #onboardModal .auth-head-row{margin:0;padding-bottom:12px;border-bottom:1px solid var(--line);}
+html #onboardModal .auth-head h2{font-size:18px;font-weight:700;color:var(--ink);}
+html #onboardModal .auth-head p{margin:12px 0 0;font-size:12px;color:var(--ink-soft);}
+html #onboardModal .auth-form{gap:16px;}
+
+/* labels */
+html #onboardModal .auth-field>span{font-size:12px;font-weight:600;color:var(--ink-soft);}
+html #onboardModal .auth-field{gap:6px;}
+
+/* text inputs */
+html #onboardModal .auth-field input{
+  height:44px;padding:0 12px;box-sizing:border-box;
+  font-size:13.5px;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:10px !important;box-shadow:none;outline:0;
+  transition:border-color .15s,box-shadow .15s;
+}
+html #onboardModal .auth-field input:hover{border-color:#94A3B8;}
+html #onboardModal .auth-field input:focus{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(35,114,89,.14);outline:0;}
+html #onboardModal .auth-field.has-error input{border-color:var(--red);}
+
+/* +960 mobile box */
+html #onboardModal .auth-mobile-wrap{
+  height:44px;border:1px solid var(--line);border-radius:10px !important;background:#fff;box-shadow:none;overflow:hidden;
+  transition:border-color .15s,box-shadow .15s;
+}
+html #onboardModal .auth-mobile-wrap:hover{border-color:#94A3B8;}
+html #onboardModal .auth-mobile-wrap:focus-within{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(35,114,89,.14);}
+html #onboardModal .auth-mobile-wrap input{height:100%;border:0 !important;border-radius:0 !important;box-shadow:none !important;background:transparent;}
+html #onboardModal .auth-mobile-prefix{
+  padding:0 12px;font-size:13.5px;font-weight:500;color:var(--ink-soft);
+  background:#F1F5F9;border-right:1px solid var(--line);
+}
+html #onboardModal .auth-field.has-error .auth-mobile-wrap{border-color:var(--red);background:var(--red-bg);}
+
+/* atoll dropdown (custom .co-dd) */
+html #onboardModal .co-dd-btn{
+  height:44px;padding:0 12px;box-sizing:border-box;
+  border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:none;
+  font-size:13.5px;color:var(--ink);transition:border-color .15s,box-shadow .15s;
+}
+html #onboardModal .co-dd-btn:hover{border-color:#94A3B8;}
+html #onboardModal .co-dd-btn:focus,html #onboardModal .co-dd.open .co-dd-btn{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(35,114,89,.14);outline:0;}
+html #onboardModal .co-dd-label{font-size:13.5px;font-weight:400;}
+html #onboardModal .co-dd-chev{color:#64748B;}
+html #onboardModal .co-dd-list{border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(15,23,42,.14);}
+html #onboardModal .field-error{font-size:11.5px;}
+
+/* green action button, same size as the modal's Submit */
+html #onboardModal .auth-submit-btn{
+  height:44px;padding:8px 14px;margin-top:2px;
+  font-size:13px;font-weight:500;border-radius:8px !important;
+  background:#164B3B !important;color:#fff !important;
+}
+html #onboardModal .auth-submit-btn:hover:not(:disabled){background:#123F32 !important;}
+
+html[data-theme="dark"] #onboardModal .auth-card{background:#111A2C;border-color:#34456A;}
+html[data-theme="dark"] #onboardModal .auth-head-row{border-bottom-color:#34456A;}
+html[data-theme="dark"] #onboardModal .auth-head h2{color:#E7EDF7;}
+html[data-theme="dark"] #onboardModal .auth-field>span,
+html[data-theme="dark"] #onboardModal .auth-head p{color:#97A5BA;}
+html[data-theme="dark"] #onboardModal .auth-field input,
+html[data-theme="dark"] #onboardModal .co-dd-btn,
+html[data-theme="dark"] #onboardModal .auth-mobile-wrap{background:#111A2C;border-color:#34456A;color:#E7EDF7;}
+html[data-theme="dark"] #onboardModal .auth-mobile-wrap input{background:transparent;}
+html[data-theme="dark"] #onboardModal .auth-mobile-prefix{background:#18233A;border-right-color:#34456A;color:#97A5BA;}
+html[data-theme="dark"] #onboardModal .co-dd-label{color:#E7EDF7;}
+
+
+/* Onboarding step 2 (business account): switch row + Skip button */
+html #onboardModal .ma-switch{margin:0;}
+html #onboardModal .field-error:not([hidden]){display:block;color:var(--red);}
+html #onboardModal .ob-skip-btn{
+  height:44px;padding:8px 14px;border:0;border-radius:8px;cursor:pointer;
+  background:var(--ui-btn-bg);color:var(--ink);font:inherit;font-size:13px;font-weight:500;
+  transition:background-color .15s ease;
+}
+html #onboardModal .ob-skip-btn:hover:not(:disabled){background:var(--ui-btn-bg-h);}
+html #onboardModal .ob-skip-btn:disabled{opacity:.6;cursor:default;}

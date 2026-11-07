@@ -25,6 +25,8 @@
   'Seenu (Addu) (S)': ['Hithadhoo', 'Maradhoo', 'Feydhoo', 'Hulhudhoo'],
 };
   var BUSINESS_TYPES = ['Retail Shop','Supermarket / Mini Mart','Cafe / Restaurant','Resort / Hotel','Guesthouse','Wholesaler / Distributor','Other'];
+  // Shared with the first-sign-in "Business account" step (script.js) so both use the same lists.
+  window.MAZI_ATOLL_ISLANDS = ATOLLS; window.MAZI_BUSINESS_TYPES = BUSINESS_TYPES;
   var $ = function(id){ return document.getElementById(id); };
   var state = { personal: null, shops: [], loadError: false };
 
