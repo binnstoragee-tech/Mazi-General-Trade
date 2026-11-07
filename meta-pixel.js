@@ -2,7 +2,7 @@
    Isang file lang para sa lahat ng pages. Para palitan ang Pixel ID, baguhin
    lang ang PIXEL_ID sa ibaba. Hindi ginagamit sa admin.html. */
 (function(){
-  var PIXEL_ID = '1697252918634640';
+  var PIXEL_ID = '1820836348852271';
 
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
