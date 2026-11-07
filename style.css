@@ -8492,12 +8492,7 @@ html[data-theme="dark"] .flash-sale{background:linear-gradient(135deg,#B42318 0%
 .mobile-menu-body{scrollbar-width:none;-ms-overflow-style:none;}
 .mobile-menu-body::-webkit-scrollbar{display:none;width:0;height:0;}
 
-/* Category view: only search + brands + the product list (home promos hidden). */
-body.cat-view #hero,
-body.cat-view #quickCats,
-body.cat-view #homeViberCta,
-body.cat-view #popularProductsSection,
-body.cat-view #flashSale{display:none !important;}
+/* Category view: the home promos (hero, special offers, popular, etc.) stay visible on top. */
 
 /* Categories sidebar: visible thin scrollbar on the LEFT side.
    direction:rtl on the scroll container moves the scrollbar left; the list

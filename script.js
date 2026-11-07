@@ -1087,9 +1087,8 @@ function setCategory(catId){
 
 // Updates the dropdown (open/closed + which filter is active) without re-rendering,
 // so the arrow can animate.
-// Category view: once a category / filter is picked, the home-page promo blocks (hero,
-// quick cards, Viber banner, Popular Products, Special Offers) are hidden so the page
-// lands straight on search + brands + the product list (web and mobile).
+// Category view: the 'cat-view' body class is still toggled, but the home-page promo blocks
+// (hero, quick cards, Viber banner, Popular Products, Special Offers) now stay visible.
 function applyCatView(){
   document.body.classList.toggle('cat-view', state.category !== 'all');
 }
@@ -1169,7 +1168,8 @@ function renderCategoryNav(){
       renderProductsLoading();
       // Household & Cleaning keeps the mobile menu open (so you can pick a filter).
       if (btn.dataset.cat !== 'household') closeMenu();
-      scrollToProductList();
+      // Jump straight to the products of the picked category (Household & Cleaning included).
+      setTimeout(scrollToResults, 120);
     });
   });
 
@@ -1212,7 +1212,8 @@ function renderCategoryNav(){
       syncHouseholdNav();
       renderProductsLoading();
       closeMenu(); // picking a filter closes the mobile menu
-      scrollToProductList();
+      // Sub-filters (Fabric Care, Laundry Liquid Detergent, ...) jump straight to the products.
+      setTimeout(scrollToResults, 120);
     });
   });
 
