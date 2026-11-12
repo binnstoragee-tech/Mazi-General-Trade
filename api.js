@@ -36,6 +36,7 @@
     INVALID_DISCOUNT: 'That discount is not valid (it cannot be negative, over 100%, or bigger than the item total).',
     SLIP_REQUIRED: 'Please upload your payment slip.',
     IMAGE_REQUIRED: 'Please choose a photo to upload.',
+    ITEM_NO_PRICE: 'Some items in your cart have no price yet and cannot be ordered.',
     RATE_LIMITED: 'Too many orders in a short time. Please try again later.',
     PRODUCT_NOT_FOUND: 'Some products are no longer available.',
     OUT_OF_STOCK: 'Some items are out of stock.',
@@ -210,7 +211,7 @@
       }).then(unwrap).then(function (rows) {
         return (rows || []).map(function (p) {
           var out = { id: p.id, name: p.name, cat: p.category, icon: p.icon, pack: p.pack,
-                      unit: p.unit, price: p.price, stock: p.stock };
+                      unit: p.unit, price: p.price, stock: p.stock, isNew: p.is_new === true, sub: p.sub_category || '' };
           // Only trust image_url from the database when it's a real uploaded
           // Storage URL (http/https) — some rows still carry stale, old-style
           // relative paths from early seed data (full product names + .jpg)
@@ -889,8 +890,13 @@
     return run(function () {
       function q(cols) { return getClient().from('products').select(cols).order('name').then(unwrap); }
       var base = 'id,name,pack,unit,price,stock,stock_qty,active,category_id,icon,image_url';
-      // deleted_at needs 61_recycle_bin_products.sql; fall back so the Stock page works before it is run
-      return q(base + ',deleted_at').catch(function () { return q(base); });
+      // deleted_at needs 61_recycle_bin_products.sql, is_new needs 67_new_arrivals_and_zero_price_guard.sql;
+      // fall back so the Stock page keeps working before they are run
+      return q(base + ',deleted_at,is_new,sub_category').catch(function () {
+        return q(base + ',deleted_at,is_new').catch(function () {
+          return q(base + ',deleted_at').catch(function () { return q(base); });
+        });
+      });
     });
   }
   // opts: { add: 24 }  -> +24 units   |   { set: 100 } -> exactly 100 units
@@ -929,7 +935,10 @@
         p_price: patch.price == null ? null : Number(patch.price),
         p_icon: patch.icon == null ? null : String(patch.icon).trim() || null,
         p_active: patch.active == null ? null : !!patch.active,
-        p_image_url: patch.image_url == null ? null : String(patch.image_url).trim() || null
+        p_image_url: patch.image_url == null ? null : String(patch.image_url).trim() || null,
+        p_category_id: patch.category == null ? null : String(patch.category),
+        p_is_new: patch.is_new == null ? null : !!patch.is_new,
+        p_sub_category: patch.sub_category == null ? null : String(patch.sub_category)   // '' = Auto (by name)
       }).then(unwrap);
     });
   }
@@ -947,13 +956,23 @@
         p_price: Number(fields.price) || 0,
         p_icon: fields.icon == null ? null : String(fields.icon).trim() || null,
         p_image_url: fields.image_url == null ? null : String(fields.image_url).trim() || null,
-        p_active: fields.active == null ? true : !!fields.active
+        p_active: fields.active == null ? true : !!fields.active,
+        p_is_new: !!fields.is_new,
+        p_sub_category: fields.sub_category ? String(fields.sub_category) : null
       }).then(unwrap);
+    });
+  }
+  // change a product's code/ID (needs supabase/71_edit_product_code.sql)
+  function adminRenameProduct(oldId, newId) {
+    return run(function () {
+      return getClient().rpc('admin_rename_product', { p_old: oldId, p_new: String(newId || '').trim() }).then(unwrap);
     });
   }
   function adminListProductEditLog(limit) {
     return run(function () {
-      return getClient().from('product_edit_log').select('*, products(name), profiles(name,email)')
+      // no embeds: names are resolved in the dashboard (product_name column + staff list), so this keeps
+      // working even after a product is permanently deleted
+      return getClient().from('product_edit_log').select('*')
         .order('created_at', { ascending: false }).limit(limit || 40).then(unwrap);
     });
   }
@@ -1068,6 +1087,12 @@
       var rows = Object.keys(values || {}).map(function (k) { return { key: k, value: values[k] }; });
       if (!rows.length) return [];
       return getClient().from('app_config').upsert(rows, { onConflict: 'key' }).select().then(unwrap);
+    });
+  }
+  // New Arrival badge text + colour — allowed for Admin and Super Admin (needs 68_admin_new_arrival_style.sql)
+  function adminSetNewArrivalStyle(label, color) {
+    return run(function () {
+      return getClient().rpc('admin_set_new_arrival_style', { p_label: label, p_color: color }).then(unwrap);
     });
   }
   function adminListCustomers() {
@@ -1223,7 +1248,7 @@
     adminCreateWalkinOrder: adminCreateWalkinOrder, adminCreateQuotation: adminCreateQuotation,
     adminConvertQuotation: adminConvertQuotation, adminVoidQuotation: adminVoidQuotation,
     adminListQuotations: adminListQuotations,
-    adminSaveConfig: adminSaveConfig,
+    adminSaveConfig: adminSaveConfig, adminSetNewArrivalStyle: adminSetNewArrivalStyle, adminRenameProduct: adminRenameProduct,
     adminListCustomers: adminListCustomers, adminCreateCustomer: adminCreateCustomer, adminUpdateCustomer: adminUpdateCustomer,
     adminCustomerDetail: adminCustomerDetail, adminReceiveCustomerPayment: adminReceiveCustomerPayment,
     adminDeleteCustomer: adminDeleteCustomer, adminRestoreCustomer: adminRestoreCustomer,

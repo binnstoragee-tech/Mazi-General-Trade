@@ -806,7 +806,7 @@
     return Promise.all([
       MaziAPI.adminListProducts(),
       MaziAPI.adminListStockLog(40).catch(function () { return []; }),
-      MaziAPI.adminListProductEditLog(40).catch(function () { return []; })
+      MaziAPI.adminListProductEditLog(80).catch(function () { return []; })
     ]).then(function (r) {
       var allP = r[0] || []; S.products = allP.filter(function (x) { return !x.deleted_at; }); S.trashProducts = allP.filter(function (x) { return !!x.deleted_at; }); S.log = r[1] || []; S.editLog = r[2] || []; S.productsError = null;
     }).catch(function (e) {
@@ -1573,6 +1573,43 @@
     return '<div class="box" style="margin-top:16px"><h3>Top Customers' + srcSuffix() + '</h3><p class="topprod-lead">Top 10 biggest spenders · ' + esc(rangeLbl) + '</p>' + tabs + body + '</div>';
   }
 
+  // ---- product activity (edit / add / delete / restore / purge) ----
+  var EDIT_FIELD = { name: 'name', pack: 'pack', unit: 'unit', price: 'price', icon: 'icon', active: 'visibility',
+    image_url: 'photo', category: 'category', sub_category: 'sub-category', code: 'code', new_arrival: 'New Arrival badge' };
+  function editLogName(l) {
+    var n = l.product_name || (l.products && l.products.name);
+    if (!n) {
+      var all = (S.products || []).concat(S.trashProducts || []);
+      for (var i = 0; i < all.length; i++) { if (all[i].id === l.product_id) { n = all[i].name; break; } }
+    }
+    return n || l.product_id;
+  }
+  function editLogWho(l) {
+    return staffNameById(l.changed_by) || (l.profiles && (l.profiles.name || l.profiles.email)) || '';
+  }
+  function editLogValue(l, v) {
+    if (v == null || v === '') return '—';
+    if (l.field === 'price') return mvr(v);
+    if (l.field === 'active') return v === 'true' ? 'Visible' : 'Hidden';
+    if (l.field === 'new_arrival') return v === 'true' ? 'On' : 'Off';
+    if (l.field === 'image_url') return 'new photo';
+    if (l.field === 'sub_category') { var hs = HOUSEHOLD_SUBS.filter(function (x) { return x.id === v; })[0]; return hs ? hs.name : v; }
+    if (l.field === 'category') { var c = CATEGORIES.filter(function (x) { return x.id === v; })[0]; return c ? c.name : v; }
+    return String(v);
+  }
+  function productActivityItem(l) {
+    var name = editLogName(l), who = editLogWho(l), by = who ? ' · by <b>' + esc(who) + '</b>' : '';
+    var t = new Date(l.created_at).getTime();
+    var goto = 'data-goto="stock:all" data-goto-q="' + esc(name) + '"';
+    if (l.field === 'created') return { t: t, ico: ICON.box, cls: 'green', text: 'Added product <b>' + esc(name) + '</b>', sub: esc(l.product_id) + by, attrs: goto };
+    if (l.field === 'deleted') return { t: t, ico: ICON.trash, cls: 'red', text: 'Deleted product <b>' + esc(name) + '</b>', sub: 'Moved to Recycle Bin' + by, attrs: '' };
+    if (l.field === 'restored') return { t: t, ico: ICON.box, cls: 'blue', text: 'Restored product <b>' + esc(name) + '</b>', sub: 'Back from Recycle Bin' + by, attrs: goto };
+    if (l.field === 'purged') return { t: t, ico: ICON.trash, cls: 'red', text: 'Permanently deleted <b>' + esc(name) + '</b>', sub: esc(l.product_id) + by, attrs: '' };
+    var label = EDIT_FIELD[l.field] || l.field;
+    return { t: t, ico: ICON.box, cls: 'purple', text: 'Edited ' + esc(label) + ' of <b>' + esc(name) + '</b>',
+      sub: l.field === 'image_url' ? 'Photo changed' + by : esc(editLogValue(l, l.old_value)) + ' → ' + esc(editLogValue(l, l.new_value)) + by, attrs: goto };
+  }
+
   var FEED_SHOW = 5;
   function feedAllOpen() { try { return localStorage.getItem('mazi_admin_feedall') === '1'; } catch (e) { return false; } }
   function activityFeedHtml() {
@@ -1597,6 +1634,7 @@
       var by = staffNameById(l.by_user);
       items.push({ t: new Date(l.created_at).getTime(), ico: ICON.box, cls: REASON_CLS[l.reason] || '', text: esc(REASON[l.reason] || l.reason) + ' <b>' + esc(name) + '</b>', sub: (l.change >= 0 ? '+' : '') + l.change + ' → ' + num(l.qty_after) + (by ? ' · by <b>' + esc(by) + '</b>' : ''), attrs: attrs });
     });
+    (S.editLog || []).slice(0, 60).forEach(function (l) { items.push(productActivityItem(l)); });
     items.sort(function (a, b) { return b.t - a.t; });
     items = items.slice(0, 50);
     var open = feedAllOpen();
@@ -1989,14 +2027,15 @@
         '</span><span><span class="' + (l.change >= 0 ? 'plus' : 'minus') + '">' + (l.change >= 0 ? '+' : '') + l.change + '</span> → ' + num(l.qty_after) + (staffNameById(l.by_user) ? ' · <b>' + esc(staffNameById(l.by_user)) + '</b>' : '') + ' · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
     }).join('') : '<div class="empty" style="padding:14px">Nothing yet.</div>') + '</div></div>';
 
-    var EFIELD = { name: 'Name', pack: 'Pack', unit: 'Unit', price: 'Price', icon: 'Icon', active: 'Visibility' };
+    var EFIELD = { name: 'Name', pack: 'Pack', unit: 'Unit', price: 'Price', icon: 'Icon', active: 'Visibility', image_url: 'Photo',
+      category: 'Category', sub_category: 'Sub-category', code: 'Code', new_arrival: 'New Arrival', created: 'Added', deleted: 'Deleted', restored: 'Restored', purged: 'Permanently deleted' };
     h += logBoxOpen('edits', 'Recent edits') + (S.editLog.length ? S.editLog.map(function (l) {
-      var name = (l.products && l.products.name) || l.product_id;
-      var who = (l.profiles && (l.profiles.name || l.profiles.email)) || 'Admin';
-      var fromV = l.field === 'price' ? mvr(l.old_value) : (l.old_value || '—');
-      var toV = l.field === 'price' ? mvr(l.new_value) : (l.new_value || '—');
+      var name = editLogName(l);
+      var who = editLogWho(l) || 'Admin';
+      var detail = /^(created|deleted|restored|purged)$/.test(l.field) ? esc(l.new_value || '') :
+        (l.field === 'image_url' ? 'new photo' : esc(editLogValue(l, l.old_value)) + ' → ' + esc(editLogValue(l, l.new_value)));
       return '<div class="logrow"><span>' + esc(EFIELD[l.field] || l.field) + ' · ' + esc(name) +
-        '</span><span>' + esc(fromV) + ' → ' + esc(toV) + ' · <b>' + esc(who) + '</b> · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
+        '</span><span>' + detail + ' · <b>' + esc(who) + '</b> · ' + esc(ago(new Date(l.created_at).getTime())) + '</span></div>';
     }).join('') : '<div class="empty" style="padding:14px">No edits yet.</div>') + '</div></div>';
     // keep whatever the staff was typing in the Qty boxes while the list refreshes
     var typed = {}, focusId = document.activeElement && document.activeElement.id;
@@ -3406,26 +3445,63 @@
       '<input type="hidden" id="editImage" value="' + esc(url || '') + '">' +
     '</div>';
   }
+  // Household & Cleaning sub-categories — keep in sync with HOUSEHOLD_SUBS in script.js
+  var HOUSEHOLD_SUBS = [
+    { id: 'laundry', name: 'Laundry Liquid Detergent', re: /LAUNDRY|DETERGENT(?! DEODORIZER)/i },
+    { id: 'fabric', name: 'Fabric Care', re: /FABRIC|SENSATION SPRAY/i },
+    { id: 'dish', name: 'Dish Washing Liquid', re: /DISH ?WASH/i },
+    { id: 'floor', name: 'Floor Cleaner', re: /FLOOR CLEANER/i },
+    { id: 'glass', name: 'Glass & Surface Cleaner', re: /GLASS CLEANER|GLOSS DAILY|SURFACE/i },
+    { id: 'disinfectant', name: 'Disinfectant Deodorizer', re: /DISINFECTANT/i },
+    { id: 'toilet', name: 'Toilet Cleaner', re: /TOILET/i },
+    { id: 'air', name: 'Air Freshener Gel', re: /AIR (FRESHENER|GEL)/i },
+    { id: 'handsoap', name: 'Liquid Hand Soap', re: /HAND SOAP/i },
+    { id: 'shower', name: 'Shower Cleansing', re: /SHOWER|CLEANSING/i }
+  ];
+  function autoSubName(name) {
+    var hit = HOUSEHOLD_SUBS.filter(function (s) { return s.re.test(name || ''); })[0];
+    return hit ? hit.name : '';
+  }
+  function subFieldHtml(cat, sel, name) {
+    var auto = autoSubName(name);
+    var opts = '<option value=""' + (!sel ? ' selected' : '') + '>Auto' + (auto ? ' — ' + esc(auto) : ' (from product name)') + '</option>' +
+      HOUSEHOLD_SUBS.map(function (s) { return '<option value="' + s.id + '"' + (s.id === sel ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+    return '<div class="field" id="editSubField"' + (cat === 'household' ? '' : ' style="display:none"') + '><label>Sub-category</label>' +
+      '<select class="inp" id="editSub">' + opts + '</select>' +
+      '<small class="st-hint">Where it shows under Household &amp; Cleaning in the shop. Auto picks it from the product name.</small></div>';
+  }
+  function catOptionsHtml(sel) {
+    var list = CATEGORIES.slice();
+    if (sel && !list.some(function (c) { return c.id === sel; })) list.push({ id: sel, name: sel });
+    return list.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
+  }
   function addFormHtml() {
-    var cats = CATEGORIES.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>'; }).join('');
+    var cats = catOptionsHtml('');
     return '<div class="field"><label>Product ID (unique code)</label><input class="inp" id="editId" placeholder="e.g. 108DW10103"></div>' +
       '<div class="field"><label>Category</label><select class="inp" id="editCategory">' + cats + '</select></div>' +
+      subFieldHtml(CATEGORIES[0] ? CATEGORIES[0].id : '', '', '') +
       '<div class="field"><label>Name</label><input class="inp" id="editName" placeholder="Product name"></div>' +
       '<div class="field"><label>Pack</label><input class="inp" id="editPack" placeholder="e.g. Carton"></div>' +
       '<div class="field"><label>Unit</label><input class="inp" id="editUnit" placeholder="e.g. 1 x 12"></div>' +
       '<div class="field"><label>Price (MVR)</label><input class="inp" id="editPrice" type="number" inputmode="decimal" min="0" step="0.01" value="0"></div>' +
       imageUploadFieldHtml('') +
+      '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editNew"' + '' + '> Show "New Arrival" badge on this product</label>' +
       '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editActive" checked> Visible to customers</label>' +
       '<div class="err" id="editErr"></div>' +
       '<div class="acts modal-footer"><button type="button" class="btn ghost" data-close-edit>Cancel</button><button type="button" class="btn primary" id="editSaveBtn" data-save-product="__new__">Add product</button></div>';
   }
   function editFormHtml(p) {
-    return '<div class="field"><label>Product code</label><input class="inp" value="' + esc(p.id) + '" disabled style="background:var(--bg,#f3f4f2);color:var(--ink-soft)"></div>' +
+    return '<div class="field"><label>Product code</label><input class="inp" id="editCode" value="' + esc(p.id) + '" maxlength="40" autocomplete="off">' +
+      '<small class="st-hint">Changing the code updates it everywhere (orders, stock, shop). If this product\u2019s photo is a file in the img folder, rename that file to the new code too.</small></div>' +
+      '<div class="field"><label>Category</label><select class="inp" id="editCategory">' + catOptionsHtml(p.category_id || '') + '</select></div>' +
+      subFieldHtml(p.category_id || '', p.sub_category || '', p.name) +
       '<div class="field"><label>Name</label><input class="inp" id="editName" value="' + esc(p.name) + '"></div>' +
       '<div class="field"><label>Pack</label><input class="inp" id="editPack" value="' + esc(p.pack || '') + '"></div>' +
       '<div class="field"><label>Unit</label><input class="inp" id="editUnit" value="' + esc(p.unit || '') + '"></div>' +
-      '<div class="field"><label>Price (MVR)</label><input class="inp" id="editPrice" type="number" inputmode="decimal" min="0" step="0.01" value="' + (p.price || 0) + '"></div>' +
+      '<div class="field"><label>Price (MVR)</label><input class="inp" id="editPrice" type="number" inputmode="decimal" min="0" step="0.01" value="' + (p.price || 0) + '"><small class="st-hint">A price of 0 means customers can see the item but cannot add it to the cart.</small></div>' +
       imageUploadFieldHtml(p.image_url || '') +
+      '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editNew"' + (p.is_new ? ' checked' : '') + '> Show "New Arrival" badge on this product</label>' +
+      
       '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-weight:600;font-size:12.5px"><input type="checkbox" id="editActive"' + (p.active ? ' checked' : '') + '> Visible to customers</label>' +
       '<div class="err" id="editErr"></div>' +
       '<div class="acts modal-footer" style="justify-content:space-between">' +
@@ -3656,7 +3732,9 @@
           pack: $('editPack').value.trim(), unit: $('editUnit').value.trim(),
           price: priceStr === '' ? 0 : Number(priceStr),
           image_url: imageUrl,
-          active: $('editActive').checked
+          active: $('editActive').checked,
+          is_new: $('editNew') ? $('editNew').checked : false,
+          sub_category: ($('editCategory').value === 'household' && $('editSub')) ? $('editSub').value : ''
         }).then(function () {
           toast(name.slice(0, 40) + ' added');
           closeEditProduct();
@@ -3664,7 +3742,7 @@
         }).catch(function (e) {
           var msg = String((e && e.message) || 'Could not add the product.');
           if (/admin_add_product/i.test(msg)) {
-            msg = 'One-time setup needed — open Supabase → SQL Editor and run supabase/14_admin_add_product.sql, then try again.';
+            msg = 'One-time setup needed — open Supabase → SQL Editor and run supabase/67_new_arrivals_and_zero_price_guard.sql, then try again.';
           }
           $('editErr').textContent = msg;
           btn.disabled = false; btn.textContent = 'Add product';
@@ -3674,6 +3752,21 @@
     }
 
     var p = findProduct(pid); if (!p) return;
+    var newCode = ($('editCode') ? $('editCode').value.trim() : pid);
+    if (!newCode) { $('editErr').textContent = 'Product code can\u2019t be empty.'; return; }
+    if (newCode !== pid && !/^[A-Za-z0-9._-]+$/.test(newCode)) { $('editErr').textContent = 'Code: letters, numbers, dot, dash or underscore only.'; return; }
+    if (newCode !== pid && findProduct(newCode)) { $('editErr').textContent = 'A product with this code already exists.'; return; }
+    var renamed = false;
+    var renameStep = newCode !== pid
+      ? (btn.disabled = true, btn.textContent = 'Changing code…', MaziAPI.adminRenameProduct(pid, newCode).then(function () { pid = newCode; renamed = true; }))
+      : Promise.resolve();
+    renameStep.then(function () { updateExisting(); }).catch(function (e) {
+      var m = String((e && e.message) || 'Could not change the code.');
+      if (/admin_rename_product|schema cache/i.test(m)) m = 'One-time setup needed — run supabase/71_edit_product_code.sql in the Supabase SQL Editor, then try again.';
+      $('editErr').textContent = m;
+      btn.disabled = false; btn.textContent = origLabel;
+    });
+    function updateExisting() {
     withImageUrl(function (imageUrl) {
       var patch = {
         name: name,
@@ -3682,7 +3775,11 @@
         price: priceStr === '' ? 0 : Number(priceStr),
         icon: p.icon || '',
         image_url: imageUrl,
-        active: $('editActive').checked
+        active: $('editActive').checked,
+        category: $('editCategory') ? $('editCategory').value : null,
+        is_new: $('editNew') ? $('editNew').checked : null,
+        // only Household & Cleaning has sub-categories; '' = Auto (by name)
+        sub_category: $('editCategory') ? (($('editCategory').value === 'household' && $('editSub')) ? $('editSub').value : '') : null
       };
       btn.disabled = true; btn.textContent = 'Saving…';
       MaziAPI.adminUpdateProduct(pid, patch).then(function () {
@@ -3692,12 +3789,17 @@
       }).catch(function (e) {
         var msg = String((e && e.message) || 'Could not save changes.');
         if (/product_edit_log|admin_update_product/i.test(msg)) {
-          msg = 'One-time setup needed — open Supabase → SQL Editor and run supabase/15_admin_update_product_image.sql, then try again.';
+          msg = 'One-time setup needed — open Supabase → SQL Editor and run supabase/67_new_arrivals_and_zero_price_guard.sql, then try again.';
+        }
+        if (renamed) {   // the code change already went through: refresh so the list shows the new code
+          closeEditProduct(); toast('Code changed to ' + pid + ', but the other changes were not saved: ' + msg, true);
+          return loadStock().then(render);
         }
         $('editErr').textContent = msg;
         btn.disabled = false; btn.textContent = 'Save changes';
       });
     });
+    }
   }
   function deleteProduct(pid) {
     var p = findProduct(pid); if (!p) return;
@@ -4037,7 +4139,8 @@
     store_addr: 'Ma. Wooden Park, Boduthakurufaanu Magu 20263, Male, Rep of Maldives',
     store_phone: '+960 929 1600', store_email: 'mazigeneraltrade@gmail.com', store_gst_tin: '115973GTS501',
     mvr_per_usd: 15.42, gst_rate: 0.08, free_delivery_over_mvr: 500,
-    male_islands: ["Male'", "Hulhumale'"], low_stock_threshold: 10
+    male_islands: ["Male'", "Hulhumale'"], low_stock_threshold: 10,
+    new_arrival_label: 'New Arrival', new_arrival_color: '#D92D20'
   };
   var CFG = Object.assign({}, SETTINGS_DEFAULTS);
   var settingsDirty = false;
@@ -4059,6 +4162,8 @@
       if (typeof c[k] !== 'string' || !c[k].trim()) c[k] = SETTINGS_DEFAULTS[k];
     });
     if (!Array.isArray(c.male_islands)) c.male_islands = SETTINGS_DEFAULTS.male_islands.slice();
+    if (typeof c.new_arrival_label !== 'string' || !c.new_arrival_label.trim()) c.new_arrival_label = SETTINGS_DEFAULTS.new_arrival_label;
+    if (typeof c.new_arrival_color !== 'string' || !/^#[0-9a-f]{6}$/i.test(c.new_arrival_color.trim())) c.new_arrival_color = SETTINGS_DEFAULTS.new_arrival_color;
     CFG = c;
     MVR_PER_USD = Number(c.mvr_per_usd);
     DOC_GST_RATE = Number(c.gst_rate);
@@ -4072,7 +4177,7 @@
   function stField(id, label, val, o) {
     o = o || {};
     return '<div class="field"><label for="' + id + '">' + esc(label) + '</label>' +
-      '<input class="inp" id="' + id + '" data-st-field type="' + (o.type || 'text') + '"' +
+      '<input class="inp" id="' + id + '"' + (id.indexOf('st_na_') === 0 ? '' : ' data-st-field') + ' type="' + (o.type || 'text') + '"' +
       (o.step ? ' step="' + o.step + '"' : '') + (o.min != null ? ' min="' + o.min + '"' : '') +
       ' value="' + esc(val) + '"' + (o.ph ? ' placeholder="' + esc(o.ph) + '"' : '') +
       (o.dis ? ' disabled' : '') + (o.type === 'number' ? '' : ' maxlength="' + (o.max || 200) + '"') + '>' +
@@ -4156,6 +4261,13 @@
       stField('st_free', 'Free delivery over (MVR)', CFG.free_delivery_over_mvr, { dis: dis, type: 'number', step: '1', min: 0, hint: 'Orders above this amount get free delivery.' }) +
       stField('st_islands', 'Male\u2019 area islands', CFG.male_islands.join(', '), { dis: dis, max: 300, hint: 'Comma-separated. Orders to these islands count as Male\u2019 area.' }) +
       stField('st_low', 'Low-stock alert at (units)', CFG.low_stock_threshold, { dis: dis, type: 'number', step: '1', min: 0, hint: 'At or below this count a product shows as Low stock.' }) + '</div>';
+    h += '<div class="box"><h3>New Arrival badge</h3><p class="st-sub">The badge shown on the top of a product\u2019s photo in the shop. Turn it on per product in Stock \u2192 Edit.</p>' +
+      stField('st_na_label', 'Badge text', CFG.new_arrival_label, { max: 30, hint: 'Up to 30 characters, e.g. New Arrival, Bago!, Just In.' }) +
+      '<div class="field"><label for="st_na_color">Badge colour</label>' +
+      '<div style="display:flex;align-items:center;gap:10px"><input id="st_na_color" type="color" value="' + esc(CFG.new_arrival_color) + '" style="width:48px;height:36px;padding:2px;border:1px solid var(--line,#dde);border-radius:8px;background:transparent">' +
+      '<span id="st_na_preview" style="display:inline-flex;padding:4px 10px;border-radius:999px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:' + esc(CFG.new_arrival_color) + '">' + esc(CFG.new_arrival_label) + '</span></div>' +
+      '<small class="st-hint">Red by default. Admins and Super Admins can change this.</small></div>' +
+      '<div class="acts"><button type="button" class="btn primary sm" data-st-na-save>Save badge</button></div></div>';
     h += '</div>';
     $('panel').innerHTML = h;
   }
@@ -4193,6 +4305,21 @@
       toast(/row-level security|permission|FORBIDDEN/i.test(m) ? 'Only the Super Admin can save these settings.' : (m || 'Could not save settings.'), true);
     });
   }
+  function saveNewArrivalStyle() {
+    var label = stVal('st_na_label'), color = stVal('st_na_color');
+    if (!label || label.length > 30) { toast('Badge text must be 1 to 30 characters.', true); return; }
+    if (!/^#[0-9a-f]{6}$/i.test(color)) { toast('Pick a valid badge colour.', true); return; }
+    var btn = document.querySelector('[data-st-na-save]'); if (btn) btn.disabled = true;
+    MaziAPI.adminSetNewArrivalStyle(label, color).then(function () {
+      CFG.new_arrival_label = label; CFG.new_arrival_color = color;
+      toast('New Arrival badge saved');
+      if (btn) btn.disabled = false;
+    }).catch(function (e) {
+      if (btn) btn.disabled = false;
+      var m = String((e && e.message) || '');
+      toast(/admin_set_new_arrival_style|schema cache/i.test(m) ? 'Run supabase/68_admin_new_arrival_style.sql first.' : (m || 'Could not save the badge.'), true);
+    });
+  }
   function resetSettingsForm() {
     var D = SETTINGS_DEFAULTS, map = {
       st_store_name: D.store_name, st_store_addr: D.store_addr, st_store_phone: D.store_phone, st_store_email: D.store_email,
@@ -4225,9 +4352,10 @@
       else if (pf.dataset.pf === 'logout') requestLogout();
       return;
     }
-    var t = e.target.closest('[data-st-save],[data-st-defaults],[data-st-reset],[data-st-logout],[data-st-bn],[data-st-cur]');
+    var t = e.target.closest('[data-st-na-save],[data-st-save],[data-st-defaults],[data-st-reset],[data-st-logout],[data-st-bn],[data-st-cur]');
     if (!t) return;
-    if (t.hasAttribute('data-st-save')) saveSettings();
+    if (t.hasAttribute('data-st-na-save')) saveNewArrivalStyle();
+    else if (t.hasAttribute('data-st-save')) saveSettings();
     else if (t.hasAttribute('data-st-defaults')) resetSettingsForm();
     else if (t.hasAttribute('data-st-reset')) sendResetEmail();
     else if (t.hasAttribute('data-st-logout')) requestLogout();
@@ -4556,6 +4684,9 @@
     $('confirmModal').addEventListener('click', function (e) { if (e.target === this) closeConfirm(); });
     $('editModal').addEventListener('change', function (e) {
       if (e.target && e.target.id === 'editImageFile') handleImageFileChange(e.target);
+      if (e.target && e.target.id === 'editCategory') {
+        var sf = $('editSubField'); if (sf) sf.style.display = e.target.value === 'household' ? '' : 'none';
+      }
     });
     $('imgViewModal').addEventListener('click', function (e) { if (e.target === this) closeImgView(); });
     bindImgViewZoom();
@@ -4592,7 +4723,13 @@
       if (e.target && e.target.id === 'staffFilter') { S.staffFilter = e.target.value; render(); }
     });
     $('panel').addEventListener('change', onSettingsChange);
-    $('panel').addEventListener('input', function (e) { if (S.view === 'settings' && e.target.closest && e.target.closest('[data-st-field]')) settingsDirty = true; });
+    $('panel').addEventListener('input', function (e) {
+      if (S.view === 'settings' && e.target.closest && e.target.closest('[data-st-field]')) settingsDirty = true;
+      if (e.target && (e.target.id === 'st_na_label' || e.target.id === 'st_na_color')) {
+        var pv = $('st_na_preview'), lb = $('st_na_label'), cl = $('st_na_color');
+        if (pv && lb && cl) { pv.textContent = lb.value || 'New Arrival'; pv.style.background = cl.value; }
+      }
+    });
     $('search').addEventListener('input', function (e) { S.q = e.target.value; render(); });
     $('panel').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && e.target.id === 'bulkStockQty') { bulkSetStock(); return; }

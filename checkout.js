@@ -818,6 +818,9 @@ function placeOrder(customer){
   if (!window.MaziAPI) return Promise.reject(new Error('The ordering service is not available. Please refresh and try again.'));
   const ids = Object.keys(cart).filter(id => PRODUCTS.find(p => p.id === id));
   if (ids.length === 0) return Promise.reject(new Error('Your cart is empty.'));
+  // items without a price can't be ordered (the server refuses them too)
+  const noPrice = ids.filter(id => !(Number(PRODUCTS.find(p => p.id === id).price) > 0));
+  if (noPrice.length) return Promise.reject(new Error('Some items in your cart have no price yet. Please remove them from your cart and try again.'));
   const items = ids.map(id => ({ product_id: id, qty: cart[id] }));
 
   // 1) upload the slip once (kept in coSlipPath so a failed order can be retried without re-uploading)

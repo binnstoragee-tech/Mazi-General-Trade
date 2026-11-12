@@ -226,6 +226,17 @@ let state = {
 /* ---------- Checkout config ---------- */
 let GST_RATE = 0.08; // product prices already include GST — this is just the informational breakout (live from Settings)
 let MALE_ISLANDS = ["Male'", "Hulhumale'"]; // "Male' area" islands (live from Settings)
+let NEW_ARRIVAL_LABEL = 'New Arrival';   // text of the red badge (Super Admin: Settings -> Storefront badge)
+let NEW_ARRIVAL_COLOR = '#D92D20';       // badge colour (Super Admin: Settings -> Storefront badge)
+
+/* A product with no price (0) can be shown but never added to the cart / ordered. */
+function hasPrice(p){ return !!p && Number(p.price) > 0; }
+function newBadgeHtml(p){
+  return (p && p.isNew) ? `<span class="new-badge">${NEW_ARRIVAL_LABEL.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</span>` : '';
+}
+function applyNewArrivalStyle(){
+  try{ document.documentElement.style.setProperty('--new-badge-bg', NEW_ARRIVAL_COLOR); }catch(e){}
+}
 let ckMethod = 'pickup'; // 'pickup' | 'delivery' | 'boat'
 let ckSlipFile = null;
 let ckPickupDayIndex = 0;
@@ -1589,6 +1600,11 @@ function cardActionHtml(p, opts){
   const rowOpen = detailed ? '<div class="pd-action-row">' : '';
   const rowClose = detailed ? '</div>' : '';
 
+  if (!hasPrice(p)){
+    return `${rowOpen}<button class="card-add card-add-disabled card-add-noprice" type="button" disabled>
+      <span class="card-add-label">Price not available</span>
+    </button>${shareBtn}${rowClose}`;
+  }
   if (qty > 0){
     // On the product page, keep the quantity stepper available after adding —
     // it edits the quantity that's already in the cart (data-incart).
@@ -1764,6 +1780,7 @@ function productCardHtml(p){
   return `
     <div class="product-card" data-id="${p.id}">
       <div class="card-media">
+        ${newBadgeHtml(p)}
         <span class="img-skel" aria-hidden="true"></span>
         <img class="card-img" src="${productImg(p)}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.classList.add('img-missing')">
       </div>
@@ -1997,6 +2014,7 @@ function renderProducts(){
 function renderProductDetail(p){
   $('#productDetailCard').innerHTML = `
     <div class="pd-media">
+      ${newBadgeHtml(p)}
       <span class="img-skel" aria-hidden="true"></span>
       <img src="${productImg(p)}" alt="${p.name}" onerror="this.classList.add('img-missing')" onclick="openImageQuickView('${productImg(p)}','${p.name.replace(/'/g,"\\'")}')">
     </div>
@@ -2370,6 +2388,7 @@ function applyCartMaintenanceUI(){
 // Same login rule as the cart's Checkout button.
 function buyNow(id, qty, btn){
   if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
+  if (!hasPrice(PRODUCTS.find(p => p.id === id))){ showToast('This item has no price yet.', null, 'info'); return; }
   if (!getSession()){
     showToast('Please log in to place your order', null, 'info');
     openLogin();
@@ -2441,6 +2460,7 @@ function flyToCart(fromRect, btn, done){
 
 function addToCart(id, qty, fromRect){
   if (CART_MAINTENANCE){ cartMaintenanceNotice(); return; }
+  if (!hasPrice(PRODUCTS.find(p => p.id === id))){ showToast('This item has no price yet, so it can\'t be added to the cart.', null, 'info'); return; }
   qty = qty || 1;
   state.cart[id] = (state.cart[id] || 0) + qty;
   delete state.pendingQty[id];
@@ -2470,6 +2490,7 @@ function addToCart(id, qty, fromRect){
 
 function changeQty(id, delta){
   if (CART_MAINTENANCE && delta > 0){ cartMaintenanceNotice(); return; }
+  if (delta > 0 && !hasPrice(PRODUCTS.find(p => p.id === id))) return;
   const next = (state.cart[id] || 0) + delta;
   if (next <= 0) { delete state.cart[id]; }
   else { state.cart[id] = next; }
@@ -5006,8 +5027,10 @@ function syncProductsFromServer(){
           if (p[k] !== r[k]){ p[k] = r[k]; structural = true; }
         });
         if (r.img && p.img !== r.img){ p.img = r.img; structural = true; }
+        if (!!p.isNew !== !!r.isNew){ p.isNew = !!r.isNew; structural = true; }
+        if ((p.sub || '') !== (r.sub || '')){ p.sub = r.sub || ''; structural = true; }
       } else {
-        PRODUCTS.push({ id:r.id, name:r.name, cat:r.cat, icon:r.icon, pack:r.pack, unit:r.unit, price:r.price, stock:r.stock, img:r.img });
+        PRODUCTS.push({ id:r.id, name:r.name, cat:r.cat, icon:r.icon, pack:r.pack, unit:r.unit, price:r.price, stock:r.stock, img:r.img, isNew:!!r.isNew, sub:r.sub || '' });
         structural = true;
       }
     });
@@ -5015,6 +5038,13 @@ function syncProductsFromServer(){
     for (var i = PRODUCTS.length - 1; i >= 0; i--){
       if (!seen[PRODUCTS[i].id]){ PRODUCTS.splice(i, 1); structural = true; }
     }
+    // a product whose price was set back to 0 can't stay in the cart
+    var droppedNoPrice = false;
+    Object.keys(state.cart).forEach(function(id){
+      var cp = PRODUCTS.find(x=> x.id === id);
+      if (!cp || !hasPrice(cp)){ delete state.cart[id]; droppedNoPrice = true; }   // gone (hidden / code changed) or no price
+    });
+    if (droppedNoPrice){ saveCart(); updateCartUI(); }
     if (structural){
       renderCategoryNav();
       renderProducts();
@@ -5037,6 +5067,14 @@ function applySiteConfig(cfg){
     const m = cfg.male_islands.map(String);
     if (m.join('|') !== MALE_ISLANDS.join('|')){ MALE_ISLANDS = m; islands = true; }
   }
+  let badge = false;
+  if (typeof cfg.new_arrival_label === 'string' && cfg.new_arrival_label.trim() && cfg.new_arrival_label.trim() !== NEW_ARRIVAL_LABEL){
+    NEW_ARRIVAL_LABEL = cfg.new_arrival_label.trim().slice(0, 30); badge = true;
+  }
+  if (typeof cfg.new_arrival_color === 'string' && /^#[0-9a-f]{6}$/i.test(cfg.new_arrival_color.trim()) && cfg.new_arrival_color.trim() !== NEW_ARRIVAL_COLOR){
+    NEW_ARRIVAL_COLOR = cfg.new_arrival_color.trim(); applyNewArrivalStyle();
+  }
+  if (badge){ renderProducts(); renderPopularProducts(); }
   const f = Number(cfg.free_delivery_over_mvr);
   if (cfg.free_delivery_over_mvr != null && isFinite(f)) HERO_SLIDES[0].title = 'Free delivery on orders over MVR ' + f;
   if (money) refreshVisibleCurrency();
@@ -5051,6 +5089,7 @@ function init(){
   renderProductsLoading(520);
   renderPopularProducts();
   initFlashSale();
+  applyNewArrivalStyle();
   if (window.MaziSite) MaziSite.on(applySiteConfig);
   syncCurrencyToggleUI();
   updateCartUI();
